@@ -1,0 +1,318 @@
+---
+--
+-- Main architecture.
+-- * All function with callback - callback is last argument.
+-- * In callback first argument is object. It could be loop or specific object(e.g. file).
+-- * Second argument is error object or nil.
+-- * loop parameter could be omit in constructors.
+--    uv.XXX(loop, ...) - correct
+--    uv.XXX(...) - correct loop is uv.default_loop()
+--    uv.XXX(nil, ...) - loop is uv.default_loop(), but first parameter in ctor is nil
+--
+-- @module lluv
+do
+
+---
+--
+function run                        () end
+
+---
+--
+function now                        () end
+
+---
+--
+function default_loop               () end
+
+end
+
+-- fs submodule
+do
+
+---
+--
+function fs_unlink                  () end
+
+---
+--
+function fs_mkdtemp                 () end
+
+---
+--
+function fs_mkdir                   () end
+
+---
+--
+function fs_rmdir                   () end
+
+---
+--
+function fs_readdir                 () end
+
+---
+--
+function fs_stat                    () end
+
+---
+--
+function fs_lstat                   () end
+
+---
+--
+function fs_rename                  () end
+
+---
+--
+function fs_chmod                   () end
+
+---
+--
+function fs_utime                   () end 
+
+---
+--
+function fs_symlink                 () end
+
+---
+--
+function fs_readlink                () end
+
+---
+--
+function fs_chown                   () end
+
+---
+--
+function fs_open                    () end
+
+end
+
+--- lluv error object
+-- @type uv_error
+--
+do
+
+--- Get the error category.
+-- 
+-- @treturn number number of error category (uv.ERROR_XXX constants e.g. uv.ERROR_UV)
+--
+function category                   () end
+
+--- Get the number value of error.
+-- 
+-- @treturn number number of error (uv.EXXX constants e.g. uv.EOF)
+function no                         () end
+
+--- Get the error name.
+--
+-- @treturn string error name (e.g. "EOF")
+function name                       () end
+
+--- Get the error description.
+-- 
+-- @treturn string error description (e.g. "Login denied")
+function msg                        () end
+
+--- Get the extinsion information about error.
+-- This field e.g. contains file path for fs_xxx function.
+--
+-- @treturn string error information
+function ext                        () end
+
+--- Get the full error description.
+--
+-- @treturn string string that contain name, message and number of error
+function __tostring                 () end
+
+end
+
+--- lluv fixed buffer
+-- @type uv_fbuffer
+--
+do
+
+---
+--
+function free                       () end
+
+---
+--
+function to_s                       () end
+
+---
+--
+function to_p                       () end
+
+---
+--
+function size                       () end
+
+end
+
+--- lluv file object
+-- @type uv_file
+--
+do
+
+---
+--
+function loop                       () end
+
+---
+--
+function stat                       () end
+
+---
+--
+function sync                       () end
+
+---
+--
+function datasync                   () end
+
+---
+--
+function truncate                   () end
+
+---
+--
+function close                      () end
+
+---
+--
+function chown                      () end
+
+---
+--
+function chmod                      () end
+
+---
+--
+function utime                      () end
+
+---
+--
+function read                       () end
+
+---
+--
+function write                      () end
+
+end
+
+--- lluv loop type
+-- @type uv_loop
+--
+do
+
+---
+--
+function run        ()end
+
+---
+--
+function close      ()end
+
+---
+--
+function alive      ()end
+
+---
+--
+function stop       ()end
+
+---
+--
+function now        ()end
+
+---
+--
+function walk       ()end
+
+end
+
+--- lluv file handle
+-- @type uv_handle
+--
+do
+
+---
+--
+function loop                       () end
+
+---
+--
+function close                      () end
+
+---
+--
+function ref                        () end
+
+---
+--
+function unref                      () end
+
+---
+--
+function has_ref                    () end
+
+---
+--
+function is_active                  () end
+
+---
+--
+function is_closing                 () end
+
+---
+--
+function send_buffer_size           () end
+
+---
+--
+function recv_buffer_size           () end
+
+---
+--
+function fileno                     () end
+
+end
+
+--- lluv idle handle
+-- @type uv_idle
+--
+do
+
+---
+--
+function start                      () end
+
+---
+--
+function stop                       () end
+
+end
+
+--- lluv timer handle
+-- @type uv_timer
+--
+do
+
+---
+--
+function start                      () end
+
+---
+--
+function stop                       () end
+
+---
+--
+function set_repeat                 () end
+
+---
+--
+function get_repeat                 () end
+
+end
+
