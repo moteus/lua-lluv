@@ -29,60 +29,111 @@ end
 -- fs submodule
 do
 
----
+--- Remove the specified file.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path file to unlink
+-- @tparam[opt] function callback(loop, err, path)
 function fs_unlink                  () end
 
----
+--- Create the temporary directory.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path directory template name to create
+-- @tparam[opt] function callback(loop, err, path)
 function fs_mkdtemp                 () end
 
----
+--- Create the specified directory.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path directory to create
+-- @tparam[opt] function callback(loop, err, path)
 function fs_mkdir                   () end
 
----
+--- Remove the specified directory.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path directory to remove
+-- @tparam[opt] function callback(loop, err, path)
 function fs_rmdir                   () end
 
----
+--- List files from a directory.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path directory to list
+-- @tparam[opt] function callback(loop, err, path, files)
 function fs_readdir                 () end
 
----
+--- Crossplatform file stat.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path file to stat
+-- @tparam[opt] function callback(loop, err, path)
 function fs_stat                    () end
 
----
+--- Crossplatform link stat.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path link to stat
+-- @tparam[opt] function callback(loop, err, path)
 function fs_lstat                   () end
 
----
+--- Rename file.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path original file
+-- @tparam string new_path new name for the file
+-- @tparam[opt] function callback(loop, err, path)
 function fs_rename                  () end
 
----
+--- Change file permissions.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path file which permissions will be changed
+-- @tparam number mode file permissions (e.g. 0755)
+-- @tparam[opt] function callback(loop, err, path)
 function fs_chmod                   () end
 
----
+--- Update file timestamps.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path file which times will be changed
+-- @tparam number atime new accessed time
+-- @tparam number mtime new modified time
+-- @tparam[opt] function callback(loop, err, path)
 function fs_utime                   () end 
 
----
+--- Create a symlink.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path original file
+-- @tparam string new_path name for the symlink
+-- @tparam[opt] flags 
+-- @tparam[opt] function callback(loop, err, path)
 function fs_symlink                 () end
 
----
+--- Read link file and return the original file path.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path link name
+-- @tparam[opt] function callback(loop, err, path)
 function fs_readlink                () end
 
----
+--- Changes ownership of a file.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path original file
+-- @tparam number uid User ID
+-- @tparam number gid GroupID
 function fs_chown                   () end
 
----
+--- Open file.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path original file
+-- @tparam string mode for opening the file (e.g. "w+b")
+-- @tparam[opt] number flags flags for opening the file
+-- @tparam[opt] function callback(file, err, path)
 function fs_open                    () end
 
 end

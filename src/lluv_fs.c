@@ -215,6 +215,7 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_READDIR:{
       uv_dirent_t ent;
       int i = 0, err;
+      lua_pushstring(L, req->path);
       lua_createtable(L, (int)req->result, 0);
       while((err = uv_fs_readdir_next(req, &ent)) >= 0){
         lua_createtable(L, 2, 0);
@@ -222,7 +223,7 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
           lutil_pushint64(L, ent.type); lua_rawseti(L, -2, 2);
         lua_rawseti(L, -2, ++i);
       }
-      return 1;
+      return 2;
     }
 
     default:
