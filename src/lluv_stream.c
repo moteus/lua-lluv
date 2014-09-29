@@ -127,7 +127,7 @@ static int lluv_stream_listen(lua_State *L){
   lluv_check_args_with_cb(L, 3);
   LLUV_CONNECTION_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_listen((uv_stream_t*)handle->handle, backlog, lluv_on_stream_shutdown_cb);
+  err = uv_listen((uv_stream_t*)handle->handle, backlog, lluv_on_stream_connection_cb);
   if(err < 0){
     return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
   }

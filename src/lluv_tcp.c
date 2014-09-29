@@ -99,7 +99,7 @@ static int lluv_tcp_bind(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_tcp_methods[] = {
-  { "bind",    lluv_tcp_connect },
+  { "bind",    lluv_tcp_bind    },
   { "connect", lluv_tcp_connect },
 
   {NULL,NULL}
