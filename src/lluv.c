@@ -18,6 +18,7 @@
 #include "lluv_fbuf.h"
 #include "lluv_handle.h"
 #include "lluv_stream.h"
+#include "lluv_tcp.h"
 
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
@@ -46,6 +47,7 @@ int luaopen_lluv(lua_State *L){
   lua_pushvalue(L, -2); lluv_timer_initlib  (L, 1);
   lua_pushvalue(L, -2); lluv_fbuf_initlib   (L, 1);
   lua_pushvalue(L, -2); lluv_idle_initlib   (L, 1);
+  lua_pushvalue(L, -2); lluv_tcp_initlib    (L, 1);
   
   lua_remove(L, -2); /* registry */
 

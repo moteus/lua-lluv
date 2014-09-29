@@ -14,6 +14,7 @@
 #include "lluv_idle.h"
 #include "lluv_loop.h"
 #include "lluv_error.h"
+#include "lluv_tcp.h"
 #include <assert.h>
 
 static int lluv_handle_dispatch(lua_State *L){
@@ -24,6 +25,7 @@ static int lluv_handle_dispatch(lua_State *L){
     case UV_HANDLE: return lluv_handle_index(L);
     case UV_IDLE:   return lluv_idle_index(L);
     case UV_TIMER:  return lluv_timer_index(L);
+    case UV_TCP:    return lluv_tcp_index(L);
   }
   return 0;
 }
@@ -63,27 +65,6 @@ LLUV_INTERNAL uv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type,
   size_t cb = lluv_handle_cb_count(type), size = uv_handle_size(type);
   size_t i = 0;
   lluv_handle_t *handle;
-  int ltype;
-
-  switch(type){
-    case UV_HANDLE     : ltype = LLUV_TYPE_HANDLE; break;
-    case UV_IDLE       : ltype = LLUV_TYPE_IDLE;   break;
-    case UV_TIMER      : ltype = LLUV_TYPE_TIMER;  break;
-    case UV_ASYNC      :
-    case UV_CHECK      :
-    case UV_FS_EVENT   :
-    case UV_FS_POLL    :
-    case UV_NAMED_PIPE :
-    case UV_POLL       :
-    case UV_PREPARE    :
-    case UV_PROCESS    :
-    case UV_STREAM     :
-    case UV_TCP        :
-    case UV_TTY        :
-    case UV_UDP        :
-    case UV_SIGNAL     :
-    default: return 0;
-  }
 
   handle = lutil_newudatap_impl(L, sizeof(lluv_handle_t) + (sizeof(int) * (cb-1)), LLUV_HANDLE);
 
@@ -92,7 +73,6 @@ LLUV_INTERNAL uv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type,
 
   handle->L      = L;
   handle->flags  = flags | LLUV_FLAG_OPEN;
-  handle->type   = ltype;
   handle->handle->data = handle;
   for(i = 0; i < cb; ++i){
     handle->callbacks[i] = LUA_NOREF;

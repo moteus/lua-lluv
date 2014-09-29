@@ -8,15 +8,11 @@
 * This file is part of lua-lluv library.
 ******************************************************************************/
 
-#ifndef _LLUV_STREAM_H_
-#define _LLUV_STREAM_H_
+#ifndef _LLUV_TCP_H_
+#define _LLUV_TCP_H_
 
-LLUV_INTERNAL void lluv_stream_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_tcp_initlib(lua_State *L, int nup);
 
-LLUV_INTERNAL int lluv_stream_index(lua_State *L);
-
-LLUV_INTERNAL uv_handle_t* lluv_stream_create(lua_State *L, uv_handle_type type);
-
-LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags_t flags);
+LLUV_INTERNAL int lluv_tcp_index(lua_State *L);
 
 #endif

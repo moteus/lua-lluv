@@ -11,11 +11,6 @@
 #ifndef _LLUV_HANDLE_H_
 #define _LLUV_HANDLE_H_
 
-#define LLUV_TYPE_HANDLE 0
-#define LLUV_TYPE_IDLE   1
-#define LLUV_TYPE_TIMER  2
-#define LLUV_TYPE_LAST   2 /*NO USE*/
-
 #define LLUV_CLOSE_CB(H) H->callbacks[0]
 #define LLUV_START_CB(H) H->callbacks[1]
 #define LLUV_READ_CB(H)  H->callbacks[2]
@@ -27,7 +22,6 @@ typedef struct lluv_handle_tag{
   uv_handle_t *handle;
   lua_State   *L;
   lluv_flags_t flags;
-  unsigned char type;
   int    callbacks[1];
 } lluv_handle_t;
 
