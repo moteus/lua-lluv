@@ -209,6 +209,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_stream.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_timer.c"
 				>
 			</File>
@@ -248,6 +252,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_loop.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_stream.h"
 				>
 			</File>
 			<File

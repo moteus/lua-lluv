@@ -17,6 +17,7 @@
 #include "lluv_fs.h"
 #include "lluv_fbuf.h"
 #include "lluv_handle.h"
+#include "lluv_stream.h"
 
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
@@ -41,6 +42,7 @@ int luaopen_lluv(lua_State *L){
   lua_pushvalue(L, -2); lluv_loop_initlib   (L, 1);
   lua_pushvalue(L, -2); lluv_fs_initlib     (L, 1);
   lua_pushvalue(L, -2); lluv_handle_initlib (L, 1);
+  lua_pushvalue(L, -2); lluv_stream_initlib (L, 1);
   lua_pushvalue(L, -2); lluv_timer_initlib  (L, 1);
   lua_pushvalue(L, -2); lluv_fbuf_initlib   (L, 1);
   lua_pushvalue(L, -2); lluv_idle_initlib   (L, 1);

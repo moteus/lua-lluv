@@ -31,8 +31,8 @@ static int lluv_timer_create(lua_State *L){
 }
 
 static lluv_handle_t* lluv_check_timer(lua_State *L, int idx, lluv_flags_t flags){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
-  luaL_argcheck (L, handle->handle->type == UV_TIMER, 1, LLUV_TIMER_NAME" expected");
+  lluv_handle_t *handle = lluv_chek_handle(L, idx, LLUV_FLAG_OPEN);
+  luaL_argcheck (L, handle->handle->type == UV_TIMER, idx, LLUV_TIMER_NAME" expected");
 
   luaL_argcheck (L, FLAGS_IS_SET(handle, flags), idx, LLUV_TIMER_NAME" closed");
   return handle;
