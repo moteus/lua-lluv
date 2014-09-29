@@ -58,9 +58,7 @@ static int lluv_timer_start(lua_State *L){
   uint64_t timeout, repeat;
   int err;
 
-  lluv_check_none(L, 5);
-  lluv_check_callable(L, -1);
-
+  lluv_check_args_with_cb(L, 4);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   if(lua_gettop(L) > 1){

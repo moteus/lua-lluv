@@ -90,25 +90,24 @@ static int lluv_tcp_connect(lua_State *L){
   lua_Integer port = luaL_checkint(L, 3);
   lluv_connect_t *req;
   struct sockaddr_storage sa;
-  int err;
+  int err = lluv_to_addr(L, addr, port, &sa);
   
-  err = uv_ip4_addr(addr, port, (struct sockaddr_in*)&sa);
   if(err < 0){
-    err = uv_ip6_addr(addr, port, (struct sockaddr_in6*)&sa);
-    if(err < 0){
-      return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
-    }
+    lua_settop(L, 3);
+    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  lluv_check_none(L, 5);
-  lluv_check_callable(L, -1);
+  lluv_check_args_with_cb(L, 4);
 
   req = lluv_connect_new(L, handle);
   req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_tcp_connect(&req->req, (uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, lluv_on_tcp_connect_cb);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    lua_settop(L, 3);
+    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
   lua_settop(L, 1);

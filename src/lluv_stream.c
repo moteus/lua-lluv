@@ -74,9 +74,7 @@ static int lluv_stream_start_read(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   int err;
 
-  lluv_check_none(L, 3);
-  lluv_check_callable(L, -1);
-
+  lluv_check_args_with_cb(L, 2);
   LLUV_READ_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_read_start((uv_stream_t*)handle->handle, lluv_alloc_buffer_cb, lluv_on_stream_read_cb);
@@ -91,6 +89,7 @@ static int lluv_stream_start_read(lua_State *L){
 static int lluv_stream_stop_read(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   int err;
+
   lluv_check_none(L, 2);
 
   err = uv_read_stop((uv_stream_t*)handle->handle);

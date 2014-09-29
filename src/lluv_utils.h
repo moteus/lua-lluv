@@ -36,9 +36,17 @@ LLUV_INTERNAL void lluv_check_callable(lua_State *L, int idx);
 
 LLUV_INTERNAL void lluv_check_none(lua_State *L, int idx);
 
+/*
+ Check if last argument is callback 
+ and maximum number of arguments
+*/
+LLUV_INTERNAL void lluv_check_args_with_cb(lua_State *L, int n);
+
 LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t *buf);
 
 LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* handle, const uv_buf_t *buf);
+
+LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa);
 
 typedef unsigned char lluv_flag_t;
 

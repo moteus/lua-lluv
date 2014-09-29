@@ -57,9 +57,7 @@ static int lluv_idle_start(lua_State *L){
   lluv_handle_t *handle = lluv_check_idle(L, 1, LLUV_FLAG_OPEN);
   int err;
 
-  lluv_check_none(L, 3);
-  lluv_check_callable(L, -1);
-
+  lluv_check_args_with_cb(L, 2);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_idle_start((uv_idle_t*)handle->handle, lluv_on_idle_start);

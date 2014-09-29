@@ -63,6 +63,11 @@ LLUV_INTERNAL void lluv_check_none(lua_State *L, int idx){
   luaL_argcheck (L, lua_isnone(L, idx), idx, "too many parameters");
 }
 
+LLUV_INTERNAL void lluv_check_args_with_cb(lua_State *L, int n){
+  lluv_check_none(L, n + 1);
+  lluv_check_callable(L, -1);
+}
+
 static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
   lluv_handle_t *handle = h->data;
   lluv_loop_t *loop;
@@ -93,3 +98,16 @@ LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
   // *buf = uv_buf_init(0, 0);
 }
 
+LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa){
+  int err;
+
+  UNUSED_ARG(L);
+
+  memset(sa, 0, sizeof(*sa));
+
+  err = uv_ip4_addr(addr, port, (struct sockaddr_in*)sa);
+  if(err < 0){
+    err = uv_ip6_addr(addr, port, (struct sockaddr_in6*)sa);
+  }
+  return err;
+}
