@@ -15,6 +15,8 @@
 #include "lluv_error.h"
 #include <assert.h>
 
+LLUV_IMPLEMENT_XXX_REQ(shutdown)
+
 #define LLUV_STREAM_NAME LLUV_PREFIX" Stream"
 static const char *LLUV_STREAM = LLUV_STREAM_NAME;
 
@@ -36,6 +38,101 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags
   luaL_argcheck (L, FLAGS_IS_SET(handle, flags), idx, LLUV_STREAM_NAME" closed");
   return handle;
 }
+
+//{ Shutdown
+
+static void lluv_on_stream_shutdown_cb(uv_shutdown_t* arg, int status){
+  lluv_shutdown_t *req  = arg->data;
+  lluv_handle_t *handle = req->handle;
+  lua_State *L = handle->L;
+
+  if(!IS_(handle, OPEN)){
+    lluv_shutdown_free(L, req);
+    return;
+  }
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+  lluv_shutdown_free(L, req);
+
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  if(status >= 0) lua_pushnil(L);
+  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+
+  lluv_lua_call(L, 2, 0);
+}
+
+static int lluv_stream_shutdown(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  lluv_shutdown_t *req;
+  int err;
+
+  lluv_check_args_with_cb(L, 2);
+
+  req = lluv_shutdown_new(L, handle);
+  req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);
+
+  err = uv_shutdown(&req->req, (uv_stream_t*)handle->handle, lluv_on_stream_shutdown_cb);
+  if(err < 0){
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+//}
+
+//{ Listen
+
+static void lluv_on_stream_connection_cb(uv_stream_t* arg, int status){
+  lluv_handle_t *handle = arg->data;
+  lua_State *L = handle->L;
+
+  if(!IS_(handle, OPEN)){
+    return;
+  }
+
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CONNECTION_CB(handle));
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  if(status >= 0) lua_pushnil(L);
+  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+
+  lluv_lua_call(L, 2, 0);
+}
+
+static int lluv_stream_listen(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  int backlog = luaL_checkint(L, 2);
+  int err;
+
+  lluv_check_args_with_cb(L, 3);
+  LLUV_CONNECTION_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
+
+  err = uv_listen((uv_stream_t*)handle->handle, backlog, lluv_on_stream_shutdown_cb);
+  if(err < 0){
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_stream_accept(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t  *dst    = lluv_check_stream(L, 2, LLUV_FLAG_OPEN);
+  int err;
+  lua_settop(L, 2);
+
+  err = uv_accept((uv_stream_t*)handle->handle, (uv_stream_t*)dst->handle);
+  if(err < 0){
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  return 1;
+}
+
+//}
+
+//{ Read
 
 static void lluv_on_stream_read_cb(uv_stream_t* arg, int nread, const uv_buf_t* buf){
   lluv_handle_t *handle = arg->data;
@@ -104,7 +201,12 @@ static int lluv_stream_stop_read(lua_State *L){
   return 1;
 }
 
+//}
+
 static const struct luaL_Reg lluv_stream_methods[] = {
+  { "shutdown",   lluv_stream_shutdown   },
+  { "listen",     lluv_stream_listen     },
+  { "accept",     lluv_stream_accept     },
   { "start_read", lluv_stream_start_read },
   { "stop_read",  lluv_stream_start_read },
 

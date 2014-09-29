@@ -16,27 +16,7 @@
 #include "lluv_error.h"
 #include <assert.h>
 
-
-typedef struct lluv_connect_tag{
-  uv_connect_t  req;
-  lluv_handle_t *handle;
-  int           cb;
-}lluv_connect_t;
-
-lluv_connect_t *lluv_connect_new(lua_State *L, lluv_handle_t *h){
-  lluv_connect_t *req = lluv_alloc_t(L, lluv_connect_t);
-  assert(L == h->L);
-  req->req.data = req;
-  req->handle   = h;
-  req->cb       = LUA_NOREF;
-  return req;
-}
-
-void lluv_connect_free(lua_State *L, lluv_connect_t *req){
-  if(req->cb != LUA_NOREF)
-    luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_free_t(L, lluv_connect_t, req);
-}
+LLUV_IMPLEMENT_XXX_REQ(connect)
 
 #define LLUV_TCP_NAME LLUV_PREFIX" tcp"
 static const char *LLUV_TCP = LLUV_TCP_NAME;
@@ -65,6 +45,7 @@ static lluv_handle_t* lluv_check_tcp(lua_State *L, int idx, lluv_flags_t flags){
   return handle;
 }
 
+//! @check move callback to handle module
 static void lluv_on_tcp_connect_cb(uv_connect_t* arg, int status){
   lluv_connect_t *req = arg->data;
   lluv_handle_t *handle = req->handle;

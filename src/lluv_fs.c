@@ -27,7 +27,7 @@ typedef struct lluv_fs_request_tag{
   int file_ref;
 }lluv_fs_request_t;
 
-lluv_fs_request_t *lluv_fs_request_new(lua_State *L){
+static lluv_fs_request_t *lluv_fs_request_new(lua_State *L){
   lluv_fs_request_t *req = lluv_alloc_t(L, lluv_fs_request_t);
   req->L        = L;
   req->req.data = req;
@@ -35,7 +35,7 @@ lluv_fs_request_t *lluv_fs_request_new(lua_State *L){
   return req;
 }
 
-void lluv_fs_request_free(lua_State *L, lluv_fs_request_t *req){
+static void lluv_fs_request_free(lua_State *L, lluv_fs_request_t *req){
   if(req->cb != LUA_NOREF)
     luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);
   if(req->file_ref != LUA_NOREF)
