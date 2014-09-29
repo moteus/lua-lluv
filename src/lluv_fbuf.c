@@ -21,8 +21,12 @@ static const char *LLUV_FIXEDBUFFER = LLUV_FIXEDBUFFER_NAME;
 LLUV_INTERNAL lluv_fixed_buffer_t *lluv_fbuf_alloc(lua_State *L, size_t n){
   lluv_fixed_buffer_t *buffer = (lluv_fixed_buffer_t*)lutil_newudatap_impl(L, sizeof(lluv_fixed_buffer_t) + n - 1, LLUV_FIXEDBUFFER);
   buffer->capacity = n;
-  lua_pushvalue(L, -1);
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, &buffer->data[0]);
+  
+  // this prevent GC so user shoul do this explicitly
+  // but we remove ref in close method
+  //
+  // lua_pushvalue(L, -1);
+  // lua_rawsetp(L, LLUV_LUA_REGISTRY, &buffer->data[0]);
   return buffer;
 }
 
