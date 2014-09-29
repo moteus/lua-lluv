@@ -16,8 +16,6 @@
 #include "lluv_error.h"
 #include <assert.h>
 
-LLUV_IMPLEMENT_XXX_REQ(connect)
-
 #define LLUV_TCP_NAME LLUV_PREFIX" tcp"
 static const char *LLUV_TCP = LLUV_TCP_NAME;
 
@@ -45,26 +43,6 @@ static lluv_handle_t* lluv_check_tcp(lua_State *L, int idx, lluv_flags_t flags){
   return handle;
 }
 
-//! @check move callback to handle module
-static void lluv_on_tcp_connect_cb(uv_connect_t* arg, int status){
-  lluv_connect_t *req = arg->data;
-  lluv_handle_t *handle = req->handle;
-  lua_State *L = handle->L;
-
-  if(!IS_(handle, OPEN)){
-    lluv_connect_free(L, req);
-    return;
-  }
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_connect_free(L, req);
-
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
-
-  lluv_lua_call(L, 2, 0);
-}
-
 static int lluv_tcp_connect(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   const char *addr = luaL_checkstring(L, 2);
@@ -82,9 +60,8 @@ static int lluv_tcp_connect(lua_State *L){
   lluv_check_args_with_cb(L, 4);
 
   req = lluv_connect_new(L, handle);
-  req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_tcp_connect(&req->req, (uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, lluv_on_tcp_connect_cb);
+  err = uv_tcp_connect((uv_connect_t*)req, (uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
@@ -95,9 +72,35 @@ static int lluv_tcp_connect(lua_State *L){
   return 1;
 }
 
+static int lluv_tcp_bind(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  const char *addr  = luaL_checkstring(L, 2);
+  lua_Integer port  = luaL_checkint(L, 3);
+  lua_Integer flags = luaL_optint(L, 4, 0);
+  struct sockaddr_storage sa;
+  int err = lluv_to_addr(L, addr, port, &sa);
+
+  lua_settop(L, 3);
+
+  if(err < 0){
+    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
+  }
+
+  err = uv_tcp_bind((uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, flags);
+  if(err < 0){
+    lua_settop(L, 3);
+    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
 
 static const struct luaL_Reg lluv_tcp_methods[] = {
-  {"connect", lluv_tcp_connect},
+  { "bind",    lluv_tcp_connect },
+  { "connect", lluv_tcp_connect },
 
   {NULL,NULL}
 };

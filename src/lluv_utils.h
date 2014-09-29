@@ -49,7 +49,7 @@ LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* handle, const uv_buf_t *buf);
 LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa);
 
 
-#define LLUV_IMPLEMENT_XXX_REQ(R)                                                 \
+#define LLUV_IMPLEMENT_XXX_REQ(R, M)                                              \
                                                                                   \
 typedef struct lluv_##R##_tag{                                                    \
   uv_##R##_t  req;                                                                \
@@ -57,16 +57,16 @@ typedef struct lluv_##R##_tag{                                                  
   int           cb;                                                               \
 }lluv_##R##_t;                                                                    \
                                                                                   \
-static lluv_##R##_t *lluv_##R##_new(lua_State *L, lluv_handle_t *h){              \
+M lluv_##R##_t *lluv_##R##_new(lua_State *L, lluv_handle_t *h){                   \
   lluv_##R##_t *req = lluv_alloc_t(L, lluv_##R##_t);                              \
   assert(L == h->L);                                                              \
   req->req.data = req;                                                            \
   req->handle   = h;                                                              \
-  req->cb       = LUA_NOREF;                                                      \
+  req->cb       = luaL_ref(L, LLUV_LUA_REGISTRY);                                 \
   return req;                                                                     \
 }                                                                                 \
                                                                                   \
-static void lluv_##R##_free(lua_State *L, lluv_##R##_t *req){                     \
+M void lluv_##R##_free(lua_State *L, lluv_##R##_t *req){                          \
   if(req->cb != LUA_NOREF)                                                        \
   luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);                                      \
   lluv_free_t(L, lluv_##R##_t, req);                                              \
