@@ -18,6 +18,7 @@
 
 #define LLUV_CLOSE_CB(H) H->callbacks[0]
 #define LLUV_START_CB(H) H->callbacks[1]
+#define LLUV_READ_CB(H)  H->callbacks[2]
 
 #include "lluv.h"
 #include "lluv_utils.h"

@@ -36,6 +36,10 @@ LLUV_INTERNAL void lluv_check_callable(lua_State *L, int idx);
 
 LLUV_INTERNAL void lluv_check_none(lua_State *L, int idx);
 
+LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t *buf);
+
+LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* handle, const uv_buf_t *buf);
+
 typedef unsigned char lluv_flag_t;
 
 #define lluv_flags_t unsigned char

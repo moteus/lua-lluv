@@ -11,6 +11,8 @@
 #include "lluv.h"
 #include "lluv_error.h"
 #include "lluv_loop.h"
+#include "lluv_handle.h"
+#include "lluv_loop.h"
 #include <assert.h>
 
 const char *LLUV_MEMORY_ERROR_MARK = LLUV_PREFIX" Error mark";
@@ -60,3 +62,34 @@ LLUV_INTERNAL void lluv_check_none(lua_State *L, int idx){
   idx = lua_absindex(L, idx);
   luaL_argcheck (L, lua_isnone(L, idx), idx, "too many parameters");
 }
+
+static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
+  lluv_handle_t *handle = h->data;
+  lluv_loop_t *loop;
+  lua_rawgetp(handle->L, LLUV_LUA_REGISTRY, handle->handle->loop);
+  loop = lluv_check_loop(handle->L, -1, LLUV_FLAG_OPEN);
+  lua_pop(handle->L, 1);
+
+  return loop;
+}
+
+LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf){
+  lluv_loop_t* loop     = lluv_loop_by_handle(h);
+  lluv_handle_t *handle = h->data;
+
+  UNUSED_ARG(loop);
+
+  //! @todo 
+  *buf = uv_buf_init(lluv_alloc(handle->L, suggested_size), suggested_size);
+}
+
+LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
+  lluv_loop_t* loop     = lluv_loop_by_handle(h);
+  lluv_handle_t *handle = h->data;
+
+  UNUSED_ARG(loop);
+
+  lluv_free(handle->L, &buf->base[0]);
+  // *buf = uv_buf_init(0, 0);
+}
+
