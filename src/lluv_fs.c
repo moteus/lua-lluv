@@ -560,8 +560,17 @@ static lluv_file_t *lluv_check_file(lua_State *L, int i, lluv_flags_t flags){
   lluv_file_t *f = (lluv_file_t *)lutil_checkudatap (L, i, LLUV_FILE);
   luaL_argcheck (L, f != NULL, i, LLUV_FILE_NAME" expected");
 
-  luaL_argcheck (L, FLAGS_IS_SET(f, flags), i, LLUV_FILE_NAME" closed");
+  /* loop could be closed already */
+  if(!IS_(f->loop, OPEN)){
+    if(IS_(f,OPEN)){
+      lluv_fs_request_t *req = lluv_fs_request_new(L);
+      UNSET_(f,OPEN);
+      uv_fs_close(NULL, &req->req, f->handle, NULL);
+      lluv_fs_request_free(L, req);
+    }
+  }
 
+  luaL_argcheck (L, FLAGS_IS_SET(f, flags), i, LLUV_FILE_NAME" closed");
   return f;
 }
 
@@ -575,10 +584,10 @@ static int lluv_file_close(lua_State *L){
   lluv_file_t *f = lluv_check_file(L, 1, 0);
   lluv_loop_t *loop = f->loop;
 
-  if(f->flags | LLUV_FLAG_OPEN){
+  if(IS_(f, OPEN)){
     const char  *path = NULL;
     int          argc = 1;
-    f->flags &= ~LLUV_FLAG_OPEN;
+    UNSET_(f, OPEN);
 
     LLUV_PRE_FS();
     err = uv_fs_close(loop->handle, &req->req, f->handle, cb);

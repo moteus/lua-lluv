@@ -80,10 +80,6 @@ static int lluv_loop_new(lua_State *L){
   return 1;
 }
 
-static int on_close_handle(lua_State *L){
-  return 0;
-}
-
 static void lluv_loop_on_walk_close(uv_handle_t* handle, void* arg){
   lua_State *L = (lua_State*)arg;
   if(uv_is_closing(handle)) return;
@@ -99,11 +95,14 @@ static void lluv_loop_on_walk_close(uv_handle_t* handle, void* arg){
   if(lua_isnil(L, -1)){lua_pop(L, 2); return; }
 
   lua_insert(L, -2);
-  lua_pushcfunction(L, on_close_handle);
-  lua_pcall(L, 2, 0, 0);
+  lua_pcall(L, 1, 0, 0);
 }
 
 static int lluv_loop_close_all_handles(lua_State *L){
+  /* NOTE. if you have fs callbacks then this function
+  ** would call all this function because there no handles.
+  */
+
   lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
   lua_State *arg = L;
   int err = 0;
