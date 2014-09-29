@@ -18,10 +18,6 @@
 #define LLUV_LUA_REGISTRY lua_upvalueindex(1)
 #define LLUV_LOOP_INDEX   lua_upvalueindex(2)
 
-#define LLUV_FLAG_OPEN         (lluv_flags_t)1 << 0
-
-#define LLUV_FLAG_DONT_DESTROY (lluv_flags_t)1 << 1
-
 extern const char *LLUV_MEMORY_ERROR_MARK;
 
 LLUV_INTERNAL void* lluv_alloc(lua_State* L, size_t size);
@@ -48,7 +44,10 @@ typedef unsigned char lluv_flag_t;
 #define LLUV_FLAG_1  (lluv_flags_t)1<<1
 #define LLUV_FLAG_2  (lluv_flags_t)1<<2
 #define LLUV_FLAG_3  (lluv_flags_t)1<<3
-#define LLUV_FLAG_4  (lluv_flags_t)1<<3
+#define LLUV_FLAG_4  (lluv_flags_t)1<<4
+#define LLUV_FLAG_5  (lluv_flags_t)1<<5
+#define LLUV_FLAG_6  (lluv_flags_t)1<<6
+#define LLUV_FLAG_7  (lluv_flags_t)1<<7
 
 /*At least one flag*/
 #define FLAG_IS_SET(O, F) (O->flags & (lluv_flags_t)(F))
@@ -57,6 +56,18 @@ typedef unsigned char lluv_flag_t;
 
 #define FLAG_SET(O, F)    O->flags |= (lluv_flags_t)(F)
 #define FLAG_UNSET(O, F)  O->flags &= ~((lluv_flags_t)(F))
+
+#define IS_(O, F)    FLAG_IS_SET(O, LLUV_FLAG_##F)
+#define SET_(O, F)   FLAG_SET(O,    LLUV_FLAG_##F)
+#define UNSET_(O, F) FLAG_UNSET(O,  LLUV_FLAG_##F)
+
+#define IS(O, F)     FLAG_IS_SET(O, F)
+#define SET(O, F)    FLAG_SET(O, F)
+#define UNSET(O, F)  FLAG_UNSET(O, F)
+
+#define LLUV_FLAG_OPEN         LLUV_FLAG_0
+#define LLUV_FLAG_STREAM       LLUV_FLAG_1
+#define LLUV_FLAG_DEFAULT_LOOP LLUV_FLAG_2
 
 #define UNUSED_ARG(arg) (void)arg
 

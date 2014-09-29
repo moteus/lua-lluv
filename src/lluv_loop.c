@@ -14,13 +14,6 @@
 #include "lluv_handle.h"
 #include <assert.h>
 
-#define IS_(O, F)    FLAG_IS_SET(O, LLUV_FLAG_##F)
-#define SET_(O, F)   FLAG_SET(O,    LLUV_FLAG_##F)
-#define UNSET_(O, F) FLAG_UNSET(O,  LLUV_FLAG_##F)
-
-#define IS(O, F)    FLAG_IS_SET(O, F)
-#define SET(O, F)   FLAG_SET(O, F)
-#define UNSET(O, F) FLAG_UNSET(O, F)
 
 #define LLUV_LOOP_NAME LLUV_PREFIX" Loop"
 static const char *LLUV_LOOP = LLUV_LOOP_NAME;
@@ -31,7 +24,7 @@ LLUV_INTERNAL lluv_loop_t* lluv_push_default_loop(lua_State *L){
   lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
   if(lua_isnil(L, -1)){
     lua_pop(L, 1);
-    lluv_loop_create(L, uv_default_loop(), 0);
+    lluv_loop_create(L, uv_default_loop(), LLUV_FLAG_DEFAULT_LOOP);
     lua_pushvalue(L, -1);
     lua_rawsetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
   }
@@ -76,11 +69,66 @@ LLUV_INTERNAL lluv_loop_t* lluv_opt_loop(lua_State *L, int idx, lluv_flags_t fla
   return lluv_check_loop(L, idx, flags);
 }
 
+static int lluv_loop_new(lua_State *L){
+  uv_loop_t *loop = lluv_alloc_t(L, uv_loop_t);
+  int err = uv_loop_init(loop);
+  if(err < 0){
+    lluv_free_t(L, uv_loop_t, loop);
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+  lluv_loop_create(L, loop, 0);
+  return 1;
+}
+
+static int on_close_handle(lua_State *L){
+  return 0;
+}
+
+static void lluv_loop_on_walk_close(uv_handle_t* handle, void* arg){
+  lua_State *L = (lua_State*)arg;
+  if(uv_is_closing(handle)) return;
+
+  // if(!uv_is_active(handle)) return; // @fixme do we shold ignore this handles
+
+  lua_settop(L, 1);
+
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle);
+  if(lua_isnil(L, -1)){lua_pop(L, 1); return; }
+
+  lua_getfield(L, -1, "close");
+  if(lua_isnil(L, -1)){lua_pop(L, 2); return; }
+
+  lua_insert(L, -2);
+  lua_pushcfunction(L, on_close_handle);
+  lua_pcall(L, 2, 0, 0);
+}
+
+static int lluv_loop_close_all_handles(lua_State *L){
+  lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
+  lua_State *arg = L;
+  int err = 0;
+
+  uv_walk(loop->handle, lluv_loop_on_walk_close, arg);
+  
+  while(err = uv_run(loop->handle, UV_RUN_ONCE)){
+    if(err < 0)
+      return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
 static int lluv_loop_close(lua_State *L){
   lluv_loop_t* loop = lluv_check_loop(L, 1, 0);
   int err;
-  if(!IS_(loop, OPEN))         return 0;
-  if(!IS_(loop, DONT_DESTROY)) return 0;
+
+  if(!IS_(loop, OPEN)) return 0;
+
+  if((lua_isboolean(L,2))&&(lua_toboolean(L,2))){
+    int ret = lluv_loop_close_all_handles(L);
+    if(ret != 1) return ret;
+  }
 
   err = uv_loop_close(loop->handle);
   if(err < 0){
@@ -88,11 +136,14 @@ static int lluv_loop_close(lua_State *L){
   }
 
   FLAG_UNSET(loop, LLUV_FLAG_OPEN);
-
   lua_pushnil(L);
   lua_rawsetp(L, LLUV_LUA_REGISTRY, loop->handle);
-  loop->handle = NULL;
 
+  if(!IS_(loop, DEFAULT_LOOP)){
+    lluv_free_t(L, uv_alloc_t, loop->handle);
+  }
+
+  loop->handle = NULL;
   return 0;
 }
 
@@ -215,10 +266,14 @@ static const struct luaL_Reg lluv_loop_methods[] = {
   { "now",        lluv_loop_now   },
   { "walk",       lluv_loop_walk  },
 
+  { "close_all_handles", lluv_loop_close_all_handles },
+
   {NULL,NULL}
 };
 
 static const struct luaL_Reg lluv_loop_functions[] = {
+  {"loop",         lluv_loop_new           },
+
   {"run",          lluv_loop_run           },
   {"now",          lluv_loop_now           },
   {"default_loop", lluv_push_default_loop_l},
