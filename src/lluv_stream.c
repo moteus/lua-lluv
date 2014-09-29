@@ -67,7 +67,7 @@ static void lluv_on_stream_read_cb(uv_stream_t* arg, int nread, const uv_buf_t* 
     lua_pushnil(L);
   }
 
-  lluv_lua_call(L, 2, 0);
+  lluv_lua_call(L, 3, 0);
 }
 
 static int lluv_stream_start_read(lua_State *L){

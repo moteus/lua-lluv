@@ -16,6 +16,28 @@
 #include "lluv_error.h"
 #include <assert.h>
 
+
+typedef struct lluv_connect_tag{
+  uv_connect_t  req;
+  lluv_handle_t *handle;
+  int           cb;
+}lluv_connect_t;
+
+lluv_connect_t *lluv_connect_new(lua_State *L, lluv_handle_t *h){
+  lluv_connect_t *req = lluv_alloc_t(L, lluv_connect_t);
+  assert(L == h->L);
+  req->req.data = req;
+  req->handle   = h;
+  req->cb       = LUA_NOREF;
+  return req;
+}
+
+void lluv_connect_free(lua_State *L, lluv_connect_t *req){
+  if(req->cb != LUA_NOREF)
+    luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);
+  lluv_free_t(L, lluv_connect_t, req);
+}
+
 #define LLUV_TCP_NAME LLUV_PREFIX" tcp"
 static const char *LLUV_TCP = LLUV_TCP_NAME;
 
@@ -43,7 +65,59 @@ static lluv_handle_t* lluv_check_tcp(lua_State *L, int idx, lluv_flags_t flags){
   return handle;
 }
 
+static void lluv_on_tcp_connect_cb(uv_connect_t* arg, int status){
+  lluv_connect_t *req = arg->data;
+  lluv_handle_t *handle = req->handle;
+  lua_State *L = handle->L;
+
+  if(!IS_(handle, OPEN)){
+    lluv_connect_free(L, req);
+    return;
+  }
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+  lluv_connect_free(L, req);
+
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  if(status >= 0) lua_pushnil(L);
+  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+
+  lluv_lua_call(L, 2, 0);
+}
+
+static int lluv_tcp_connect(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  const char *addr = luaL_checkstring(L, 2);
+  lua_Integer port = luaL_checkint(L, 3);
+  lluv_connect_t *req;
+  struct sockaddr_storage sa;
+  int err;
+  
+  err = uv_ip4_addr(addr, port, (struct sockaddr_in*)&sa);
+  if(err < 0){
+    err = uv_ip6_addr(addr, port, (struct sockaddr_in6*)&sa);
+    if(err < 0){
+      return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    }
+  }
+
+  lluv_check_none(L, 5);
+  lluv_check_callable(L, -1);
+
+  req = lluv_connect_new(L, handle);
+  req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);
+
+  err = uv_tcp_connect(&req->req, (uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, lluv_on_tcp_connect_cb);
+  if(err < 0){
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+
 static const struct luaL_Reg lluv_tcp_methods[] = {
+  {"connect", lluv_tcp_connect},
 
   {NULL,NULL}
 };
