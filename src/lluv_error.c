@@ -11,6 +11,17 @@
 #include "lluv_error.h"
 #include <assert.h>
 
+#ifdef _MSC_VER
+#  define str_n_len strnlen
+#else
+#  include <memory.h>
+
+  static size_t str_n_len(const char *start, size_t maxlen){
+    const char *end = (const char *)memchr(start, '\0', maxlen);
+    return (end) ? (size_t)(end - start) : maxlen;
+  }
+#endif
+
 #define LLUV_ERROR_NAME LLUV_PREFIX" Error"
 static const char *LLUV_ERROR = LLUV_ERROR_NAME;
 
@@ -21,7 +32,7 @@ LLUV_INTERNAL int lluv_error_create(lua_State *L, int error_category, uv_errno_t
   lluv_error_t *err;
   size_t len;
 
-  if(ext)len = strnlen(ext, max_ext_len);else len = 0;
+  if(ext)len = str_n_len(ext, max_ext_len);else len = 0;
 
   if(0 == len){
     err = lutil_newudatap(L, lluv_error_t, LLUV_ERROR);

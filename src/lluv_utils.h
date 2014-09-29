@@ -58,4 +58,6 @@ typedef unsigned char lluv_flag_t;
 #define FLAG_SET(O, F)    O->flags |= (lluv_flags_t)(F)
 #define FLAG_UNSET(O, F)  O->flags &= ~((lluv_flags_t)(F))
 
+#define UNUSED_ARG(arg) (void)arg
+
 #endif

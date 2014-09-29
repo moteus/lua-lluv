@@ -160,7 +160,7 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
 
 static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
   uv_fs_t *req = &lreq->req;
-  lluv_loop_t *loop = req->loop->data;
+  /*lluv_loop_t *loop = req->loop->data;*/
 
   switch (req->fs_type) {
     case UV_FS_RENAME:

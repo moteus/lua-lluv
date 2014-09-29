@@ -34,7 +34,7 @@ LLUV_INTERNAL lluv_fixed_buffer_t *lluv_check_fbuf(lua_State *L, int i){
 
 static int lluv_fbuf_new(lua_State *L){
   int64_t len = lutil_checkint64(L, 1);
-  lluv_fixed_buffer_t *buffer = lluv_fbuf_alloc(L, (size_t)len);
+  /*lluv_fixed_buffer_t *buffer = */lluv_fbuf_alloc(L, (size_t)len);
   return 1;
 }
 

@@ -122,6 +122,7 @@ static int lluv_timer_get_repeat(lua_State *L){
 static const struct luaL_Reg lluv_timer_methods[] = {
   { "start",      lluv_timer_start      },
   { "stop",       lluv_timer_stop       },
+  { "again",      lluv_timer_again      },
   { "set_repeat", lluv_timer_set_repeat },
   { "get_repeat", lluv_timer_get_repeat },
 
