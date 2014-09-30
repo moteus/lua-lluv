@@ -19,6 +19,8 @@ LLUV_IMPLEMENT_XXX_REQ(connect, LLUV_INTERNAL)
 
 LLUV_IMPLEMENT_XXX_REQ(shutdown, static)
 
+LLUV_IMPLEMENT_XXX_REQ(write, static)
+
 #define LLUV_STREAM_NAME LLUV_PREFIX" Stream"
 static const char *LLUV_STREAM = LLUV_STREAM_NAME;
 
@@ -26,10 +28,11 @@ LLUV_INTERNAL int lluv_stream_index(lua_State *L){
   return lluv__index(L, LLUV_STREAM, lluv_handle_index);
 }
 
-LLUV_INTERNAL uv_handle_t* lluv_stream_create(lua_State *L, uv_handle_type type){
-  //! @todo check type argument
-  uv_handle_t *handle  = lluv_handle_create(L, type, 0);
-  SET_(handle, STREAM);
+LLUV_INTERNAL uv_handle_t* lluv_stream_create(lua_State *L, uv_handle_type type, lluv_flags_t flags){
+  uv_handle_t *handle  = lluv_handle_create(L, type, flags | LLUV_FLAG_STREAM);
+
+  assert( (type == UV_TCP) || (type == UV_NAMED_PIPE) || (type == UV_TTY) );
+
   return handle;
 }
 
@@ -92,6 +95,7 @@ static int lluv_stream_shutdown(lua_State *L){
 
   err = uv_shutdown(&req->req, (uv_stream_t*)handle->handle, lluv_on_stream_shutdown_cb);
   if(err < 0){
+    lluv_shutdown_free(L, req);
     return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
   }
 
@@ -121,9 +125,10 @@ static void lluv_on_stream_connection_cb(uv_stream_t* arg, int status){
 
 static int lluv_stream_listen(lua_State *L){
   lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
-  int backlog = luaL_checkint(L, 2);
+  int backlog = 511; /* http://blog.dubbelboer.com/2012/04/09/syn-cookies.html */
   int err;
 
+  if(lua_gettop(L) > 2) backlog = luaL_checkint(L, 2);
   lluv_check_args_with_cb(L, 3);
   LLUV_CONNECTION_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
@@ -158,15 +163,13 @@ static void lluv_on_stream_read_cb(uv_stream_t* arg, int nread, const uv_buf_t* 
   lluv_handle_t *handle = arg->data;
   lua_State *L = handle->L;
 
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
+  assert((uv_handle_t*)arg == handle->handle);
 
-  if(lua_isnil(L, -1)){ /* ignore because we have no cb */
-    lua_pop(L, 1);
-    lluv_free_buffer((uv_handle_t*)arg, buf);
-    return;
-  }
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
+  assert(!lua_isnil(L, -1));
 
   lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
+  assert(handle == lua_touserdata(L, -1));
 
   if(nread >= 0){
     lua_pushnil(L);
@@ -174,9 +177,13 @@ static void lluv_on_stream_read_cb(uv_stream_t* arg, int nread, const uv_buf_t* 
     lluv_free_buffer((uv_handle_t*)arg, buf);
   }
   else{
-    lluv_free_buffer((uv_handle_t*)arg, buf);
-    /* Stop reading, otherwise an assert blows up on unix */
+    if(buf->base) lluv_free_buffer((uv_handle_t*)arg, buf);
+    /* The callee is responsible for stopping closing the stream 
+     *  when an error happens by calling uv_read_stop() or uv_close().
+     *  Trying to read from the stream again is undefined.
+     */
     uv_read_stop(arg);
+
     luaL_unref(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
     LLUV_READ_CB(handle) = LUA_NOREF;
 
@@ -223,12 +230,82 @@ static int lluv_stream_stop_read(lua_State *L){
 
 //}
 
+//{ Write
+
+static int lluv_stream_try_write(lua_State *L){
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  size_t len; const char *str = luaL_checklstring(L, 2, &len);
+  int err; uv_buf_t buf = uv_buf_init((char*)str, len);
+
+  lluv_check_none(L, 3);
+
+  err = uv_try_write((uv_stream_t*)handle->handle, &buf, 1);
+  if(err < 0){
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushinteger(L, err);
+  return 1;
+}
+
+static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
+  lluv_write_t  *req    = arg->data;
+  lluv_handle_t *handle = req->handle;
+  lua_State *L          = handle->L;
+
+  /* release write data (e.g. Lua string */
+  lua_pushnil(L);
+  lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
+
+  if(!IS_(handle, OPEN)){
+    lluv_write_free(L, req);
+    return;
+  }
+
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+  lluv_write_free(L, req);
+  assert(!lua_isnil(L, -1));
+
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  if(status >= 0) lua_pushnil(L);
+  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+
+  lluv_lua_call(L, 2, 0);
+}
+
+static int lluv_stream_write(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  size_t len; const char *str = luaL_checklstring(L, 2, &len);
+  int err; lluv_write_t *req;
+  uv_buf_t buf = uv_buf_init((char*)str, len);
+
+  lluv_check_args_with_cb(L, 3);
+
+  req = lluv_write_new(L, handle);
+  lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req); /* string */
+
+  err = uv_write(&req->req, (uv_stream_t*)handle->handle, &buf, 1, lluv_on_stream_write_cb);
+  if(err < 0){
+    lua_pushnil(L);
+    lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
+    lluv_write_free(L, req);
+    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+//}
+
 static const struct luaL_Reg lluv_stream_methods[] = {
   { "shutdown",   lluv_stream_shutdown   },
   { "listen",     lluv_stream_listen     },
   { "accept",     lluv_stream_accept     },
   { "start_read", lluv_stream_start_read },
-  { "stop_read",  lluv_stream_start_read },
+  { "stop_read",  lluv_stream_stop_read  },
+  { "try_write",  lluv_stream_try_write  },
+  { "write",      lluv_stream_write      },
 
   {NULL,NULL}
 };

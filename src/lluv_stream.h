@@ -15,7 +15,7 @@ LLUV_INTERNAL void lluv_stream_initlib(lua_State *L, int nup);
 
 LLUV_INTERNAL int lluv_stream_index(lua_State *L);
 
-LLUV_INTERNAL uv_handle_t* lluv_stream_create(lua_State *L, uv_handle_type type);
+LLUV_INTERNAL uv_handle_t* lluv_stream_create(lua_State *L, uv_handle_type type, lluv_flags_t flags);
 
 LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags_t flags);
 

@@ -24,7 +24,7 @@ LLUV_INTERNAL int lluv_tcp_index(lua_State *L){
 }
 
 static int lluv_tcp_create(lua_State *L){
-  uv_tcp_t *tcp = (uv_tcp_t *)lluv_stream_create(L, UV_TCP);
+  uv_tcp_t *tcp = (uv_tcp_t *)lluv_stream_create(L, UV_TCP, 0);
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int err;
   if(!loop) loop = lluv_default_loop(L);

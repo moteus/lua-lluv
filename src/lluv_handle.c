@@ -27,6 +27,7 @@ static int lluv_handle_dispatch(lua_State *L){
     case UV_TIMER:  return lluv_timer_index(L);
     case UV_TCP:    return lluv_tcp_index(L);
   }
+  assert(0 && "please provive index function for this handle type");
   return 0;
 }
 
