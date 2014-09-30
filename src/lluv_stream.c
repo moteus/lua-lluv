@@ -177,7 +177,8 @@ static void lluv_on_stream_read_cb(uv_stream_t* arg, int nread, const uv_buf_t* 
     lluv_free_buffer((uv_handle_t*)arg, buf);
   }
   else{
-    if(buf->base) lluv_free_buffer((uv_handle_t*)arg, buf);
+    lluv_free_buffer((uv_handle_t*)arg, buf);
+
     /* The callee is responsible for stopping closing the stream 
      *  when an error happens by calling uv_read_stop() or uv_close().
      *  Trying to read from the stream again is undefined.

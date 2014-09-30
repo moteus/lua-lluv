@@ -14,9 +14,13 @@
 #include "lluv.h"
 #include "lluv_utils.h"
 
+#define LLUV_BUFFER_SIZE 65536
+
 typedef struct lluv_loop_tag{
   uv_loop_t   *handle;/* read only */
   lluv_flags_t flags; /* read only */
+  size_t       buffer_size;
+  char         buffer[LLUV_BUFFER_SIZE];
 }lluv_loop_t;
 
 LLUV_INTERNAL void lluv_loop_initlib(lua_State *L, int nup);

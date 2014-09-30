@@ -82,20 +82,27 @@ LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, u
   lluv_loop_t* loop     = lluv_loop_by_handle(h);
   lluv_handle_t *handle = h->data;
 
-  UNUSED_ARG(loop);
-
-  //! @todo 
-  *buf = uv_buf_init(lluv_alloc(handle->L, suggested_size), suggested_size);
+  if(!IS_(loop, BUFFER_BUSY)){
+    SET_(loop, BUFFER_BUSY);
+    buf->base = loop->buffer; buf->len = loop->buffer_size;
+  }
+  else{
+    *buf = uv_buf_init(lluv_alloc(handle->L, suggested_size), suggested_size);
+  }
 }
 
 LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
-  lluv_loop_t* loop     = lluv_loop_by_handle(h);
-  lluv_handle_t *handle = h->data;
-
-  UNUSED_ARG(loop);
-
-  lluv_free(handle->L, &buf->base[0]);
-  // *buf = uv_buf_init(0, 0);
+  if(buf->base){
+    lluv_loop_t* loop     = lluv_loop_by_handle(h);
+    lluv_handle_t *handle = h->data;
+    if(buf->base == loop->buffer){
+      assert(IS_(loop, BUFFER_BUSY));
+      UNSET_(loop, BUFFER_BUSY);
+    }
+    else{
+      lluv_free(handle->L, &buf->base[0]);
+    }
+  }
 }
 
 LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa){

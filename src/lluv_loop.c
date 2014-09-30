@@ -51,6 +51,7 @@ LLUV_INTERNAL int lluv_loop_create(lua_State *L, uv_loop_t *h, lluv_flags_t flag
   loop->handle       = h;
   loop->handle->data = loop;
   loop->flags        = flags | LLUV_FLAG_OPEN;
+  loop->buffer_size  = LLUV_BUFFER_SIZE;
   lua_pushvalue(L, -1);
   lua_rawsetp(L, LLUV_LUA_REGISTRY, h);
   return 1;
