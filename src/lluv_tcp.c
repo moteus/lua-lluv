@@ -98,9 +98,79 @@ static int lluv_tcp_bind(lua_State *L){
   return 1;
 }
 
+static int lluv_tcp_nodelay(lua_State *L){
+  lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  int enable = lua_toboolean(L, 2);
+  int err = uv_tcp_nodelay((uv_tcp_t*)handle->handle, enable);
+
+  lua_settop(L, 1);
+
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  return 1;
+}
+
+static int lluv_tcp_keepalive(lua_State *L){
+  lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  int enable = lua_toboolean(L, 2);
+  unsigned int delay = 0; int err;
+
+  if(enable) delay = (unsigned int)luaL_checkint(L, 3);
+  err = uv_tcp_keepalive((uv_tcp_t*)handle->handle, enable, delay);
+
+  lua_settop(L, 1);
+
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  return 1;
+}
+
+static int lluv_tcp_simultaneous_accepts(lua_State *L){
+  lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  int enable = lua_toboolean(L, 2);
+  int err = uv_tcp_simultaneous_accepts((uv_tcp_t*)handle->handle, enable);
+
+  lua_settop(L, 1);
+
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  return 1;
+}
+
+static int lluv_tcp_getsockname(lua_State *L){
+  lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  struct sockaddr_storage sa; int sa_len = sizeof(sa);
+  int err = uv_tcp_getsockname((uv_tcp_t*)handle->handle, (struct sockaddr*)&sa, &sa_len);
+
+  lua_settop(L, 1);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  return lluv_push_addr(L, &sa);
+}
+
+static int lluv_tcp_getpeername(lua_State *L){
+  lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  struct sockaddr_storage sa; int sa_len = sizeof(sa);
+  int err = uv_tcp_getpeername((uv_tcp_t*)handle->handle, (struct sockaddr*)&sa, &sa_len);
+  lua_settop(L, 1);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  return lluv_push_addr(L, &sa);
+}
+
 static const struct luaL_Reg lluv_tcp_methods[] = {
-  { "bind",    lluv_tcp_bind    },
-  { "connect", lluv_tcp_connect },
+  { "bind",                 lluv_tcp_bind                 },
+  { "connect",              lluv_tcp_connect              },
+  { "nodelay",              lluv_tcp_nodelay              },
+  { "keepalive",            lluv_tcp_keepalive            },
+  { "simultaneous_accepts", lluv_tcp_simultaneous_accepts },
+  { "getsockname",          lluv_tcp_getsockname          },
+  { "getpeername",          lluv_tcp_getpeername          },
 
   {NULL,NULL}
 };

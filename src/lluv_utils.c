@@ -118,3 +118,30 @@ LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct 
   }
   return err;
 }
+
+LLUV_INTERNAL int lluv_push_addr(lua_State *L, struct sockaddr_storage *addr){
+  char buf[INET6_ADDRSTRLEN + 1];
+
+  switch (((struct sockaddr*)addr)->sa_family){
+    case AF_INET:{
+      struct sockaddr_in *sa = (struct sockaddr_in*)addr;
+      uv_ip4_name(sa, buf, sizeof(buf));
+      lua_pushstring(L, buf);
+      lua_pushinteger(L, ntohs(sa->sin_port));
+      return 2;
+    }
+
+    case AF_INET6:{
+      struct sockaddr_in6 *sa = (struct sockaddr_in6*)addr;
+      uv_ip6_name(sa, buf, sizeof(buf));
+      lua_pushstring(L, buf);
+      lua_pushinteger(L, ntohs(sa->sin6_port));
+      lutil_pushint64(L, ntohl(sa->sin6_flowinfo));
+      lutil_pushint64(L, sa->sin6_scope_id);
+      return 4;
+    }
+  }
+
+  return 0;
+}
+

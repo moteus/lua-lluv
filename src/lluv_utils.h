@@ -48,6 +48,7 @@ LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* handle, const uv_buf_t *buf);
 
 LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa);
 
+LLUV_INTERNAL int lluv_push_addr(lua_State *L, struct sockaddr_storage *addr);
 
 #define LLUV_IMPLEMENT_XXX_REQ(R, M)                                              \
                                                                                   \

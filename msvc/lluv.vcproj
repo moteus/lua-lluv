@@ -61,7 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libuv.lib lua5.1.lib"
+				AdditionalDependencies="ws2_32.lib libuv.lib lua5.1.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="$(UV_DIR)\lib;$(LUA_DIR)\lib"
 				GenerateDebugInformation="true"
@@ -136,7 +136,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="libuv.lib lua5.1.lib"
+				AdditionalDependencies="ws2_32.lib libuv.lib lua5.1.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="$(UV_DIR)\lib;$(LUA_DIR)\lib"
 				GenerateDebugInformation="true"
