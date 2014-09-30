@@ -225,6 +225,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_tty.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_utils.c"
 				>
 			</File>
@@ -276,6 +280,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_timer.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_tty.h"
 				>
 			</File>
 			<File
