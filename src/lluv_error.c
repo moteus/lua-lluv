@@ -117,10 +117,8 @@ static int lluv_err_equal(lua_State *L){
 
 //}
 
-LLUV_INTERNAL int lluv_fail(lua_State *L, int mode, int error_category, uv_errno_t error_no, const char *ext){
-  assert((LLUV_ERROR_RAISE == mode) || (mode == LLUV_ERROR_RETURN));
-
-  if(mode == LLUV_ERROR_RETURN){
+LLUV_INTERNAL int lluv_fail(lua_State *L, lluv_flags_t flags, int error_category, uv_errno_t error_no, const char *ext){
+  if(!(flags & LLUV_FLAG_RAISE_ERROR)){
     lua_pushnil(L);
     lluv_error_create(L, error_category, error_no, ext);
     return 2;

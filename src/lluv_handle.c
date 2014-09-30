@@ -204,7 +204,7 @@ static int lluv_handle_send_buffer_size(lua_State *L){
   int size = luaL_optint(L, 2, 0);
   int err = uv_send_buffer_size(handle->handle, &size);
   if(err<0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
   if(size) lua_pushinteger(L, size);
   else lua_pushboolean(L, 1);
@@ -216,7 +216,7 @@ static int lluv_handle_recv_buffer_size(lua_State *L){
   int size = luaL_optint(L, 2, 0);
   int err = uv_recv_buffer_size(handle->handle, &size);
   if(err<0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
   if(size) lua_pushinteger(L, size);
   else lua_pushboolean(L, 1);

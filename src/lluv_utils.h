@@ -104,6 +104,7 @@ typedef unsigned char lluv_flag_t;
 #define LLUV_FLAG_OPEN         LLUV_FLAG_0
 #define LLUV_FLAG_STREAM       LLUV_FLAG_1
 #define LLUV_FLAG_DEFAULT_LOOP LLUV_FLAG_2
+#define LLUV_FLAG_RAISE_ERROR  LLUV_FLAG_3
 
 #define UNUSED_ARG(arg) (void)arg
 

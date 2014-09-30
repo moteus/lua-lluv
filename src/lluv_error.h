@@ -12,9 +12,7 @@
 #define _LLUV_ERROR_H_
 
 #include "lluv.h"
-
-#define LLUV_ERROR_RETURN 1
-#define LLUV_ERROR_RAISE  2
+#include "lluv_utils.h"
 
 /* error category */
 #define LLUV_ERR_LIB 0
@@ -30,7 +28,7 @@ LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup);
 
 LLUV_INTERNAL int lluv_error_create(lua_State *L, int error_category, uv_errno_t error_no, const char *ext);
 
-LLUV_INTERNAL int lluv_fail(lua_State *L, int mode, int error_category, uv_errno_t error_no, const char *ext);
+LLUV_INTERNAL int lluv_fail(lua_State *L, lluv_flags_t flags, int error_category, uv_errno_t error_no, const char *ext);
 
 #endif
 

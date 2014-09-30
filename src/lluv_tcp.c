@@ -30,7 +30,7 @@ static int lluv_tcp_create(lua_State *L){
   if(!loop) loop = lluv_default_loop(L);
   err = uv_tcp_init(loop->handle, tcp);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, tcp->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -54,7 +54,7 @@ static int lluv_tcp_connect(lua_State *L){
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
   lluv_check_args_with_cb(L, 4);
@@ -65,7 +65,7 @@ static int lluv_tcp_connect(lua_State *L){
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
   lua_settop(L, 1);
@@ -84,14 +84,14 @@ static int lluv_tcp_bind(lua_State *L){
 
   if(err < 0){
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
   err = uv_tcp_bind((uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, flags);
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
   lua_settop(L, 1);

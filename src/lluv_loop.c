@@ -69,15 +69,19 @@ LLUV_INTERNAL lluv_loop_t* lluv_opt_loop(lua_State *L, int idx, lluv_flags_t fla
   return lluv_check_loop(L, idx, flags);
 }
 
-static int lluv_loop_new(lua_State *L){
+static int lluv_loop_new_impl(lua_State *L, lluv_flags_t flags){
   uv_loop_t *loop = lluv_alloc_t(L, uv_loop_t);
   int err = uv_loop_init(loop);
   if(err < 0){
     lluv_free_t(L, uv_loop_t, loop);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, flags, LLUV_ERR_UV, err, NULL);
   }
-  lluv_loop_create(L, loop, 0);
+  lluv_loop_create(L, loop, flags);
   return 1;
+}
+
+static int lluv_loop_new(lua_State *L){
+  return lluv_loop_new_impl(L, 0);
 }
 
 static void lluv_loop_on_walk_close(uv_handle_t* handle, void* arg){
@@ -111,7 +115,7 @@ static int lluv_loop_close_all_handles(lua_State *L){
   
   while(err = uv_run(loop->handle, UV_RUN_ONCE)){
     if(err < 0)
-      return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+      return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);
@@ -131,7 +135,7 @@ static int lluv_loop_close(lua_State *L){
 
   err = uv_loop_close(loop->handle);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
   }
 
   FLAG_UNSET(loop, LLUV_FLAG_OPEN);
@@ -162,7 +166,7 @@ static int lluv_loop_run_impl(lua_State *L){
 
   int err = uv_run(loop->handle, mode);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
   }
 
   if(lua_touserdata(L, lua_upvalueindex(4)) == LLUV_MEMORY_ERROR_MARK){

@@ -96,7 +96,7 @@ static int lluv_stream_shutdown(lua_State *L){
   err = uv_shutdown(&req->req, (uv_stream_t*)handle->handle, lluv_on_stream_shutdown_cb);
   if(err < 0){
     lluv_shutdown_free(L, req);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);
@@ -134,7 +134,7 @@ static int lluv_stream_listen(lua_State *L){
 
   err = uv_listen((uv_stream_t*)handle->handle, backlog, lluv_on_stream_connection_cb);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);
@@ -149,7 +149,7 @@ static int lluv_stream_accept(lua_State *L){
 
   err = uv_accept((uv_stream_t*)handle->handle, (uv_stream_t*)dst->handle);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   return 1;
@@ -203,7 +203,7 @@ static int lluv_stream_start_read(lua_State *L){
 
   err = uv_read_start((uv_stream_t*)handle->handle, lluv_alloc_buffer_cb, lluv_on_stream_read_cb);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);
@@ -218,7 +218,7 @@ static int lluv_stream_stop_read(lua_State *L){
 
   err = uv_read_stop((uv_stream_t*)handle->handle);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   luaL_unref(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
@@ -241,7 +241,7 @@ static int lluv_stream_try_write(lua_State *L){
 
   err = uv_try_write((uv_stream_t*)handle->handle, &buf, 1);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_pushinteger(L, err);
@@ -289,7 +289,7 @@ static int lluv_stream_write(lua_State *L){
     lua_pushnil(L);
     lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
     lluv_write_free(L, req);
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);

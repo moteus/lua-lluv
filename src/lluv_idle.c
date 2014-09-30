@@ -62,7 +62,7 @@ static int lluv_idle_start(lua_State *L){
 
   err = uv_idle_start((uv_idle_t*)handle->handle, lluv_on_idle_start);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);
@@ -73,7 +73,7 @@ static int lluv_idle_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_idle(L, 1, LLUV_FLAG_OPEN);
   int err = uv_idle_stop((uv_idle_t*)handle->handle);
   if(err < 0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
   lua_settop(L, 1);
   return 1;
