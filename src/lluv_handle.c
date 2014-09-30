@@ -132,7 +132,11 @@ static void lluv_on_handle_close(uv_handle_t *arg){
 }
 
 static int lluv_handle_close(lua_State *L){
-  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
+
+  if(!IS_(handle, OPEN)){
+    return 0;
+  }
 
   if(uv_is_closing(handle->handle)){
     return 0;

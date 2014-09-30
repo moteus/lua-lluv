@@ -24,7 +24,7 @@ LLUV_INTERNAL int lluv_tty_index(lua_State *L){
 }
 
 static int lluv_tty_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);            \
+  lluv_loop_t *loop = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   uv_file fd        = (uv_file)lutil_checkint64(L, loop ? 2 : 1);
   int readable      = lua_toboolean(L, loop ? 3 : 2);
   uv_tty_t *tty; int err;

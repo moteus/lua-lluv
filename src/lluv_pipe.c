@@ -24,7 +24,7 @@ LLUV_INTERNAL int lluv_pipe_index(lua_State *L){
 }
 
 static int lluv_pipe_create(lua_State *L){
-  lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);            \
+  lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int ipc = lua_toboolean(L, loop ? 2 : 1);
   uv_pipe_t *pipe; int err;
 
