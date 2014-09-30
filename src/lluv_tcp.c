@@ -62,6 +62,7 @@ static int lluv_tcp_connect(lua_State *L){
 
   err = uv_tcp_connect((uv_connect_t*)req, (uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
   if(err < 0){
+    lluv_connect_free(L, req);
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));

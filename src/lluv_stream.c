@@ -37,10 +37,9 @@ LLUV_INTERNAL uv_handle_t* lluv_stream_create(lua_State *L, uv_handle_type type,
 }
 
 LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags_t flags){
-  lluv_handle_t *handle = lluv_check_handle(L, idx, LLUV_FLAG_OPEN);
-  luaL_argcheck (L, SET_(handle, STREAM), idx, LLUV_STREAM_NAME" expected");
+  lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
+  luaL_argcheck (L, IS_(handle, STREAM), idx, LLUV_STREAM_NAME" expected");
 
-  luaL_argcheck (L, FLAGS_IS_SET(handle, flags), idx, LLUV_STREAM_NAME" closed");
   return handle;
 }
 
@@ -143,7 +142,7 @@ static int lluv_stream_listen(lua_State *L){
 
 static int lluv_stream_accept(lua_State *L){
   lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t  *dst    = lluv_check_stream(L, 2, LLUV_FLAG_OPEN);
+  lluv_handle_t  *dst    = lluv_check_handle(L, 2, LLUV_FLAG_OPEN);
   int err;
   lua_settop(L, 2);
 

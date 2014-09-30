@@ -15,6 +15,7 @@
 #include "lluv_loop.h"
 #include "lluv_error.h"
 #include "lluv_tcp.h"
+#include "lluv_pipe.h"
 #include <assert.h>
 
 static int lluv_handle_dispatch(lua_State *L){
@@ -22,10 +23,11 @@ static int lluv_handle_dispatch(lua_State *L){
   luaL_checkstring(L, 2);
 
   switch(handle->handle->type){
-    case UV_HANDLE: return lluv_handle_index(L);
-    case UV_IDLE:   return lluv_idle_index(L);
-    case UV_TIMER:  return lluv_timer_index(L);
-    case UV_TCP:    return lluv_tcp_index(L);
+    case UV_HANDLE:     return lluv_handle_index(L);
+    case UV_IDLE:       return lluv_idle_index(L);
+    case UV_TIMER:      return lluv_timer_index(L);
+    case UV_TCP:        return lluv_tcp_index(L);
+    case UV_NAMED_PIPE: return lluv_pipe_index(L);
   }
   assert(0 && "please provive index function for this handle type");
   return 0;
