@@ -32,6 +32,8 @@ LLUV_INTERNAL int lluv_handle_index(lua_State *L);
 
 LLUV_INTERNAL uv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type, lluv_flags_t flags);
 
-LLUV_INTERNAL lluv_handle_t* lluv_chek_handle(lua_State *L, int idx, lluv_flags_t flags);
+LLUV_INTERNAL lluv_handle_t* lluv_check_handle(lua_State *L, int idx, lluv_flags_t flags);
+
+LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle);
 
 #endif

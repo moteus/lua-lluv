@@ -24,13 +24,12 @@ LLUV_INTERNAL int lluv_tcp_index(lua_State *L){
 }
 
 static int lluv_tcp_create(lua_State *L){
-  uv_tcp_t *tcp = (uv_tcp_t *)lluv_stream_create(L, UV_TCP, 0);
-  lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
-  int err;
-  if(!loop) loop = lluv_default_loop(L);
-  err = uv_tcp_init(loop->handle, tcp);
+  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  uv_tcp_t *tcp = (uv_tcp_t *)lluv_stream_create(L, UV_TCP, INHERITE_FLAGS(loop));
+  int err = uv_tcp_init(loop->handle, tcp);
   if(err < 0){
-    return lluv_fail(L, tcp->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    lluv_handle_cleanup(L, (lluv_handle_t*)tcp->data);
+    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }

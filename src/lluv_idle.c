@@ -23,15 +23,18 @@ LLUV_INTERNAL int lluv_idle_index(lua_State *L){
 }
 
 static int lluv_idle_create(lua_State *L){
-  uv_idle_t *idle  = (uv_idle_t *)lluv_handle_create(L, UV_IDLE, 0);
-  lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
-  if(!loop) loop = lluv_default_loop(L);
-  uv_idle_init(loop->handle, idle);
+  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  uv_idle_t *idle   = (uv_idle_t *)lluv_handle_create(L, UV_IDLE, INHERITE_FLAGS(loop));
+  int err = uv_idle_init(loop->handle, idle);
+  if(err < 0){
+    lluv_handle_cleanup(L, (lluv_handle_t*)idle->data);
+    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+  }
   return 1;
 }
 
 static lluv_handle_t* lluv_check_idle(lua_State *L, int idx, lluv_flags_t flags){
-  lluv_handle_t *handle = lluv_chek_handle(L, idx, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, idx, LLUV_FLAG_OPEN);
   luaL_argcheck (L, handle->handle->type == UV_IDLE, idx, LLUV_IDLE_NAME" expected");
 
   luaL_argcheck (L, FLAGS_IS_SET(handle, flags), idx, LLUV_IDLE_NAME" closed");

@@ -108,6 +108,9 @@ typedef unsigned char lluv_flag_t;
 #define LLUV_FLAG_RAISE_ERROR  LLUV_FLAG_2
 #define LLUV_FLAG_BUFFER_BUSY  LLUV_FLAG_3
 
+#define INHERITE_FLAGS(O) (O->flags & (LLUV_FLAG_RAISE_ERROR))
+
+
 #define UNUSED_ARG(arg) (void)arg
 
 #endif

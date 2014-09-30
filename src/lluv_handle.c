@@ -18,7 +18,7 @@
 #include <assert.h>
 
 static int lluv_handle_dispatch(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, 0);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
   luaL_checkstring(L, 2);
 
   switch(handle->handle->type){
@@ -85,7 +85,7 @@ LLUV_INTERNAL uv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type,
   return handle->handle;
 }
 
-LLUV_INTERNAL lluv_handle_t* lluv_chek_handle(lua_State *L, int idx, lluv_flags_t flags){
+LLUV_INTERNAL lluv_handle_t* lluv_check_handle(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = (lluv_handle_t *)lutil_checkudatap (L, idx, LLUV_HANDLE);
   luaL_argcheck (L, handle != NULL, idx, LLUV_HANDLE_NAME" expected");
 
@@ -93,7 +93,7 @@ LLUV_INTERNAL lluv_handle_t* lluv_chek_handle(lua_State *L, int idx, lluv_flags_
   return handle;
 }
 
-static void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
+LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
   int i, cb = lluv_handle_cb_count(handle->handle->type);
 
   FLAG_UNSET(handle, LLUV_FLAG_OPEN);
@@ -128,7 +128,7 @@ static void lluv_on_handle_close(uv_handle_t *arg){
 }
 
 static int lluv_handle_close(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
 
   if(uv_is_closing(handle->handle)){
     return 0;
@@ -144,7 +144,7 @@ static int lluv_handle_close(lua_State *L){
 }
 
 static int lluv_handle_to_s(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, 0);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
   if(FLAGS_IS_SET(handle, LLUV_FLAG_OPEN)){
     switch (handle->handle->type) {
 #define XX(uc, lc) case UV_##uc: \
@@ -164,43 +164,43 @@ static int lluv_handle_to_s(lua_State *L){
 }
 
 static int lluv_handle_loop(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle->loop);
   return 1;
 }
 
 static int lluv_handle_ref(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   uv_ref(handle->handle);
   return 0;
 }
 
 static int lluv_handle_unref(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   uv_unref(handle->handle);
   return 0;
 }
 
 static int lluv_handle_has_ref(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   lua_pushboolean(L, uv_has_ref(handle->handle));
   return 1;
 }
 
 static int lluv_handle_is_active(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   lua_pushboolean(L, uv_is_active(handle->handle));
   return 1;
 }
 
 static int lluv_handle_is_closing(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   lua_pushboolean(L, uv_is_closing(handle->handle));
   return 1;
 }
 
 static int lluv_handle_send_buffer_size(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   int size = luaL_optint(L, 2, 0);
   int err = uv_send_buffer_size(handle->handle, &size);
   if(err<0){
@@ -212,7 +212,7 @@ static int lluv_handle_send_buffer_size(lua_State *L){
 }
 
 static int lluv_handle_recv_buffer_size(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   int size = luaL_optint(L, 2, 0);
   int err = uv_recv_buffer_size(handle->handle, &size);
   if(err<0){
@@ -225,11 +225,11 @@ static int lluv_handle_recv_buffer_size(lua_State *L){
 
 #ifdef LLUV_UV_HAS_FILENO
 static int lluv_handle_fileno(lua_State *L){
-  lluv_handle_t *handle = lluv_chek_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   uv_os_fd_t fd;
   int err = uv_fileno(handle->handle, &fd);
   if(err<0){
-    return lluv_fail(L, LLUV_ERROR_RETURN, LLUV_ERR_UV, err, NULL);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
   lutil_pushint64(L, fd);
   return 1;

@@ -70,6 +70,11 @@ LLUV_INTERNAL lluv_loop_t* lluv_opt_loop(lua_State *L, int idx, lluv_flags_t fla
   return lluv_check_loop(L, idx, flags);
 }
 
+LLUV_INTERNAL lluv_loop_t* lluv_opt_loop_ex(lua_State *L, int idx, lluv_flags_t flags){
+  if(!lutil_isudatap(L, idx, LLUV_LOOP)) return lluv_default_loop(L);
+  return lluv_check_loop(L, idx, flags);
+}
+
 static int lluv_loop_new_impl(lua_State *L, lluv_flags_t flags){
   uv_loop_t *loop = lluv_alloc_t(L, uv_loop_t);
   int err = uv_loop_init(loop);

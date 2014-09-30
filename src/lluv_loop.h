@@ -31,6 +31,8 @@ LLUV_INTERNAL lluv_loop_t* lluv_check_loop(lua_State *L, int idx, lluv_flags_t f
 
 LLUV_INTERNAL lluv_loop_t* lluv_opt_loop(lua_State *L, int idx, lluv_flags_t flags);
 
+LLUV_INTERNAL lluv_loop_t* lluv_opt_loop_ex(lua_State *L, int idx, lluv_flags_t flags);
+
 LLUV_INTERNAL lluv_loop_t* lluv_push_default_loop(lua_State *L);
 
 LLUV_INTERNAL lluv_loop_t* lluv_default_loop(lua_State *L);
