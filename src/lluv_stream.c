@@ -299,15 +299,47 @@ static int lluv_stream_write(lua_State *L){
 
 //}
 
-static const struct luaL_Reg lluv_stream_methods[] = {
-  { "shutdown",   lluv_stream_shutdown   },
-  { "listen",     lluv_stream_listen     },
-  { "accept",     lluv_stream_accept     },
-  { "start_read", lluv_stream_start_read },
-  { "stop_read",  lluv_stream_stop_read  },
-  { "try_write",  lluv_stream_try_write  },
-  { "write",      lluv_stream_write      },
+static int lluv_stream_is_readable(lua_State *L){
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  lua_settop(L, 1);
+  lua_pushboolean(L, uv_is_readable((uv_stream_t*) handle->handle));
+  return 1;
+}
 
+static int lluv_stream_is_writable(lua_State *L){
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  lua_settop(L, 1);
+  lua_pushboolean(L, uv_is_writable((uv_stream_t*) handle->handle));
+  return 1;
+}
+
+static int lluv_stream_set_blocking(lua_State *L){
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  int block = luaL_opt(L, lua_toboolean, 2, 1);
+  int err;
+
+  lua_settop(L, 1);
+
+  err = uv_stream_set_blocking((uv_stream_t*)handle->handle, block);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  return 1;
+}
+
+static const struct luaL_Reg lluv_stream_methods[] = {
+  { "shutdown",     lluv_stream_shutdown      },
+  { "listen",       lluv_stream_listen        },
+  { "accept",       lluv_stream_accept        },
+  { "start_read",   lluv_stream_start_read    },
+  { "stop_read",    lluv_stream_stop_read     },
+  { "try_write",    lluv_stream_try_write     },
+  { "write",        lluv_stream_write         },
+  { "is_readable",  lluv_stream_is_readable   },
+  { "is_writable",  lluv_stream_is_writable   },
+  { "set_blocking", lluv_stream_set_blocking  },
+  
   {NULL,NULL}
 };
 
