@@ -175,6 +175,12 @@ static const struct luaL_Reg lluv_tcp_methods[] = {
   {NULL,NULL}
 };
 
+static const lluv_uv_const_t lluv_tcp_constants[] = {
+  { UV_TCP_IPV6ONLY,   "TCP_IPV6ONLY"   },
+
+  { 0, NULL }
+};
+
 static const struct luaL_Reg lluv_tcp_functions[] = {
   { "tcp", lluv_tcp_create },
 
@@ -188,4 +194,5 @@ LLUV_INTERNAL void lluv_tcp_initlib(lua_State *L, int nup){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_tcp_functions, nup);
+  lluv_register_constants(L, lluv_tcp_constants);
 }

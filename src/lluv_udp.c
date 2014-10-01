@@ -359,6 +359,16 @@ static const struct luaL_Reg lluv_udp_methods[] = {
   {NULL,NULL}
 };
 
+static const lluv_uv_const_t lluv_udp_constants[] = {
+  { UV_UDP_IPV6ONLY,   "UDP_IPV6ONLY"   },
+  { UV_UDP_PARTIAL,    "UDP_PARTIAL"    },
+  { UV_UDP_REUSEADDR,  "UDP_REUSEADDR"  },
+  { UV_LEAVE_GROUP ,   "LEAVE_GROUP "   },
+  { UV_JOIN_GROUP,     "JOIN_GROUP"     },
+
+  { 0, NULL }
+};
+
 static const struct luaL_Reg lluv_udp_functions[] = {
   { "udp", lluv_udp_create },
 
@@ -372,4 +382,5 @@ LLUV_INTERNAL void lluv_udp_initlib(lua_State *L, int nup){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_udp_functions, nup);
+  lluv_register_constants(L, lluv_udp_constants);
 }
