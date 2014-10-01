@@ -3,6 +3,8 @@ lua-lluv
 
 Lua binding to libuv
 
+## Compatiable with libuv>=1.0.0
+
 ### Example
 
 Basic tcp/pipe echo server
