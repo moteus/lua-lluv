@@ -17,6 +17,7 @@
 #include "lluv_tcp.h"
 #include "lluv_pipe.h"
 #include "lluv_tty.h"
+#include "lluv_udp.h"
 #include <assert.h>
 
 static int lluv_handle_dispatch(lua_State *L){
@@ -30,6 +31,7 @@ static int lluv_handle_dispatch(lua_State *L){
     case UV_TCP:        return lluv_tcp_index(L);
     case UV_NAMED_PIPE: return lluv_pipe_index(L);
     case UV_TTY:        return lluv_tty_index(L);
+    case UV_UDP:        return lluv_udp_index(L);
   }
   assert(0 && "please provive index function for this handle type");
   return 0;
