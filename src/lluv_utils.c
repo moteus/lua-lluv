@@ -17,6 +17,30 @@
 
 const char *LLUV_MEMORY_ERROR_MARK = LLUV_PREFIX" Error mark";
 
+#ifdef _WIN32
+#  ifndef S_ISDIR
+#    define S_ISDIR(mode)  (mode&_S_IFDIR)
+#  endif
+#  ifndef S_ISREG
+#    define S_ISREG(mode)  (mode&_S_IFREG)
+#  endif
+#  ifndef S_ISLNK
+#    define S_ISLNK(mode)  (0)
+#  endif
+#  ifndef S_ISSOCK
+#    define S_ISSOCK(mode)  (0)
+#  endif
+#  ifndef S_ISFIFO
+#    define S_ISFIFO(mode)  (0)
+#  endif
+#  ifndef S_ISCHR
+#    define S_ISCHR(mode)  (mode&_S_IFCHR)
+#  endif
+#  ifndef S_ISBLK
+#    define S_ISBLK(mode)  (0)
+#  endif
+#endif
+
 LLUV_INTERNAL void* lluv_alloc(lua_State* L, size_t size){
   (void)L;
   return malloc(size);
@@ -143,6 +167,41 @@ LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *ad
   }
 
   return 0;
+}
+
+LLUV_INTERNAL void lluv_push_stat(lua_State* L, const uv_stat_t* s){
+#define SET_FIELD_INT(F,V)  lutil_pushint64(L, s->V);         lua_setfield(L, -2, F)
+#define SET_FIELD_MODE(F,V) lua_pushboolean(L, V(s->st_mode));lua_setfield(L, -2, F)
+  //! @todo push full time (not only seconds)
+#define SET_FIELD_TIME(F,V) lutil_pushint64(L, s->V.tv_sec);  lua_setfield(L, -2, F)
+
+  lua_newtable(L);
+  SET_FIELD_INT( "dev"    , st_dev    );
+  SET_FIELD_INT( "ino"    , st_ino    );
+  SET_FIELD_INT( "mode"   , st_mode   );
+  SET_FIELD_INT( "nlink"  , st_nlink  );
+  SET_FIELD_INT( "uid"    , st_uid    );
+  SET_FIELD_INT( "gid"    , st_gid    );
+  SET_FIELD_INT( "rdev"   , st_rdev   );
+  SET_FIELD_INT( "size"   , st_size   );
+  SET_FIELD_INT( "blksize", st_blksize);
+  SET_FIELD_INT( "blocks" , st_blocks );
+
+  SET_FIELD_MODE("is_file"             , S_ISREG  );
+  SET_FIELD_MODE("is_directory"        , S_ISDIR  );
+  SET_FIELD_MODE("is_character_device" , S_ISCHR  );
+  SET_FIELD_MODE("is_block_device"     , S_ISBLK  );
+  SET_FIELD_MODE("is_fifo"             , S_ISFIFO );
+  SET_FIELD_MODE("is_symbolic_link"    , S_ISLNK  );
+  SET_FIELD_MODE("is_socket"           , S_ISSOCK );
+
+  SET_FIELD_TIME("atime", st_atim );
+  SET_FIELD_TIME("mtime", st_mtim );
+  SET_FIELD_TIME("ctime", st_ctim );
+
+#undef SET_FIELD_INT
+#undef SET_FIELD_MODE
+#undef SET_FIELD_TIME
 }
 
 static const char* lluv_to_string(lua_State *L, int idx){

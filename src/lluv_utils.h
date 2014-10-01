@@ -57,6 +57,8 @@ LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct 
 
 LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *addr);
 
+LLUV_INTERNAL void lluv_push_stat(lua_State* L, const uv_stat_t* s);
+
 LLUV_INTERNAL void lluv_stack_dump(lua_State* L, int top, const char* name);
 
 LLUV_INTERNAL void lluv_value_dump(lua_State* L, int i, const char* prefix);

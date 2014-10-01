@@ -205,6 +205,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_fs_poll.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_handle.c"
 				>
 			</File>
@@ -284,6 +288,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_fs_event.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_fs_poll.h"
 				>
 			</File>
 			<File
