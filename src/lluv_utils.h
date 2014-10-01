@@ -22,6 +22,11 @@
 
 extern const char *LLUV_MEMORY_ERROR_MARK;
 
+typedef struct lluv_uv_const_tag{
+  ssize_t     code;
+  const char *name;
+}lluv_uv_const_t;
+
 LLUV_INTERNAL void* lluv_alloc(lua_State* L, size_t size);
 
 LLUV_INTERNAL void lluv_free(lua_State* L, void *ptr);
@@ -55,6 +60,8 @@ LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *ad
 LLUV_INTERNAL void lluv_stack_dump(lua_State* L, int top, const char* name);
 
 LLUV_INTERNAL void lluv_value_dump(lua_State* L, int i, const char* prefix);
+
+LLUV_INTERNAL void lluv_register_constants(lua_State* L, const lluv_uv_const_t* cons);
 
 #define LLUV_IMPLEMENT_XXX_REQ(R, M)                                              \
                                                                                   \

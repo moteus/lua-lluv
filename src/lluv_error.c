@@ -139,14 +139,11 @@ static int lluv_error_new(lua_State *L){
   return 1;
 }
 
-struct lluv_error_const_tag{
-  ssize_t     code;
-  const char *name;
-}lluv_error_constants[] = {
+static lluv_uv_const_t lluv_error_constants[] = {
 
   /* error categories */
-  {LLUV_ERR_LIB,        "ERROR_LIB"        },
-  {LLUV_ERR_UV,         "ERROR_UV"         },
+  { LLUV_ERR_LIB,        "ERROR_LIB"        },
+  { LLUV_ERR_UV,         "ERROR_UV"         },
 
   /* error codes */
   { UV__EOF,             "EOF"             },
@@ -247,8 +244,6 @@ static const struct luaL_Reg lluv_error_functions[] = {
 };
 
 LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup){
-  struct lluv_error_const_tag *ptr;
-
   lutil_pushnvalues(L, nup);
 
   if(!lutil_createmetap(L, LLUV_ERROR, lluv_err_methods, nup))
@@ -256,13 +251,7 @@ LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_error_functions, nup);
-
-  for(ptr = &lluv_error_constants[0];ptr->name;++ptr){
-    lua_pushstring(L, ptr->name);
-    lutil_pushint64(L, ptr->code);
-    lua_rawset(L, -3);
-  }
-
+  lluv_register_constants(L, lluv_error_constants);
 }
 
 

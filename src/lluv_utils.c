@@ -199,3 +199,11 @@ LLUV_INTERNAL void lluv_stack_dump(lua_State* L, int top, const char* name) {
   printf("\n");
 }
 
+LLUV_INTERNAL void lluv_register_constants(lua_State* L, const lluv_uv_const_t* cons){
+  const lluv_uv_const_t* ptr;
+  for(ptr = &cons[0];ptr->name;++ptr){
+    lua_pushstring(L, ptr->name);
+    lutil_pushint64(L, ptr->code);
+    lua_rawset(L, -3);
+  }
+}
