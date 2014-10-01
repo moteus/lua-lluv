@@ -249,6 +249,19 @@ static int lluv_udp_stop_recv(lua_State *L){
   
 //}
 
+static int lluv_udp_getsockname(lua_State *L){
+  lluv_handle_t *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  struct sockaddr_storage sa; int sa_len = sizeof(sa);
+  int err = uv_udp_getsockname((uv_udp_t*)handle->handle, (struct sockaddr*)&sa, &sa_len);
+
+  lua_settop(L, 1);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  return lluv_push_addr(L, &sa);
+}
+
+
 static int lluv_udp_set_membership(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   const char *multicast_addr = luaL_checkstring(L, 2);
@@ -333,6 +346,7 @@ static const struct luaL_Reg lluv_udp_methods[] = {
   { "bind",                     lluv_udp_bind                    },
   { "try_send",                 lluv_udp_try_send                },
   { "send",                     lluv_udp_send                    },
+  { "getsockname",              lluv_udp_getsockname             },
   { "start_recv",               lluv_udp_start_recv              },
   { "stop_recv",                lluv_udp_stop_recv               },
   { "set_membership",           lluv_udp_set_membership          },

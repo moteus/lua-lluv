@@ -26,6 +26,7 @@
 #include "lluv_check.h"
 #include "lluv_poll.h"
 #include "lluv_signal.h"
+#include "lluv_fs_event.h"
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
 
@@ -45,22 +46,23 @@ int luaopen_lluv(lua_State *L){
   lua_newtable(L); /* library  */
 
   lua_pushvalue(L, -2); luaL_setfuncs(L, lluv_functions, 1);
-  lua_pushvalue(L, -2); lluv_error_initlib  (L, 1);
-  lua_pushvalue(L, -2); lluv_loop_initlib   (L, 1);
-  lua_pushvalue(L, -2); lluv_fs_initlib     (L, 1);
-  lua_pushvalue(L, -2); lluv_handle_initlib (L, 1);
-  lua_pushvalue(L, -2); lluv_stream_initlib (L, 1);
-  lua_pushvalue(L, -2); lluv_timer_initlib  (L, 1);
-  lua_pushvalue(L, -2); lluv_fbuf_initlib   (L, 1);
-  lua_pushvalue(L, -2); lluv_idle_initlib   (L, 1);
-  lua_pushvalue(L, -2); lluv_tcp_initlib    (L, 1);
-  lua_pushvalue(L, -2); lluv_pipe_initlib   (L, 1);
-  lua_pushvalue(L, -2); lluv_tty_initlib    (L, 1);
-  lua_pushvalue(L, -2); lluv_udp_initlib    (L, 1);
-  lua_pushvalue(L, -2); lluv_prepare_initlib(L, 1);
-  lua_pushvalue(L, -2); lluv_check_initlib  (L, 1);
-  lua_pushvalue(L, -2); lluv_poll_initlib   (L, 1);
-  lua_pushvalue(L, -2); lluv_signal_initlib (L, 1);
+  lua_pushvalue(L, -2); lluv_error_initlib    (L, 1);
+  lua_pushvalue(L, -2); lluv_loop_initlib     (L, 1);
+  lua_pushvalue(L, -2); lluv_fs_initlib       (L, 1);
+  lua_pushvalue(L, -2); lluv_handle_initlib   (L, 1);
+  lua_pushvalue(L, -2); lluv_stream_initlib   (L, 1);
+  lua_pushvalue(L, -2); lluv_timer_initlib    (L, 1);
+  lua_pushvalue(L, -2); lluv_fbuf_initlib     (L, 1);
+  lua_pushvalue(L, -2); lluv_idle_initlib     (L, 1);
+  lua_pushvalue(L, -2); lluv_tcp_initlib      (L, 1);
+  lua_pushvalue(L, -2); lluv_pipe_initlib     (L, 1);
+  lua_pushvalue(L, -2); lluv_tty_initlib      (L, 1);
+  lua_pushvalue(L, -2); lluv_udp_initlib      (L, 1);
+  lua_pushvalue(L, -2); lluv_prepare_initlib  (L, 1);
+  lua_pushvalue(L, -2); lluv_check_initlib    (L, 1);
+  lua_pushvalue(L, -2); lluv_poll_initlib     (L, 1);
+  lua_pushvalue(L, -2); lluv_signal_initlib   (L, 1);
+  lua_pushvalue(L, -2); lluv_fs_event_initlib (L, 1);
 
   lua_remove(L, -2); /* registry */
 

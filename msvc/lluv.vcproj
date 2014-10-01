@@ -201,6 +201,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_fs_event.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_handle.c"
 				>
 			</File>
@@ -276,6 +280,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_fs.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_fs_event.h"
 				>
 			</File>
 			<File
