@@ -225,6 +225,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_signal.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_stream.c"
 				>
 			</File>
@@ -296,6 +300,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_prepare.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_signal.h"
 				>
 			</File>
 			<File

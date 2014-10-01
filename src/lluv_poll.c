@@ -15,7 +15,7 @@
 #include "lluv_error.h"
 #include <assert.h>
 
-#define LLUV_POLL_NAME LLUV_PREFIX" Idle"
+#define LLUV_POLL_NAME LLUV_PREFIX" Poll"
 static const char *LLUV_POLL = LLUV_POLL_NAME;
 
 LLUV_INTERNAL int lluv_poll_index(lua_State *L){
