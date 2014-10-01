@@ -274,15 +274,8 @@ static void lluv_on_fs(uv_fs_t *arg){
 
 #define LLUV_POST_FS()                                                 \
   if(err < 0){                                                         \
-    lluv_error_create(L, LLUV_ERR_UV, err, path);                      \
     lluv_fs_request_free(L, req);                                      \
-    if(cb){                                                            \
-      lua_pcall(L, 1, 0, 0);                                           \
-      return 0;                                                        \
-    }                                                                  \
-    lua_pushnil(L);                                                    \
-    lua_insert(L, -2);                                                 \
-    return 2;                                                          \
+    return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, path);          \
   }                                                                    \
                                                                        \
   if(cb){                                                              \
