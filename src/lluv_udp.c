@@ -249,12 +249,98 @@ static int lluv_udp_stop_recv(lua_State *L){
   
 //}
 
+static int lluv_udp_set_membership(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  const char *multicast_addr = luaL_checkstring(L, 2);
+  const char *interface_addr = luaL_checkstring(L, 3);
+  uv_membership membership   = (uv_membership)luaL_checkint(L, 4);
+
+  int err = uv_udp_set_membership((uv_udp_t*)handle->handle, multicast_addr, interface_addr, membership);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_udp_set_multicast_loop(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  int enable = lua_toboolean(L, 2);
+
+  int err = uv_udp_set_multicast_loop((uv_udp_t*)handle->handle, enable);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_udp_set_multicast_ttl(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  int ttl = luaL_checkint(L, 2);
+
+  int err = uv_udp_set_multicast_ttl((uv_udp_t*)handle->handle, ttl);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_udp_set_multicast_interface(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  const char *interface_addr = luaL_checkstring(L, 2);
+
+  int err = uv_udp_set_multicast_interface((uv_udp_t*)handle->handle, interface_addr);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_udp_set_broadcast(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  int enable = lua_toboolean(L, 2);
+
+  int err = uv_udp_set_broadcast((uv_udp_t*)handle->handle, enable);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_udp_set_ttl(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  int ttl = luaL_checkint(L, 2);
+
+  int err = uv_udp_set_ttl((uv_udp_t*)handle->handle, ttl);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
 static const struct luaL_Reg lluv_udp_methods[] = {
-  { "bind",       lluv_udp_bind       },
-  { "try_send",   lluv_udp_try_send   },
-  { "send",       lluv_udp_send       },
-  { "start_recv", lluv_udp_start_recv },
-  { "stop_recv",  lluv_udp_stop_recv  },
+  { "bind",                     lluv_udp_bind                    },
+  { "try_send",                 lluv_udp_try_send                },
+  { "send",                     lluv_udp_send                    },
+  { "start_recv",               lluv_udp_start_recv              },
+  { "stop_recv",                lluv_udp_stop_recv               },
+  { "set_membership",           lluv_udp_set_membership          },
+  { "set_multicast_loop",       lluv_udp_set_multicast_loop      },
+  { "set_multicast_ttl",        lluv_udp_set_multicast_ttl       },
+  { "set_multicast_interface",  lluv_udp_set_multicast_interface },
+  { "set_broadcast",            lluv_udp_set_broadcast           },
+  { "set_ttl",                  lluv_udp_set_ttl                 },
 
   {NULL,NULL}
 };
