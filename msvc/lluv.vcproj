@@ -217,6 +217,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_poll.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_prepare.c"
 				>
 			</File>
@@ -284,6 +288,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_pipe.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_poll.h"
 				>
 			</File>
 			<File

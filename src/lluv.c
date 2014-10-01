@@ -24,6 +24,7 @@
 #include "lluv_udp.h"
 #include "lluv_prepare.h"
 #include "lluv_check.h"
+#include "lluv_poll.h"
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
 
@@ -56,7 +57,8 @@ int luaopen_lluv(lua_State *L){
   lua_pushvalue(L, -2); lluv_tty_initlib    (L, 1);
   lua_pushvalue(L, -2); lluv_udp_initlib    (L, 1);
   lua_pushvalue(L, -2); lluv_prepare_initlib(L, 1);
-  lua_pushvalue(L, -2); lluv_check_initlib(L, 1);
+  lua_pushvalue(L, -2); lluv_check_initlib  (L, 1);
+  lua_pushvalue(L, -2); lluv_poll_initlib   (L, 1);
 
   lua_remove(L, -2); /* registry */
 

@@ -61,7 +61,7 @@ build = {
         "src/lluv_stream.c","src/lluv_idle.c",  "src/lluv_loop.c",
         "src/lluv_tcp.c",   "src/lluv_timer.c", "src/lluv_pipe.c",
         "src/lluv_tty.c",   "src/lluv_udp.c",   "src/lluv_prepare.c",
-        "src/lluv_check.c",
+        "src/lluv_check.c", "src/lluv_poll.c",
         "src/l52util.c",
       },
       incdirs   = { "$(UV_INCDIR)" },
