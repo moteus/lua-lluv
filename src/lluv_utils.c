@@ -119,7 +119,7 @@ LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct 
   return err;
 }
 
-LLUV_INTERNAL int lluv_push_addr(lua_State *L, struct sockaddr_storage *addr){
+LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *addr){
   char buf[INET6_ADDRSTRLEN + 1];
 
   switch (((struct sockaddr*)addr)->sa_family){
