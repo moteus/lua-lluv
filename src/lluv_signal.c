@@ -90,6 +90,15 @@ static const struct luaL_Reg lluv_signal_methods[] = {
   {NULL,NULL}
 };
 
+static const lluv_uv_const_t lluv_signal_constants[] = {
+  { SIGINT,   "SIGINT"   },
+  { SIGBREAK, "SIGBREAK" },
+  { SIGHUP,   "SIGHUP"   },
+  { SIGWINCH, "SIGWINCH" },
+
+  { 0, NULL }
+};
+
 static const struct luaL_Reg lluv_signal_functions[] = {
   {"signal", lluv_signal_create},
 
@@ -103,4 +112,5 @@ LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_signal_functions, nup);
+  lluv_register_constants(L, lluv_signal_constants);
 }

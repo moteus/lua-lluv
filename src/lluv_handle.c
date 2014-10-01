@@ -10,6 +10,7 @@
 
 #include "lluv.h"
 #include "lluv_handle.h"
+#include "lluv_stream.h"
 #include "lluv_timer.h"
 #include "lluv_idle.h"
 #include "lluv_loop.h"

@@ -127,7 +127,6 @@ static int lluv_pipe_pending_type(lua_State *L){
   return 1;
 }
 
-
 static const struct luaL_Reg lluv_pipe_methods[] = {
   { "bind",              lluv_pipe_bind              },
   { "connect",           lluv_pipe_connect           },
