@@ -185,6 +185,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_check.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_error.c"
 				>
 			</File>
@@ -210,6 +214,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_pipe.c"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_prepare.c"
 				>
 			</File>
 			<File
@@ -247,6 +255,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_check.h"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_error.h"
 				>
 			</File>
@@ -272,6 +284,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_pipe.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_prepare.h"
 				>
 			</File>
 			<File
