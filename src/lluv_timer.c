@@ -43,16 +43,16 @@ static lluv_handle_t* lluv_check_timer(lua_State *L, int idx, lluv_flags_t flags
 static void lluv_on_timer_start(uv_timer_t *arg){
   lluv_handle_t *handle = arg->data;
   lua_State *L = handle->L;
-  int top = lua_gettop(L);
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
+  assert(!lua_isnil(L, -1)); /* is callble */
 
-  if(!lua_isnil(L, -1)){
-    lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
-    lluv_lua_call(L, 1, 0);
-  }
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
+  lluv_lua_call(L, 1, 0);
 
-  lua_settop(L, top);
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
 static int lluv_timer_start(lua_State *L){

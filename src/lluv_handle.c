@@ -114,9 +114,10 @@ LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
 static void lluv_on_handle_close(uv_handle_t *arg){
   lluv_handle_t *handle = arg->data;
   lua_State *L = handle->L;
-  int top = lua_gettop(L);
 
   assert(arg == handle->handle);
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CLOSE_CB(handle));
   lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
@@ -127,8 +128,10 @@ static void lluv_on_handle_close(uv_handle_t *arg){
 
   if(!lua_isnil(L, -2))
     lluv_lua_call(L, 1, 0);
+  else
+    lua_pop(L, 2);
 
-  lua_settop(L, top);
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
 static int lluv_handle_close(lua_State *L){

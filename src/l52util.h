@@ -35,6 +35,12 @@ void luaL_register (lua_State *L, const char *libname, const luaL_Reg *l);
 
 #endif
 
+#ifndef lua_equal
+
+#define lua_equal(L,idx1,idx2) lua_compare(L,(idx1),(idx2),LUA_OPEQ)
+
+#endif
+
 #else                      // lua 5.1
 
 // functions form lua 5.2

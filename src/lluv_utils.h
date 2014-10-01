@@ -15,8 +15,10 @@
 #include <lua.h>
 #include "l52util.h"
 
-#define LLUV_LUA_REGISTRY lua_upvalueindex(1)
-#define LLUV_LOOP_INDEX   lua_upvalueindex(2)
+#define LLUV_LUA_REGISTRY        lua_upvalueindex(1)
+#define LLUV_LOOP_INDEX          lua_upvalueindex(2)
+#define LLUV_ERROR_HANDLER_INDEX lua_upvalueindex(3)
+#define LLUV_ERROR_MARK_INDEX    lua_upvalueindex(4)
 
 extern const char *LLUV_MEMORY_ERROR_MARK;
 
@@ -49,6 +51,10 @@ LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* handle, const uv_buf_t *buf);
 LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa);
 
 LLUV_INTERNAL int lluv_push_addr(lua_State *L, struct sockaddr_storage *addr);
+
+LLUV_INTERNAL void lluv_stack_dump(lua_State* L, int top, const char* name);
+
+LLUV_INTERNAL void lluv_value_dump(lua_State* L, int i, const char* prefix);
 
 #define LLUV_IMPLEMENT_XXX_REQ(R, M)                                              \
                                                                                   \

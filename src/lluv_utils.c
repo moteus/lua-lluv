@@ -28,13 +28,13 @@ LLUV_INTERNAL void lluv_free(lua_State* L, void *ptr){
 }
 
 LLUV_INTERNAL int lluv_lua_call(lua_State* L, int narg, int nret){
-  int errh = lua_isnil(L, lua_upvalueindex(3))?0:lua_upvalueindex(3);
-
-  int ret = lua_pcall(L, narg, nret, errh);
+  int error_handler = lua_isnil(L, LLUV_ERROR_HANDLER_INDEX) ? 0 : LLUV_ERROR_HANDLER_INDEX;
+  int ret = lua_pcall(L, narg, nret, error_handler);
+ 
   if(!ret) return 0;
 
   if(ret == LUA_ERRMEM) lua_pushlightuserdata(L, (void*)LLUV_MEMORY_ERROR_MARK);
-  lua_replace(L, lua_upvalueindex(4));
+  lua_replace(L, LLUV_ERROR_MARK_INDEX);
   {
     lluv_loop_t* loop = lluv_opt_loop(L, LLUV_LOOP_INDEX, 0);
     uv_stop(loop->handle);
@@ -143,5 +143,59 @@ LLUV_INTERNAL int lluv_push_addr(lua_State *L, struct sockaddr_storage *addr){
   }
 
   return 0;
+}
+
+static const char* lluv_to_string(lua_State *L, int idx){
+  idx = lua_absindex(L, idx);
+  lua_getglobal(L, "tostring");
+  lua_pushvalue(L, idx);
+  lua_call(L, 1, 1);
+  return lua_tostring(L, -1);
+}
+
+LLUV_INTERNAL void lluv_value_dump(lua_State* L, int i, const char* prefix) {
+  const char* tname = lua_typename(L, lua_type(L, i));
+  if(!prefix){
+    static const char *tab = "  ";
+    prefix = tab;
+  }
+  switch (lua_type(L, i)) {
+    case LUA_TNIL:
+      printf("%s%d: %s\n",     prefix, i, tname);
+      break;
+    case LUA_TNUMBER:
+      printf("%s%d: %s\t%f\n", prefix, i, tname, lua_tonumber(L, i));
+      break;
+    case LUA_TBOOLEAN:
+      printf("%s%d: %s\n\t%s", prefix, i, tname, lua_toboolean(L, i) ? "true" : "false");
+      break;
+    case LUA_TSTRING:
+      printf("%s%d: %s\t%s\n", prefix, i, tname, lua_tostring(L, i));
+      break;
+    case LUA_TTABLE:
+      printf("%s%d: %s\n",     prefix, i, lluv_to_string(L, i)); lua_pop(L, 1);
+      break;
+    case LUA_TFUNCTION:
+      printf("%s%d: %s\t%p\n", prefix, i, tname, lua_tocfunction(L, i));
+      break;
+    case LUA_TUSERDATA:
+      printf("%s%d: %s\t%s\n", prefix, i, tname, lluv_to_string(L, i)); lua_pop(L, 1);
+      break;
+    case LUA_TTHREAD:
+      printf("%s%d: %s\t%p\n", prefix, i, tname, lua_tothread(L, i));
+      break;
+    case LUA_TLIGHTUSERDATA:
+      printf("%s%d: %s\t%p\n", prefix, i, tname, lua_touserdata(L, i));
+      break;
+  }
+}
+
+LLUV_INTERNAL void lluv_stack_dump(lua_State* L, int top, const char* name) {
+  int i, l;
+  printf("\n" LLUV_PREFIX " API STACK DUMP: %s\n", name);
+  for (i = top, l = lua_gettop(L); i <= l; i++) {
+    lluv_value_dump(L, i, "  ");
+  }
+  printf("\n");
 }
 

@@ -14,6 +14,9 @@
 #include "lluv.h"
 #include "lluv_utils.h"
 
+// number of values that push loop.run
+#define LLUV_CALLBACK_TOP_SIZE 0
+
 #define LLUV_BUFFER_SIZE 65536
 
 typedef struct lluv_loop_tag{
@@ -38,5 +41,9 @@ LLUV_INTERNAL lluv_loop_t* lluv_push_default_loop(lua_State *L);
 LLUV_INTERNAL lluv_loop_t* lluv_default_loop(lua_State *L);
 
 LLUV_INTERNAL lluv_loop_t* lluv_ensure_loop_at(lua_State *L, int idx);
+
+#define LLUV_CHECK_LOOP_CB_INVARIANT(L) \
+  assert("Some one use invalid callback handler" && (lua_gettop(L) == LLUV_CALLBACK_TOP_SIZE));
+
 
 #endif

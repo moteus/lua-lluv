@@ -235,7 +235,9 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
 static void lluv_on_fs(uv_fs_t *arg){
   lluv_fs_request_t *req = arg->data;
   lua_State *L = req->L;
-  int argc, top = lua_gettop(L);
+  int argc;
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
 
@@ -253,7 +255,8 @@ static void lluv_on_fs(uv_fs_t *arg){
   lluv_fs_request_free(L, req);
 
   lluv_lua_call(L, argc, 0);
-  lua_settop(L, top);
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
 //{ Macro
