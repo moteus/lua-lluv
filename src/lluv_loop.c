@@ -124,7 +124,7 @@ static int lluv_loop_close_all_handles_impl(lua_State *L){
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  while(err = uv_run(loop->handle, UV_RUN_ONCE)){
+  while((err = uv_run(loop->handle, UV_RUN_ONCE))){
     if(err < 0)
       return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -133,7 +133,7 @@ static int lluv_loop_close_all_handles_impl(lua_State *L){
 }
 
 static int lluv_loop_close_all_handles(lua_State *L){
-  lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
+  /* lluv_loop_t* loop = */ lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
   lua_settop(L, 1);
 
   lua_pushvalue(L, LLUV_LUA_REGISTRY); lua_pushvalue(L, 1); /* loop, reg, loop            */
