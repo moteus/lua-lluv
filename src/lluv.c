@@ -28,6 +28,7 @@
 #include "lluv_signal.h"
 #include "lluv_fs_event.h"
 #include "lluv_fs_poll.h"
+#include "lluv_misc.h"
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
 
@@ -65,6 +66,7 @@ int luaopen_lluv(lua_State *L){
   lua_pushvalue(L, -2); lluv_signal_initlib   (L, 1);
   lua_pushvalue(L, -2); lluv_fs_event_initlib (L, 1);
   lua_pushvalue(L, -2); lluv_fs_poll_initlib  (L, 1);
+  lua_pushvalue(L, -2); lluv_misc_initlib     (L, 1);
 
   lua_remove(L, -2); /* registry */
 
