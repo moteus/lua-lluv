@@ -60,7 +60,7 @@ static int lluv_tcp_connect(lua_State *L){
 
   req = lluv_req_new(L, UV_CONNECT, handle);
 
-  err = uv_tcp_connect((uv_connect_t*)req, LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
+  err = uv_tcp_connect(LLUV_R(req, connect), LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
   if(err < 0){
     lluv_req_free(L, req);
     lua_settop(L, 3);

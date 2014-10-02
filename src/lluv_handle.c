@@ -158,7 +158,16 @@ static int lluv_handle_close(lua_State *L){
   }
 
   uv_close(LLUV_H(handle, uv_handle_t), lluv_on_handle_close);
-  return 0;
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_handle_closed(lua_State *L){
+  lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
+
+  lua_pushboolean(L, IS_(handle, OPEN) ? 0 : 1);
+  return 1;
 }
 
 static int lluv_handle_to_s(lua_State *L){
@@ -260,6 +269,7 @@ static const struct luaL_Reg lluv_handle_methods[] = {
   { "__tostring",       lluv_handle_to_s             },
   { "loop",             lluv_handle_loop             },
   { "close",            lluv_handle_close            },
+  { "closed",           lluv_handle_closed           },
   { "ref",              lluv_handle_ref              },
   { "unref",            lluv_handle_unref            },
   { "has_ref",          lluv_handle_has_ref          },

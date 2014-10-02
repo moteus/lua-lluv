@@ -16,7 +16,7 @@ local function on_read(cli, err, data)
     return cli:close()
   end
   cli:write(data, on_write)
-  io.write(data)
+  -- io.write(data)
 end
 
 print("LISTEN_START:", server:listen(function(server, err)
