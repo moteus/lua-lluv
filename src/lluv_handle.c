@@ -96,7 +96,6 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h){
   return handle;
 }
 
-
 LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h){
   lluv_handle_t *handle = lluv_handle_byptr(h);
   lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->self);

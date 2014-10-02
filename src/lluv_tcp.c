@@ -14,6 +14,7 @@
 #include "lluv_tcp.h"
 #include "lluv_loop.h"
 #include "lluv_error.h"
+#include "lluv_req.h"
 #include <assert.h>
 
 #define LLUV_TCP_NAME LLUV_PREFIX" tcp"
@@ -46,8 +47,7 @@ static int lluv_tcp_connect(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   const char *addr = luaL_checkstring(L, 2);
   lua_Integer port = luaL_checkint(L, 3);
-  lluv_connect_t *req;
-  struct sockaddr_storage sa;
+  lluv_req_t *req; struct sockaddr_storage sa;
   int err = lluv_to_addr(L, addr, port, &sa);
   
   if(err < 0){
@@ -58,11 +58,11 @@ static int lluv_tcp_connect(lua_State *L){
 
   lluv_check_args_with_cb(L, 4);
 
-  req = lluv_connect_new(L, handle);
+  req = lluv_req_new(L, UV_CONNECT, handle);
 
   err = uv_tcp_connect((uv_connect_t*)req, LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
   if(err < 0){
-    lluv_connect_free(L, req);
+    lluv_req_free(L, req);
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));

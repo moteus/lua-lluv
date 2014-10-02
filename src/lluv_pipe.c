@@ -14,6 +14,7 @@
 #include "lluv_pipe.h"
 #include "lluv_loop.h"
 #include "lluv_error.h"
+#include "lluv_req.h"
 #include <assert.h>
 
 #define LLUV_PIPE_NAME LLUV_PREFIX" Pipe"
@@ -62,12 +63,12 @@ static int lluv_pipe_bind(lua_State *L){
 static int lluv_pipe_connect(lua_State *L){
   lluv_handle_t  *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
   const char       *addr = luaL_checkstring(L, 2);
-  lluv_connect_t *req;
+  lluv_req_t       *req;
 
   lluv_check_args_with_cb(L, 3);
-  req = lluv_connect_new(L, handle);
+  req = lluv_req_new(L, UV_CONNECT, handle);
 
-  uv_pipe_connect((uv_connect_t*)req, LLUV_H(handle, uv_pipe_t), addr, lluv_on_stream_connect_cb);
+  uv_pipe_connect( LLUV_R(req, connect), LLUV_H(handle, uv_pipe_t), addr, lluv_on_stream_connect_cb);
 
   lua_settop(L, 1);
   return 1;

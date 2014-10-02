@@ -13,9 +13,8 @@
 #include "lluv_udp.h"
 #include "lluv_loop.h"
 #include "lluv_error.h"
+#include "lluv_req.h"
 #include <assert.h>
-
-LLUV_IMPLEMENT_XXX_REQ(udp_send, static)
 
 #define LLUV_UDP_NAME LLUV_PREFIX" udp"
 static const char *LLUV_UDP = LLUV_UDP_NAME;
@@ -97,23 +96,19 @@ static int lluv_udp_try_send(lua_State *L){
 }
 
 static void lluv_on_udp_send_cb(uv_udp_send_t* arg, int status){
-  lluv_udp_send_t  *req = arg->data;
+  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
   lluv_handle_t *handle = req->handle;
-  lua_State *L          = handle->L;
+  lua_State     *L      = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  /* release write data (e.g. Lua string */
-  lua_pushnil(L);
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
-
   if(!IS_(handle, OPEN)){
-    lluv_udp_send_free(L, req);
+    lluv_req_free(L, req);
     return;
   }
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_udp_send_free(L, req);
+  lluv_req_free(L, req);
   assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
@@ -130,7 +125,7 @@ static int lluv_udp_send(lua_State *L){
   struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
   size_t len; const char *str = luaL_checklstring(L, 4, &len);
   uv_buf_t buf = uv_buf_init((char*)str, len);
-  lluv_udp_send_t *req;
+  lluv_req_t *req;
 
   if(err < 0){
     lua_settop(L, 3);
@@ -139,15 +134,13 @@ static int lluv_udp_send(lua_State *L){
   }
 
   lluv_check_args_with_cb(L, 5);
-  req = lluv_udp_send_new(L, handle);
+  req = lluv_req_new(L, UV_UDP_SEND, handle);
 
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req); /* string */
+  lluv_req_ref(L, req); /* string */
 
-  err = uv_udp_send(&req->req, LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
+  err = uv_udp_send(LLUV_R(req, udp_send), LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
   if(err < 0){
-    lua_pushnil(L);
-    lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
-    lluv_udp_send_free(L, req);
+    lluv_req_free(L, req);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 

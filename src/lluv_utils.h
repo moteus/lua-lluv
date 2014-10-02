@@ -65,29 +65,6 @@ LLUV_INTERNAL void lluv_value_dump(lua_State* L, int i, const char* prefix);
 
 LLUV_INTERNAL void lluv_register_constants(lua_State* L, const lluv_uv_const_t* cons);
 
-#define LLUV_IMPLEMENT_XXX_REQ(R, M)                                              \
-                                                                                  \
-typedef struct lluv_##R##_tag{                                                    \
-  uv_##R##_t  req;                                                                \
-  lluv_handle_t *handle;                                                          \
-  int           cb;                                                               \
-}lluv_##R##_t;                                                                    \
-                                                                                  \
-M lluv_##R##_t *lluv_##R##_new(lua_State *L, lluv_handle_t *h){                   \
-  lluv_##R##_t *req = lluv_alloc_t(L, lluv_##R##_t);                              \
-  assert(L == h->L);                                                              \
-  req->req.data = req;                                                            \
-  req->handle   = h;                                                              \
-  req->cb       = luaL_ref(L, LLUV_LUA_REGISTRY);                                 \
-  return req;                                                                     \
-}                                                                                 \
-                                                                                  \
-M void lluv_##R##_free(lua_State *L, lluv_##R##_t *req){                          \
-  if(req->cb != LUA_NOREF)                                                        \
-  luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);                                      \
-  lluv_free_t(L, lluv_##R##_t, req);                                              \
-}                                                                                 \
-
 typedef unsigned char lluv_flag_t;
 
 #define lluv_flags_t unsigned char

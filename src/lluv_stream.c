@@ -13,13 +13,8 @@
 #include "lluv_stream.h"
 #include "lluv_loop.h"
 #include "lluv_error.h"
+#include "lluv_req.h"
 #include <assert.h>
-
-LLUV_IMPLEMENT_XXX_REQ(connect, LLUV_INTERNAL)
-
-LLUV_IMPLEMENT_XXX_REQ(shutdown, static)
-
-LLUV_IMPLEMENT_XXX_REQ(write, static)
 
 #define LLUV_STREAM_NAME LLUV_PREFIX" Stream"
 static const char *LLUV_STREAM = LLUV_STREAM_NAME;
@@ -44,18 +39,18 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags
 }
 
 LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status){
-  lluv_connect_t *req = arg->data;
+  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
   lluv_handle_t *handle = req->handle;
-  lua_State *L = handle->L;
+  lua_State     *L      = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   if(!IS_(handle, OPEN)){
-    lluv_connect_free(L, req);
+    lluv_req_free(L, req);
     return;
   }
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_connect_free(L, req);
+  lluv_req_free(L, req);
 
   lluv_handle_pushself(L, handle);
   if(status >= 0) lua_pushnil(L);
@@ -69,18 +64,18 @@ LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status){
 //{ Shutdown
 
 static void lluv_on_stream_shutdown_cb(uv_shutdown_t* arg, int status){
-  lluv_shutdown_t *req  = arg->data;
+  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
   lluv_handle_t *handle = req->handle;
-  lua_State *L = handle->L;
+  lua_State     *L      = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   if(!IS_(handle, OPEN)){
-    lluv_shutdown_free(L, req);
+    lluv_req_free(L, req);
     return;
   }
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_shutdown_free(L, req);
+  lluv_req_free(L, req);
 
   lluv_handle_pushself(L, handle);
   if(status >= 0) lua_pushnil(L);
@@ -92,17 +87,16 @@ static void lluv_on_stream_shutdown_cb(uv_shutdown_t* arg, int status){
 }
 
 static int lluv_stream_shutdown(lua_State *L){
-  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
-  lluv_shutdown_t *req;
-  int err;
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  lluv_req_t *req; int err;
 
   lluv_check_args_with_cb(L, 2);
 
-  req = lluv_shutdown_new(L, handle);
+  req = lluv_req_new(L, UV_SHUTDOWN, handle);
 
-  err = uv_shutdown(&req->req, LLUV_H(handle, uv_stream_t), lluv_on_stream_shutdown_cb);
+  err = uv_shutdown(LLUV_R(req, shutdown), LLUV_H(handle, uv_stream_t), lluv_on_stream_shutdown_cb);
   if(err < 0){
-    lluv_shutdown_free(L, req);
+    lluv_req_free(L, req);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
@@ -267,23 +261,19 @@ static int lluv_stream_try_write(lua_State *L){
 }
 
 static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
-  lluv_write_t  *req    = arg->data;
+  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
   lluv_handle_t *handle = req->handle;
-  lua_State *L          = handle->L;
+  lua_State     *L      = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  /* release write data (e.g. Lua string */
-  lua_pushnil(L);
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
-
   if(!IS_(handle, OPEN)){
-    lluv_write_free(L, req);
+    lluv_req_free(L, req);
     return;
   }
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_write_free(L, req);
+  lluv_req_free(L, req);
   assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
@@ -298,19 +288,17 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
 static int lluv_stream_write(lua_State *L){
   lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   size_t len; const char *str = luaL_checklstring(L, 2, &len);
-  int err; lluv_write_t *req;
+  int err; lluv_req_t *req;
   uv_buf_t buf = uv_buf_init((char*)str, len);
 
   lluv_check_args_with_cb(L, 3);
 
-  req = lluv_write_new(L, handle);
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req); /* string */
+  req = lluv_req_new(L, UV_WRITE, handle);
+  lluv_req_ref(L, req); /* string */
 
-  err = uv_write(&req->req, LLUV_H(handle, uv_stream_t), &buf, 1, lluv_on_stream_write_cb);
+  err = uv_write(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), &buf, 1, lluv_on_stream_write_cb);
   if(err < 0){
-    lua_pushnil(L);
-    lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
-    lluv_write_free(L, req);
+    lluv_req_free(L, req);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
