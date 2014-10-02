@@ -25,11 +25,11 @@ LLUV_INTERNAL int lluv_udp_index(lua_State *L){
 }
 
 static int lluv_udp_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  uv_udp_t *udp   = (uv_udp_t *)lluv_handle_create(L, UV_UDP, INHERITE_FLAGS(loop));
-  int err = uv_udp_init(loop->handle, udp);
+  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_handle_create(L, UV_UDP, INHERITE_FLAGS(loop));
+  int err = uv_udp_init(loop->handle, LLUV_H(handle, uv_udp_t));
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)udp->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -37,7 +37,7 @@ static int lluv_udp_create(lua_State *L){
 
 static lluv_handle_t* lluv_check_udp(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_UDP, idx, LLUV_UDP_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_UDP, idx, LLUV_UDP_NAME" expected");
 
   return handle;
 }
@@ -60,7 +60,7 @@ static int lluv_udp_bind(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  err = uv_udp_bind((uv_udp_t*)handle->handle, (struct sockaddr *)&sa, flags);
+  err = uv_udp_bind(LLUV_H(handle, uv_udp_t), (struct sockaddr *)&sa, flags);
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
@@ -87,7 +87,7 @@ static int lluv_udp_try_send(lua_State *L){
 
   lluv_check_none(L, 3);
 
-  err = uv_udp_try_send((uv_udp_t*)handle->handle, &buf, 1, (struct sockaddr*)&sa);
+  err = uv_udp_try_send(LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -97,7 +97,7 @@ static int lluv_udp_try_send(lua_State *L){
 }
 
 static void lluv_on_udp_send_cb(uv_udp_send_t* arg, int status){
-  lluv_udp_send_t  *req    = arg->data;
+  lluv_udp_send_t  *req = arg->data;
   lluv_handle_t *handle = req->handle;
   lua_State *L          = handle->L;
 
@@ -116,7 +116,7 @@ static void lluv_on_udp_send_cb(uv_udp_send_t* arg, int status){
   lluv_udp_send_free(L, req);
   assert(!lua_isnil(L, -1));
 
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  lluv_handle_pushself(L, handle);
   if(status >= 0) lua_pushnil(L);
   else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
 
@@ -143,7 +143,7 @@ static int lluv_udp_send(lua_State *L){
 
   lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req); /* string */
 
-  err = uv_udp_send(&req->req, (uv_udp_t*)handle->handle, &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
+  err = uv_udp_send(&req->req, LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
   if(err < 0){
     lua_pushnil(L);
     lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
@@ -160,12 +160,10 @@ static int lluv_udp_send(lua_State *L){
 //{ Recv
 
 static void lluv_on_udp_recv_cb(uv_udp_t *arg, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
-
-  assert((uv_handle_t*)arg == handle->handle);
 
   if((nread == 0) && (addr == NULL)){
     /*
@@ -180,9 +178,7 @@ static void lluv_on_udp_recv_cb(uv_udp_t *arg, ssize_t nread, const uv_buf_t* bu
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
   assert(!lua_isnil(L, -1));
 
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
-  assert(handle == lua_touserdata(L, -1));
-  
+  lluv_handle_pushself(L, handle);
   
   if(nread >= 0){
     assert(addr);
@@ -219,7 +215,7 @@ static int lluv_udp_start_recv(lua_State *L){
   lluv_check_args_with_cb(L, 2);
   LLUV_READ_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_udp_recv_start((uv_udp_t*)handle->handle, lluv_alloc_buffer_cb, lluv_on_udp_recv_cb);
+  err = uv_udp_recv_start(LLUV_H(handle, uv_udp_t), lluv_alloc_buffer_cb, lluv_on_udp_recv_cb);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -234,7 +230,7 @@ static int lluv_udp_stop_recv(lua_State *L){
 
   lluv_check_none(L, 2);
 
-  err = uv_udp_recv_stop((uv_udp_t*)handle->handle);
+  err = uv_udp_recv_stop(LLUV_H(handle, uv_udp_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -252,7 +248,7 @@ static int lluv_udp_stop_recv(lua_State *L){
 static int lluv_udp_getsockname(lua_State *L){
   lluv_handle_t *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int sa_len = sizeof(sa);
-  int err = uv_udp_getsockname((uv_udp_t*)handle->handle, (struct sockaddr*)&sa, &sa_len);
+  int err = uv_udp_getsockname(LLUV_H(handle, uv_udp_t), (struct sockaddr*)&sa, &sa_len);
 
   lua_settop(L, 1);
   if(err < 0){
@@ -268,7 +264,7 @@ static int lluv_udp_set_membership(lua_State *L){
   const char *interface_addr = luaL_checkstring(L, 3);
   uv_membership membership   = (uv_membership)luaL_checkint(L, 4);
 
-  int err = uv_udp_set_membership((uv_udp_t*)handle->handle, multicast_addr, interface_addr, membership);
+  int err = uv_udp_set_membership(LLUV_H(handle, uv_udp_t), multicast_addr, interface_addr, membership);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -281,7 +277,7 @@ static int lluv_udp_set_multicast_loop(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   int enable = lua_toboolean(L, 2);
 
-  int err = uv_udp_set_multicast_loop((uv_udp_t*)handle->handle, enable);
+  int err = uv_udp_set_multicast_loop(LLUV_H(handle, uv_udp_t), enable);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -294,7 +290,7 @@ static int lluv_udp_set_multicast_ttl(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   int ttl = luaL_checkint(L, 2);
 
-  int err = uv_udp_set_multicast_ttl((uv_udp_t*)handle->handle, ttl);
+  int err = uv_udp_set_multicast_ttl(LLUV_H(handle, uv_udp_t), ttl);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -307,7 +303,7 @@ static int lluv_udp_set_multicast_interface(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   const char *interface_addr = luaL_checkstring(L, 2);
 
-  int err = uv_udp_set_multicast_interface((uv_udp_t*)handle->handle, interface_addr);
+  int err = uv_udp_set_multicast_interface(LLUV_H(handle, uv_udp_t), interface_addr);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -320,7 +316,7 @@ static int lluv_udp_set_broadcast(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   int enable = lua_toboolean(L, 2);
 
-  int err = uv_udp_set_broadcast((uv_udp_t*)handle->handle, enable);
+  int err = uv_udp_set_broadcast(LLUV_H(handle, uv_udp_t), enable);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -333,7 +329,7 @@ static int lluv_udp_set_ttl(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   int ttl = luaL_checkint(L, 2);
 
-  int err = uv_udp_set_ttl((uv_udp_t*)handle->handle, ttl);
+  int err = uv_udp_set_ttl(LLUV_H(handle, uv_udp_t), ttl);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }

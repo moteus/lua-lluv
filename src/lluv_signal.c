@@ -23,25 +23,26 @@ LLUV_INTERNAL int lluv_signal_index(lua_State *L){
 }
 
 static int lluv_signal_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  uv_signal_t *signal   = (uv_signal_t *)lluv_handle_create(L, UV_SIGNAL, INHERITE_FLAGS(loop));
-  int err = uv_signal_init(loop->handle, signal);
+  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_handle_create(L, UV_SIGNAL, INHERITE_FLAGS(loop));
+  int err = uv_signal_init(loop->handle, LLUV_H(handle, uv_signal_t));
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)signal->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
 
+
 static lluv_handle_t* lluv_check_signal(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_SIGNAL, idx, LLUV_SIGNAL_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_SIGNAL, idx, LLUV_SIGNAL_NAME" expected");
 
   return handle;
 }
 
 static void lluv_on_signal_start(uv_signal_t *arg, int signum){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -49,7 +50,7 @@ static void lluv_on_signal_start(uv_signal_t *arg, int signum){
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
   assert(!lua_isnil(L, -1)); /* is callble */
 
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
+  lluv_handle_pushself(L, handle);
   lua_pushinteger(L, signum);
   lluv_lua_call(L, 2, 0);
 
@@ -64,7 +65,7 @@ static int lluv_signal_start(lua_State *L){
   lluv_check_args_with_cb(L, 3);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_signal_start((uv_signal_t*)handle->handle, lluv_on_signal_start, signum);
+  err = uv_signal_start(LLUV_H(handle, uv_signal_t), lluv_on_signal_start, signum);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -75,7 +76,7 @@ static int lluv_signal_start(lua_State *L){
 
 static int lluv_signal_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_signal(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_signal_stop((uv_signal_t*)handle->handle);
+  int err = uv_signal_stop(LLUV_H(handle, uv_signal_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }

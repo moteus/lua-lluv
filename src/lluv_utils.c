@@ -93,18 +93,14 @@ LLUV_INTERNAL void lluv_check_args_with_cb(lua_State *L, int n){
 }
 
 static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
-  lluv_handle_t *handle = h->data;
-  lluv_loop_t *loop;
-  lua_rawgetp(handle->L, LLUV_LUA_REGISTRY, handle->handle->loop);
-  loop = lluv_check_loop(handle->L, -1, LLUV_FLAG_OPEN);
-  lua_pop(handle->L, 1);
-
+  lluv_handle_t *handle = lluv_handle_byptr(h);
+  lluv_loop_t *loop = handle->handle.loop->data;
   return loop;
 }
 
 LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf){
-  lluv_loop_t* loop     = lluv_loop_by_handle(h);
-  lluv_handle_t *handle = h->data;
+  lluv_handle_t *handle = lluv_handle_byptr(h);
+  lluv_loop_t     *loop = lluv_loop_by_handle(h);
 
   if(!IS_(loop, BUFFER_BUSY)){
     SET_(loop, BUFFER_BUSY);
@@ -117,8 +113,9 @@ LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, u
 
 LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
   if(buf->base){
-    lluv_loop_t* loop     = lluv_loop_by_handle(h);
-    lluv_handle_t *handle = h->data;
+    lluv_handle_t *handle = lluv_handle_byptr(h);
+    lluv_loop_t     *loop = lluv_loop_by_handle(h);
+
     if(buf->base == loop->buffer){
       assert(IS_(loop, BUFFER_BUSY));
       UNSET_(loop, BUFFER_BUSY);

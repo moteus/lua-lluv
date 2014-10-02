@@ -25,14 +25,14 @@ LLUV_INTERNAL int lluv_poll_index(lua_State *L){
 static int lluv_poll_create(lua_State *L){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int fd = luaL_checkint(L, loop ? 2 : 1);
-  uv_poll_t *poll; int err;
+  lluv_handle_t *handle; int err;
 
   if(!loop) loop = lluv_default_loop(L);
-  poll   = (uv_poll_t *)lluv_handle_create(L, UV_POLL, INHERITE_FLAGS(loop));
+  handle = lluv_handle_create(L, UV_POLL, INHERITE_FLAGS(loop));
 
-  err = uv_poll_init(loop->handle, poll, fd);
+  err = uv_poll_init(loop->handle, LLUV_H(handle, uv_poll_t), fd);
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)poll->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -41,14 +41,14 @@ static int lluv_poll_create(lua_State *L){
 static int lluv_poll_create_socket(lua_State *L){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   uv_os_sock_t socket = (uv_os_sock_t)lutil_checkint64(L, loop ? 2 : 1);
-  uv_poll_t *poll; int err;
+  lluv_handle_t *handle; int err;
 
   if(!loop) loop = lluv_default_loop(L);
-  poll   = (uv_poll_t *)lluv_handle_create(L, UV_POLL, INHERITE_FLAGS(loop));
+  handle = lluv_handle_create(L, UV_POLL, INHERITE_FLAGS(loop));
 
-  err = uv_poll_init_socket(loop->handle, poll, socket);
+  err = uv_poll_init_socket(loop->handle, LLUV_H(handle, uv_poll_t), socket);
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)poll->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -56,13 +56,13 @@ static int lluv_poll_create_socket(lua_State *L){
 
 static lluv_handle_t* lluv_check_poll(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_POLL, idx, LLUV_POLL_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle,uv_handle_t)->type == UV_POLL, idx, LLUV_POLL_NAME" expected");
 
   return handle;
 }
 
 static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -70,7 +70,7 @@ static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
   assert(!lua_isnil(L, -1)); /* is callble */
 
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  lluv_handle_pushself(L, handle);
   if(status >= 0) lua_pushnil(L);
   else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
 
@@ -87,7 +87,7 @@ static int lluv_poll_start(lua_State *L){
   lluv_check_args_with_cb(L, 3);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_poll_start((uv_poll_t*)handle->handle, events, lluv_on_poll_start);
+  err = uv_poll_start(LLUV_H(handle, uv_poll_t), events, lluv_on_poll_start);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -98,7 +98,7 @@ static int lluv_poll_start(lua_State *L){
 
 static int lluv_poll_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_poll(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_poll_stop((uv_poll_t*)handle->handle);
+  int err = uv_poll_stop(LLUV_H(handle, uv_poll_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }

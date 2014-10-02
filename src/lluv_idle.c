@@ -23,11 +23,11 @@ LLUV_INTERNAL int lluv_idle_index(lua_State *L){
 }
 
 static int lluv_idle_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  uv_idle_t *idle   = (uv_idle_t *)lluv_handle_create(L, UV_IDLE, INHERITE_FLAGS(loop));
-  int err = uv_idle_init(loop->handle, idle);
+  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_handle_create(L, UV_IDLE, INHERITE_FLAGS(loop));
+  int err = uv_idle_init(loop->handle, LLUV_H(handle, uv_idle_t));
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)idle->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -35,21 +35,20 @@ static int lluv_idle_create(lua_State *L){
 
 static lluv_handle_t* lluv_check_idle(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_IDLE, idx, LLUV_IDLE_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_IDLE, idx, LLUV_IDLE_NAME" expected");
 
   return handle;
 }
 
 static void lluv_on_idle_start(uv_idle_t *arg){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
   assert(!lua_isnil(L, -1)); /* is callble */
-
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
+  lluv_handle_pushself(L, handle);
   lluv_lua_call(L, 1, 0);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -61,8 +60,8 @@ static int lluv_idle_start(lua_State *L){
 
   lluv_check_args_with_cb(L, 2);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
-
-  err = uv_idle_start((uv_idle_t*)handle->handle, lluv_on_idle_start);
+                      
+  err = uv_idle_start(LLUV_H(handle, uv_idle_t), lluv_on_idle_start);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -73,7 +72,7 @@ static int lluv_idle_start(lua_State *L){
 
 static int lluv_idle_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_idle(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_idle_stop((uv_idle_t*)handle->handle);
+  int err = uv_idle_stop(LLUV_H(handle, uv_idle_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }

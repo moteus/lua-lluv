@@ -24,11 +24,11 @@ LLUV_INTERNAL int lluv_tcp_index(lua_State *L){
 }
 
 static int lluv_tcp_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  uv_tcp_t *tcp = (uv_tcp_t *)lluv_stream_create(L, UV_TCP, INHERITE_FLAGS(loop));
-  int err = uv_tcp_init(loop->handle, tcp);
+  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_stream_create(L, UV_TCP, INHERITE_FLAGS(loop));
+  int err = uv_tcp_init(loop->handle, LLUV_H(handle, uv_tcp_t));
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)tcp->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -36,7 +36,7 @@ static int lluv_tcp_create(lua_State *L){
 
 static lluv_handle_t* lluv_check_tcp(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_stream(L, idx, LLUV_FLAG_OPEN);
-  luaL_argcheck (L, handle->handle->type == UV_TCP, idx, LLUV_TCP_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_TCP, idx, LLUV_TCP_NAME" expected");
 
   luaL_argcheck (L, FLAGS_IS_SET(handle, flags), idx, LLUV_TCP_NAME" closed");
   return handle;
@@ -60,7 +60,7 @@ static int lluv_tcp_connect(lua_State *L){
 
   req = lluv_connect_new(L, handle);
 
-  err = uv_tcp_connect((uv_connect_t*)req, (uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
+  err = uv_tcp_connect((uv_connect_t*)req, LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
   if(err < 0){
     lluv_connect_free(L, req);
     lua_settop(L, 3);
@@ -87,7 +87,7 @@ static int lluv_tcp_bind(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  err = uv_tcp_bind((uv_tcp_t*)handle->handle, (struct sockaddr *)&sa, flags);
+  err = uv_tcp_bind(LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, flags);
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
@@ -101,7 +101,7 @@ static int lluv_tcp_bind(lua_State *L){
 static int lluv_tcp_nodelay(lua_State *L){
   lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   int enable = lua_toboolean(L, 2);
-  int err = uv_tcp_nodelay((uv_tcp_t*)handle->handle, enable);
+  int err = uv_tcp_nodelay(LLUV_H(handle, uv_tcp_t), enable);
 
   lua_settop(L, 1);
 
@@ -117,7 +117,7 @@ static int lluv_tcp_keepalive(lua_State *L){
   unsigned int delay = 0; int err;
 
   if(enable) delay = (unsigned int)luaL_checkint(L, 3);
-  err = uv_tcp_keepalive((uv_tcp_t*)handle->handle, enable, delay);
+  err = uv_tcp_keepalive(LLUV_H(handle, uv_tcp_t), enable, delay);
 
   lua_settop(L, 1);
 
@@ -130,7 +130,7 @@ static int lluv_tcp_keepalive(lua_State *L){
 static int lluv_tcp_simultaneous_accepts(lua_State *L){
   lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   int enable = lua_toboolean(L, 2);
-  int err = uv_tcp_simultaneous_accepts((uv_tcp_t*)handle->handle, enable);
+  int err = uv_tcp_simultaneous_accepts(LLUV_H(handle, uv_tcp_t), enable);
 
   lua_settop(L, 1);
 
@@ -143,7 +143,7 @@ static int lluv_tcp_simultaneous_accepts(lua_State *L){
 static int lluv_tcp_getsockname(lua_State *L){
   lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int sa_len = sizeof(sa);
-  int err = uv_tcp_getsockname((uv_tcp_t*)handle->handle, (struct sockaddr*)&sa, &sa_len);
+  int err = uv_tcp_getsockname(LLUV_H(handle, uv_tcp_t), (struct sockaddr*)&sa, &sa_len);
 
   lua_settop(L, 1);
   if(err < 0){
@@ -155,7 +155,7 @@ static int lluv_tcp_getsockname(lua_State *L){
 static int lluv_tcp_getpeername(lua_State *L){
   lluv_handle_t *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int sa_len = sizeof(sa);
-  int err = uv_tcp_getpeername((uv_tcp_t*)handle->handle, (struct sockaddr*)&sa, &sa_len);
+  int err = uv_tcp_getpeername(LLUV_H(handle, uv_tcp_t), (struct sockaddr*)&sa, &sa_len);
   lua_settop(L, 1);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);

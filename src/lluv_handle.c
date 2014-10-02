@@ -31,7 +31,7 @@ static int lluv_handle_dispatch(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
   luaL_checkstring(L, 2);
 
-  switch(handle->handle->type){
+  switch(handle->handle.type){
     case UV_HANDLE:     return lluv_handle_index(L);
     case UV_STREAM:     return lluv_stream_index(L);
     case UV_IDLE:       return lluv_idle_index(L);
@@ -60,49 +60,25 @@ LLUV_INTERNAL int lluv_handle_index(lua_State *L){
   return lluv__index(L, LLUV_HANDLE, NULL);
 }
 
-static int lluv_handle_cb_count(uv_handle_type type){
-  switch(type){
-    case UV_HANDLE     : return 1;
-    case UV_IDLE       : return 2;
-    case UV_TIMER      : return 2;
-    case UV_ASYNC      : return 2;
-    case UV_CHECK      : return 2;
-    case UV_FS_EVENT   : return 2;
-    case UV_FS_POLL    : return 2;
-    case UV_NAMED_PIPE : return 6;
-    case UV_POLL       : return 2;
-    case UV_PREPARE    : return 2;
-    case UV_PROCESS    : return 2;
-    case UV_STREAM     : return 6;
-    case UV_TCP        : return 6;
-    case UV_TTY        : return 6;
-    case UV_UDP        : return 3;
-    case UV_SIGNAL     : return 2;
-    default: return 0;
-  }
-}
+LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type, lluv_flags_t flags){
+  size_t extra_size = uv_handle_size(type) - sizeof(uv_handle_t);
+  lluv_handle_t *handle; int i;
 
-LLUV_INTERNAL uv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type, lluv_flags_t flags){
-  size_t cb = lluv_handle_cb_count(type), size = uv_handle_size(type);
-  size_t i = 0;
-  lluv_handle_t *handle;
+  assert(uv_handle_size(type) >= sizeof(uv_handle_t));
 
-  handle = lutil_newudatap_impl(L, sizeof(lluv_handle_t) + (sizeof(int) * (cb-1)), LLUV_HANDLE);
-
-  handle->handle = lluv_alloc(L, size);
-  if(!handle->handle) return NULL;
+  handle = lutil_newudatap_impl(L, sizeof(lluv_handle_t) + extra_size, LLUV_HANDLE);
 
   handle->L      = L;
   handle->flags  = flags | LLUV_FLAG_OPEN;
-  handle->handle->data = handle;
-  for(i = 0; i < cb; ++i){
+  handle->handle.data = handle;
+  for(i = 0; i < LLUV_MAX_HANDLE_CB; ++i){
     handle->callbacks[i] = LUA_NOREF;
   }
 
   lua_pushvalue(L, -1);
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  handle->self = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  return handle->handle;
+  return handle;
 }
 
 LLUV_INTERNAL lluv_handle_t* lluv_check_handle(lua_State *L, int idx, lluv_flags_t flags){
@@ -113,32 +89,48 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_handle(lua_State *L, int idx, lluv_flags
   return handle;
 }
 
-LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
-  int i, cb = lluv_handle_cb_count(handle->handle->type);
+LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h){
+  size_t off = offsetof(lluv_handle_t, handle);
+  lluv_handle_t *handle = (lluv_handle_t *)(((char*)h) - off);
+  assert(handle == h->data);
+  return handle;
+}
 
+
+LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h){
+  lluv_handle_t *handle = lluv_handle_byptr(h);
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->self);
+  assert(handle == lua_touserdata(L, -1));
+  return 1;
+}
+
+LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle){
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->self);
+  assert(handle == lua_touserdata(L, -1));
+  return 1;
+}
+
+LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
+  int i;
   FLAG_UNSET(handle, LLUV_FLAG_OPEN);
-  for(i = 0; i < cb; ++i){
+  for(i = 0; i < LLUV_MAX_HANDLE_CB; ++i){
     luaL_unref(L,  LLUV_LUA_REGISTRY, handle->callbacks[i]);
     handle->callbacks[i] = LUA_NOREF;
   }
-  lua_pushnil(L);
-  lua_rawsetp(L, LLUV_LUA_REGISTRY, handle->handle);
-  lluv_free(L, handle->handle);
-  handle->handle = NULL;
+  luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
+  handle->self = LUA_NOREF;
 }
 
 static void lluv_on_handle_close(uv_handle_t *arg){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr(arg);
   lua_State *L = handle->L;
-
-  assert(arg == handle->handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CLOSE_CB(handle));
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  if(!IS_(handle, OPEN))return; //! @check is it possible?
 
-  assert(handle == lua_touserdata(L, -1));
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CLOSE_CB(handle));
+  lluv_handle_pushself(L, handle);
 
   lluv_handle_cleanup(L, handle);
 
@@ -157,7 +149,7 @@ static int lluv_handle_close(lua_State *L){
     return 0;
   }
 
-  if(uv_is_closing(handle->handle)){
+  if(uv_is_closing(LLUV_H(handle, uv_handle_t))){
     return 0;
   }
 
@@ -166,14 +158,14 @@ static int lluv_handle_close(lua_State *L){
     LLUV_CLOSE_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
   }
 
-  uv_close(handle->handle, lluv_on_handle_close);
+  uv_close(LLUV_H(handle, uv_handle_t), lluv_on_handle_close);
   return 0;
 }
 
 static int lluv_handle_to_s(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
   if(FLAGS_IS_SET(handle, LLUV_FLAG_OPEN)){
-    switch (handle->handle->type) {
+    switch (LLUV_H(handle, uv_handle_t)->type) {
 #define XX(uc, lc) case UV_##uc: \
       lua_pushfstring(L, LLUV_PREFIX " " #lc " (%p)", handle);\
       break;
@@ -192,44 +184,44 @@ static int lluv_handle_to_s(lua_State *L){
 
 static int lluv_handle_loop(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle->loop);
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_H(handle, uv_handle_t)->loop);
   return 1;
 }
 
 static int lluv_handle_ref(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  uv_ref(handle->handle);
+  uv_ref(LLUV_H(handle, uv_handle_t));
   return 0;
 }
 
 static int lluv_handle_unref(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  uv_unref(handle->handle);
+  uv_unref(LLUV_H(handle, uv_handle_t));
   return 0;
 }
 
 static int lluv_handle_has_ref(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  lua_pushboolean(L, uv_has_ref(handle->handle));
+  lua_pushboolean(L, uv_has_ref(LLUV_H(handle, uv_handle_t)));
   return 1;
 }
 
 static int lluv_handle_is_active(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  lua_pushboolean(L, uv_is_active(handle->handle));
+  lua_pushboolean(L, uv_is_active(LLUV_H(handle, uv_handle_t)));
   return 1;
 }
 
 static int lluv_handle_is_closing(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  lua_pushboolean(L, uv_is_closing(handle->handle));
+  lua_pushboolean(L, uv_is_closing(LLUV_H(handle, uv_handle_t)));
   return 1;
 }
 
 static int lluv_handle_send_buffer_size(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   int size = luaL_optint(L, 2, 0);
-  int err = uv_send_buffer_size(handle->handle, &size);
+  int err = uv_send_buffer_size(LLUV_H(handle, uv_handle_t), &size);
   if(err<0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -241,7 +233,7 @@ static int lluv_handle_send_buffer_size(lua_State *L){
 static int lluv_handle_recv_buffer_size(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   int size = luaL_optint(L, 2, 0);
-  int err = uv_recv_buffer_size(handle->handle, &size);
+  int err = uv_recv_buffer_size(LLUV_H(handle, uv_handle_t), &size);
   if(err<0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }

@@ -23,11 +23,11 @@ LLUV_INTERNAL int lluv_timer_index(lua_State *L){
 }
 
 static int lluv_timer_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  uv_timer_t *timer = (uv_timer_t *)lluv_handle_create(L, UV_TIMER, INHERITE_FLAGS(loop));
-  int err = uv_timer_init(loop->handle, timer);
+  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_handle_create(L, UV_TIMER, INHERITE_FLAGS(loop));
+  int err = uv_timer_init(loop->handle, LLUV_H(handle, uv_timer_t));
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)timer->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -35,21 +35,20 @@ static int lluv_timer_create(lua_State *L){
 
 static lluv_handle_t* lluv_check_timer(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_TIMER, idx, LLUV_TIMER_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_TIMER, idx, LLUV_TIMER_NAME" expected");
 
   return handle;
 }
 
 static void lluv_on_timer_start(uv_timer_t *arg){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
   assert(!lua_isnil(L, -1)); /* is callble */
-
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, arg);
+  lluv_handle_pushself(L, handle);
   lluv_lua_call(L, 1, 0);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -75,7 +74,7 @@ static int lluv_timer_start(lua_State *L){
     repeat  = 0;
   }
 
-  err = uv_timer_start((uv_timer_t*)handle->handle, lluv_on_timer_start, timeout, repeat);
+  err = uv_timer_start(LLUV_H(handle, uv_timer_t), lluv_on_timer_start, timeout, repeat);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -86,7 +85,7 @@ static int lluv_timer_start(lua_State *L){
 
 static int lluv_timer_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_timer(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_timer_stop((uv_timer_t*)handle->handle);
+  int err = uv_timer_stop(LLUV_H(handle, uv_timer_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -96,7 +95,7 @@ static int lluv_timer_stop(lua_State *L){
 
 static int lluv_timer_again(lua_State *L){
   lluv_handle_t *handle = lluv_check_timer(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_timer_again((uv_timer_t*)handle->handle);
+  int err = uv_timer_again(LLUV_H(handle, uv_timer_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -107,14 +106,14 @@ static int lluv_timer_again(lua_State *L){
 static int lluv_timer_set_repeat(lua_State *L){
   lluv_handle_t *handle = lluv_check_timer(L, 1, LLUV_FLAG_OPEN);
   uint64_t repeat = lutil_optint64(L, 2, 0);
-  uv_timer_set_repeat((uv_timer_t*)handle->handle, repeat);
+  uv_timer_set_repeat(LLUV_H(handle, uv_timer_t), repeat);
   lua_settop(L, 1);
   return 1;
 }
 
 static int lluv_timer_get_repeat(lua_State *L){
   lluv_handle_t *handle = lluv_check_timer(L, 1, LLUV_FLAG_OPEN);
-  uint64_t repeat = uv_timer_get_repeat((uv_timer_t*)handle->handle);
+  uint64_t repeat = uv_timer_get_repeat(LLUV_H(handle, uv_timer_t));
   lutil_pushint64(L, repeat);
   return 1;
 }

@@ -23,11 +23,11 @@ LLUV_INTERNAL int lluv_fs_event_index(lua_State *L){
 }
 
 static int lluv_fs_event_create(lua_State *L){
-  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  uv_fs_event_t *fs_event   = (uv_fs_event_t *)lluv_handle_create(L, UV_FS_EVENT, INHERITE_FLAGS(loop));
-  int err = uv_fs_event_init(loop->handle, fs_event);
+  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle = lluv_handle_create(L, UV_FS_EVENT, INHERITE_FLAGS(loop));
+  int err = uv_fs_event_init(loop->handle, LLUV_H(handle, uv_fs_event_t));
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)fs_event->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -35,13 +35,13 @@ static int lluv_fs_event_create(lua_State *L){
 
 static lluv_handle_t* lluv_check_fs_event(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_FS_EVENT, idx, LLUV_FS_EVENT_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_FS_EVENT, idx, LLUV_FS_EVENT_NAME" expected");
 
   return handle;
 }
 
 static void lluv_on_fs_event_start(uv_fs_event_t *arg, const char* filename, int events, int status){
-  lluv_handle_t *handle = arg->data;
+  lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -49,7 +49,7 @@ static void lluv_on_fs_event_start(uv_fs_event_t *arg, const char* filename, int
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
   assert(!lua_isnil(L, -1)); /* is callble */
 
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle->handle);
+  lluv_handle_pushself(L, handle);
   if(status >= 0) lua_pushnil(L);
   else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
 
@@ -72,7 +72,7 @@ static int lluv_fs_event_start(lua_State *L){
   lluv_check_args_with_cb(L, 4);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_fs_event_start((uv_fs_event_t*)handle->handle, lluv_on_fs_event_start, path, flags);
+  err = uv_fs_event_start(LLUV_H(handle, uv_fs_event_t), lluv_on_fs_event_start, path, flags);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -83,7 +83,7 @@ static int lluv_fs_event_start(lua_State *L){
 
 static int lluv_fs_event_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_fs_event(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_fs_event_stop((uv_fs_event_t*)handle->handle);
+  int err = uv_fs_event_stop(LLUV_H(handle, uv_fs_event_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -94,7 +94,7 @@ static int lluv_fs_event_stop(lua_State *L){
 static int lluv_fs_getpath(lua_State *L){
   lluv_handle_t  *handle = lluv_check_fs_event(L, 1, LLUV_FLAG_OPEN);
   char buf[255]; size_t len = sizeof(buf);
-  int err = uv_fs_event_getpath((uv_fs_event_t *)handle->handle, buf, &len);
+  int err = uv_fs_event_getpath(LLUV_H(handle, uv_fs_event_t), buf, &len);
   if(err >= 0){
     lua_pushlstring(L, buf, len);
     return 1;
@@ -107,7 +107,7 @@ static int lluv_fs_getpath(lua_State *L){
     if(!buf){
       return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
     }
-    err = uv_fs_event_getpath((uv_fs_event_t *)handle->handle, buf, &len);
+    err = uv_fs_event_getpath(LLUV_H(handle, uv_fs_event_t), buf, &len);
     if(err < 0){
       lluv_free(L, buf);
       return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);

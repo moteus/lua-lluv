@@ -27,14 +27,15 @@ static int lluv_tty_create(lua_State *L){
   lluv_loop_t *loop = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   uv_file fd        = (uv_file)lutil_checkint64(L, loop ? 2 : 1);
   int readable      = lua_toboolean(L, loop ? 3 : 2);
-  uv_tty_t *tty; int err;
+  lluv_handle_t *handle;
+  int err;
 
   if(!loop) loop = lluv_default_loop(L);
 
-  tty = (uv_tty_t *)lluv_stream_create(L, UV_TTY, INHERITE_FLAGS(loop));
-  err = uv_tty_init(loop->handle, tty, fd, readable);
+  handle = lluv_stream_create(L, UV_TTY, INHERITE_FLAGS(loop));
+  err = uv_tty_init(loop->handle, LLUV_H(handle, uv_tty_t), fd, readable);
   if(err < 0){
-    lluv_handle_cleanup(L, (lluv_handle_t*)tty->data);
+    lluv_handle_cleanup(L, handle);
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
@@ -42,7 +43,7 @@ static int lluv_tty_create(lua_State *L){
 
 static lluv_handle_t* lluv_check_tty(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_stream(L, idx, flags);
-  luaL_argcheck (L, handle->handle->type == UV_TTY, idx, LLUV_TTY_NAME" expected");
+  luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_TTY, idx, LLUV_TTY_NAME" expected");
 
   return handle;
 }
@@ -50,7 +51,7 @@ static lluv_handle_t* lluv_check_tty(lua_State *L, int idx, lluv_flags_t flags){
 static int lluv_tty_set_mode(lua_State *L){
   lluv_handle_t *handle = lluv_check_tty(L, 1, LLUV_FLAG_OPEN);
   int mode = luaL_checkint(L, 2);
-  int err  = uv_tty_set_mode((uv_tty_t*)handle->handle, mode);
+  int err  = uv_tty_set_mode(LLUV_H(handle, uv_tty_t), mode);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
@@ -75,7 +76,7 @@ static int lluv_tty_reset_mode(lua_State *L){
 static int lluv_tty_get_winsize(lua_State *L){
   lluv_handle_t *handle = lluv_check_tty(L, 1, LLUV_FLAG_OPEN);
   int width, height;
-  int err  = uv_tty_get_winsize((uv_tty_t*)handle->handle, &width, &height);
+  int err  = uv_tty_get_winsize(LLUV_H(handle, uv_tty_t), &width, &height);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
