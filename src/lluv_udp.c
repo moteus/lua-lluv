@@ -236,7 +236,6 @@ static int lluv_udp_getsockname(lua_State *L){
   return lluv_push_addr(L, &sa);
 }
 
-
 static int lluv_udp_set_membership(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   const char *multicast_addr = luaL_checkstring(L, 2);

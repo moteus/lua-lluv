@@ -25,6 +25,7 @@
 #include "lluv_signal.h"
 #include "lluv_fs_event.h"
 #include "lluv_fs_poll.h"
+#include "lluv_process.h"
 #include <assert.h>
 
 static int lluv_handle_dispatch(lua_State *L){
@@ -46,6 +47,7 @@ static int lluv_handle_dispatch(lua_State *L){
     case UV_SIGNAL:     return lluv_signal_index(L);
     case UV_FS_EVENT:   return lluv_fs_event_index(L);
     case UV_FS_POLL:    return lluv_fs_poll_index(L);
+    case UV_PROCESS:    return lluv_process_index(L);
   }
   assert(0 && "please provive index function for this handle type");
   return 0;
