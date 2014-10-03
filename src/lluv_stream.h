@@ -21,4 +21,6 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags
 
 LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status);
 
+LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status);
+
 #endif

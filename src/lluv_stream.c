@@ -38,8 +38,8 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags
   return handle;
 }
 
-LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status){
-  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
+LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
+  lluv_req_t    *req    = lluv_req_byptr(arg);
   lluv_handle_t *handle = req->handle;
   lua_State     *L      = handle->L;
 
@@ -51,6 +51,7 @@ LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status){
   }
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
   lluv_req_free(L, req);
+  assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
   if(status >= 0) lua_pushnil(L);
@@ -61,29 +62,14 @@ LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status){
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
+LLUV_INTERNAL void lluv_on_stream_connect_cb(uv_connect_t* arg, int status){
+  lluv_on_stream_req_cb((uv_req_t*)arg, status);
+}
+
 //{ Shutdown
 
 static void lluv_on_stream_shutdown_cb(uv_shutdown_t* arg, int status){
-  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
-  lluv_handle_t *handle = req->handle;
-  lua_State     *L      = handle->L;
-
-  LLUV_CHECK_LOOP_CB_INVARIANT(L);
-
-  if(!IS_(handle, OPEN)){
-    lluv_req_free(L, req);
-    return;
-  }
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_req_free(L, req);
-
-  lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
-
-  lluv_lua_call(L, 2, 0);
-
-  LLUV_CHECK_LOOP_CB_INVARIANT(L);
+  lluv_on_stream_req_cb((uv_req_t*)arg, status);
 }
 
 static int lluv_stream_shutdown(lua_State *L){

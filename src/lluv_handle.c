@@ -286,6 +286,21 @@ static const struct luaL_Reg lluv_handle_methods[] = {
 
 //}
 
+LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg){
+  lluv_handle_t *handle = lluv_handle_byptr(arg);
+  lua_State *L = handle->L;
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
+
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
+  assert(!lua_isnil(L, -1)); /* is callble */
+
+  lluv_handle_pushself(L, handle);
+  lluv_lua_call(L, 1, 0);
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
+}
+
 static const struct luaL_Reg lluv_handle_functions[] = {
 
   {NULL,NULL}

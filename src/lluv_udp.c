@@ -14,6 +14,7 @@
 #include "lluv_loop.h"
 #include "lluv_error.h"
 #include "lluv_req.h"
+#include "lluv_stream.h"
 #include <assert.h>
 
 #define LLUV_UDP_NAME LLUV_PREFIX" udp"
@@ -96,28 +97,7 @@ static int lluv_udp_try_send(lua_State *L){
 }
 
 static void lluv_on_udp_send_cb(uv_udp_send_t* arg, int status){
-  lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
-  lluv_handle_t *handle = req->handle;
-  lua_State     *L      = handle->L;
-
-  LLUV_CHECK_LOOP_CB_INVARIANT(L);
-
-  if(!IS_(handle, OPEN)){
-    lluv_req_free(L, req);
-    return;
-  }
-
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_req_free(L, req);
-  assert(!lua_isnil(L, -1));
-
-  lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
-
-  lluv_lua_call(L, 2, 0);
-
-  LLUV_CHECK_LOOP_CB_INVARIANT(L);
+  lluv_on_stream_req_cb((uv_req_t*)arg, status);
 }
 
 static int lluv_udp_send(lua_State *L){

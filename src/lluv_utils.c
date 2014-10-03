@@ -99,6 +99,7 @@ static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
 }
 
 LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf){
+//  *buf = uv_buf_init(malloc(suggested_size), suggested_size);
   lluv_handle_t *handle = lluv_handle_byptr(h);
   lluv_loop_t     *loop = lluv_loop_by_handle(h);
 
@@ -112,6 +113,7 @@ LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, u
 }
 
 LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
+//  if(buf->base)free(buf->base);
   if(buf->base){
     lluv_handle_t *handle = lluv_handle_byptr(h);
     lluv_loop_t     *loop = lluv_loop_by_handle(h);
