@@ -45,7 +45,7 @@ local function pinger_read_cb(tcp, err, buf)
   end
 
   local len    = pinger.tail + #buf
-  local count  = math.ceil(len / #PING)
+  local count  = math.floor(len / #PING)
 
   pinger.pongs = pinger.pongs + count
   pinger.tail  = len % #PING
@@ -86,12 +86,12 @@ local function start()
   start_time = uv.now()
 
   local p1 = pinger_new()
-  local p2 = pinger_new()
+  -- local p2 = pinger_new()
 
   uv.run(debug.traceback)
 
   assert(p1.complite)
-  assert(p2.complite)
+  -- assert(p2.complite)
 end
 
 start()

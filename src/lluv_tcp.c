@@ -45,10 +45,8 @@ static lluv_handle_t* lluv_check_tcp(lua_State *L, int idx, lluv_flags_t flags){
 
 static int lluv_tcp_connect(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
-  const char *addr = luaL_checkstring(L, 2);
-  lua_Integer port = luaL_checkint(L, 3);
-  lluv_req_t *req; struct sockaddr_storage sa;
-  int err = lluv_to_addr(L, addr, port, &sa);
+  struct sockaddr_storage sa; lluv_req_t *req;
+  int err = lluv_check_addr(L, 2, &sa);
   
   if(err < 0){
     lua_settop(L, 3);
@@ -74,11 +72,9 @@ static int lluv_tcp_connect(lua_State *L){
 
 static int lluv_tcp_bind(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
-  const char *addr  = luaL_checkstring(L, 2);
-  lua_Integer port  = luaL_checkint(L, 3);
-  lua_Integer flags = luaL_optint(L, 4, 0);
   struct sockaddr_storage sa;
-  int err = lluv_to_addr(L, addr, port, &sa);
+  int err = lluv_check_addr(L, 2, &sa);
+  lua_Integer flags = luaL_optint(L, 4, 0);
 
   lua_settop(L, 3);
 
@@ -92,6 +88,18 @@ static int lluv_tcp_bind(lua_State *L){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_tcp_open(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
+  uv_os_sock_t sock = (uv_os_sock_t)lutil_checkint64(L, 2);
+  int err = uv_tcp_open(LLUV_H(handle, uv_tcp_t), sock);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
   lua_settop(L, 1);
@@ -164,6 +172,7 @@ static int lluv_tcp_getpeername(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_tcp_methods[] = {
+  { "open",                 lluv_tcp_open                 },
   { "bind",                 lluv_tcp_bind                 },
   { "connect",              lluv_tcp_connect              },
   { "nodelay",              lluv_tcp_nodelay              },

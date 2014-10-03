@@ -55,6 +55,8 @@ LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* handle, const uv_buf_t *buf);
 
 LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa);
 
+LLUV_INTERNAL int lluv_check_addr(lua_State *L, int i, struct sockaddr_storage *sa);
+
 LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *addr);
 
 LLUV_INTERNAL void lluv_push_stat(lua_State* L, const uv_stat_t* s);

@@ -60,16 +60,14 @@ static int lluv_tty_set_mode(lua_State *L){
 }
 
 static int lluv_tty_reset_mode(lua_State *L){
-  lluv_handle_t *handle = lluv_check_tty(L, 1, LLUV_FLAG_OPEN);
-  int err  = uv_tty_reset_mode();
-
-  UNUSED_ARG(handle);
+  lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, 0);
+  int err = uv_tty_reset_mode();
 
   if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
-
-  lua_settop(L, 1);
+  
+  lua_pushboolean(L, 1);
   return 1;
 }
 
@@ -89,7 +87,6 @@ static int lluv_tty_get_winsize(lua_State *L){
 
 static const struct luaL_Reg lluv_tty_methods[] = {
   { "set_mode",       lluv_tty_set_mode     },
-  { "reset_mode",     lluv_tty_reset_mode   },
   { "get_winsize",    lluv_tty_get_winsize  },
 
   {NULL,NULL}
@@ -97,6 +94,7 @@ static const struct luaL_Reg lluv_tty_methods[] = {
 
 static const struct luaL_Reg lluv_tty_functions[] = {
   { "tty",            lluv_tty_create       },
+  { "tty_reset_mode", lluv_tty_reset_mode   },
 
   {NULL,NULL}
 };

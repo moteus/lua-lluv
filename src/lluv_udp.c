@@ -42,10 +42,16 @@ static lluv_handle_t* lluv_check_udp(lua_State *L, int idx, lluv_flags_t flags){
   return handle;
 }
 
-static int lluv_check_addr(lua_State *L, int i, struct sockaddr_storage *sa){
-  const char *addr  = luaL_checkstring(L, i);
-  lua_Integer port  = luaL_checkint(L, i + 1);
-  return lluv_to_addr(L, addr, port, sa);
+static int lluv_udp_open(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  uv_os_sock_t sock = (uv_os_sock_t)lutil_checkint64(L, 2);
+  int err = uv_udp_open(LLUV_H(handle, uv_udp_t), sock);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
 }
 
 static int lluv_udp_bind(lua_State *L){
@@ -312,6 +318,7 @@ static int lluv_udp_set_ttl(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_udp_methods[] = {
+  { "open",                     lluv_udp_open                    },
   { "bind",                     lluv_udp_bind                    },
   { "try_send",                 lluv_udp_try_send                },
   { "send",                     lluv_udp_send                    },

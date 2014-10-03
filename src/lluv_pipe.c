@@ -47,6 +47,18 @@ static lluv_handle_t* lluv_check_pipe(lua_State *L, int idx, lluv_flags_t flags)
   return handle;
 }
 
+static int lluv_pipe_open(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
+  uv_file fd = (uv_file)lutil_checkint64(L, 2);
+  int err = uv_pipe_open(LLUV_H(handle, uv_pipe_t), fd);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
 static int lluv_pipe_bind(lua_State *L){
   lluv_handle_t *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
   const char      *addr = luaL_checkstring(L, 2);
@@ -129,6 +141,7 @@ static int lluv_pipe_pending_type(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_pipe_methods[] = {
+  { "open",              lluv_pipe_open              },
   { "bind",              lluv_pipe_bind              },
   { "connect",           lluv_pipe_connect           },
   { "getsockname",       lluv_pipe_getsockname       },

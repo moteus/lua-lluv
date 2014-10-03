@@ -142,6 +142,12 @@ LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct 
   return err;
 }
 
+LLUV_INTERNAL int lluv_check_addr(lua_State *L, int i, struct sockaddr_storage *sa){
+  const char *addr  = luaL_checkstring(L, i);
+  lua_Integer port  = luaL_checkint(L, i + 1);
+  return lluv_to_addr(L, addr, port, sa);
+}
+
 LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *addr){
   char buf[INET6_ADDRSTRLEN + 1];
 
