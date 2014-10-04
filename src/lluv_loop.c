@@ -99,7 +99,7 @@ static void lluv_loop_on_walk_close(uv_handle_t* handle, void* arg){
 
   // if(!uv_is_active(handle)) return; // @fixme do we shold ignore this handles
 
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle);
+  lluv_handle_pushself(L, lluv_handle_byptr(handle));
   if(lua_isnil(L, -1)){lua_pop(L, 1); return; }
 
   lua_getfield(L, -1, "close");
@@ -246,17 +246,14 @@ static int lluv_loop_alive(lua_State *L){
 }
 
 static int lluv_loop_stop(lua_State *L){
-  lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
+  lluv_loop_t* loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
   uv_stop(loop->handle);
   return 0;
 }
 
 static int lluv_loop_now(lua_State *L){
-  lluv_loop_t* loop;
-  uint64_t now;
-  lluv_ensure_loop_at(L, 1);
-  loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
-  now = uv_now(loop->handle);
+  lluv_loop_t* loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
+  uint64_t now = uv_now(loop->handle);
   lutil_pushint64(L, now);
   return 1;
 }
@@ -265,17 +262,17 @@ void lluv_loop_on_walk(uv_handle_t* handle, void* arg){
   lua_State *L = (lua_State*)arg;
 
   lua_settop(L, 2); lua_pushvalue(L, -1);
-  lua_rawgetp(L, LLUV_LUA_REGISTRY, handle);
+  lluv_handle_pushself(L, lluv_handle_byptr(handle));
   lua_call(L, 1, 0);
 }
 
 static int lluv_loop_walk(lua_State *L){
-  lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
-  lua_State *arg = L;
+  lluv_loop_t* loop = lluv_ensure_loop_at(L, 1);
 
+  lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
   luaL_checktype(L, 2, LUA_TFUNCTION);
 
-  uv_walk(loop->handle, lluv_loop_on_walk, arg);
+  uv_walk(loop->handle, lluv_loop_on_walk, L);
 
   return 0;
 }
@@ -291,7 +288,6 @@ static const struct luaL_Reg lluv_loop_methods[] = {
   { "close",      lluv_loop_close },
   { "alive",      lluv_loop_alive },
   { "stop",       lluv_loop_stop  },
-  { "stop",       lluv_loop_stop  },
   { "now",        lluv_loop_now   },
   { "walk",       lluv_loop_walk  },
 
@@ -304,6 +300,8 @@ static const struct luaL_Reg lluv_loop_functions[] = {
   {"loop",         lluv_loop_new           },
 
   {"run",          lluv_loop_run           },
+  {"stop",         lluv_loop_stop          },
+  {"walk",         lluv_loop_walk          },
   {"now",          lluv_loop_now           },
   {"default_loop", lluv_push_default_loop_l},
 

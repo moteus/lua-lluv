@@ -10,11 +10,21 @@
 --    uv.XXX(nil, ...) - loop is uv.default_loop(), but first parameter in ctor is nil
 --
 -- @module lluv
+
+-- loop
 do
 
 ---
 --
 function run                        () end
+
+---
+--
+function stop                       () end
+
+---
+--
+function walk                       () end
 
 ---
 --
@@ -24,6 +34,43 @@ function now                        () end
 --
 function default_loop               () end
 
+
+end
+
+-- ctor
+do
+function tty                        () end
+function tcp                        () end
+function udp                        () end
+function timer                      () end
+function idle                       () end
+function fs_event                   () end
+function fs_poll                    () end
+function loop                       () end
+function pipe                       () end
+function poll                       () end
+function prepare                    () end
+function check                      () end
+function spawn                      () end
+function signal                     () end
+end
+
+-- misc
+do
+function version                    () end
+function get_process_title          () end
+function set_process_title          () end
+function resident_set_memory        () end
+function uptime                     () end
+function getrusage                  () end
+function cpu_info                   () end
+function interface_addresses        () end
+function exepath                    () end
+function cwd                        () end
+function chdir                      () end
+function get_total_memory           () end
+function get_free_memory            () end
+function hrtime                     () end
 end
 
 -- fs submodule
@@ -280,6 +327,10 @@ function now        ()end
 --
 function walk       ()end
 
+---
+--
+function close_all_handles()end
+
 end
 
 --- lluv file handle
@@ -359,11 +410,133 @@ function stop                       () end
 
 ---
 --
+function again                      () end
+
+---
+--
 function set_repeat                 () end
 
 ---
 --
 function get_repeat                 () end
 
+end
+
+--- 
+-- @type uv_fs_event
+--
+do
+function start                      ()end
+function stop                       ()end
+function getpath                    ()end
+end
+
+---
+-- @type ub_fs_poll
+--
+do
+function start                      ()end
+function stop                       ()end
+function getpath                    ()end
+end
+
+---
+-- @type ub_pipe
+--
+do
+function open                       ()end
+function bind                       ()end
+function connect                    ()end
+function getsockname                ()end
+function pending_instances          ()end
+function pending_count              ()end
+function pending_type               ()end
+end
+
+---
+-- @type ub_prepare
+--
+do
+function start                      ()end
+function stop                       ()end
+end
+
+---
+-- @type ub_check
+--
+do
+function start                      ()end
+function stop                       ()end
+end
+
+---
+-- @type ub_process
+--
+do
+end
+
+---
+-- @type ub_signal
+--
+do
+function start                      ()end
+function stop                       ()end
+end
+
+---
+-- @type ub_stream
+--
+do
+function shutdown                   ()end
+function listen                     ()end
+function accept                     ()end
+function start_read                 ()end
+function stop_read                  ()end
+function try_write                  ()end
+function write                      ()end
+function is_readable                ()end
+function is_writable                ()end
+function set_blocking               ()end
+end
+
+---
+-- @type ub_tcp
+--
+do
+function open                       ()end
+function bind                       ()end
+function connect                    ()end
+function nodelay                    ()end
+function keepalive                  ()end
+function simultaneous_accepts       ()end
+function getsockname                ()end
+function getpeername                ()end
+end
+
+---
+-- @type ub_tty
+--
+do
+function set_mode                   ()end
+function get_winsize                ()end
+end
+
+---
+-- @type ub_udp
+--
+do
+function open                       ()end
+function bind                       ()end
+function try_send                   ()end
+function send                       ()end
+function getsockname                ()end
+function start_recv                 ()end
+function stop_recv                  ()end
+function set_membership             ()end
+function set_multicast_loop         ()end
+function set_multicast_ttl          ()end
+function set_multicast_interface    ()end
+function set_broadcast              ()end
+function set_ttl                    ()end
 end
 
