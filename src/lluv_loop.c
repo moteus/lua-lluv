@@ -296,6 +296,14 @@ static const struct luaL_Reg lluv_loop_methods[] = {
   {NULL,NULL}
 };
 
+static const lluv_uv_const_t lluv_loop_constants[] = {
+  { UV_RUN_DEFAULT,  "RUN_DEFAULT"  },
+  { UV_RUN_ONCE,     "RUN_ONCE"     },
+  { UV_RUN_NOWAIT,   "RUN_NOWAIT"   },
+
+  { 0, NULL }
+};
+
 static const struct luaL_Reg lluv_loop_functions[] = {
   {"loop",         lluv_loop_new           },
 

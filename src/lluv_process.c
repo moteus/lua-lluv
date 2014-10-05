@@ -94,8 +94,8 @@ static char** opt_get_sarray(lua_State *L, int idx, const char *name, int req, c
 
   if(first_value) value[i++] = first_value;
 
-  for(j=0;j<n;++j){
-    lua_rawgeti(L, -1, j+1);
+  for(j=0; j<n; ++j){
+    lua_rawgeti(L, -1, j + 1);
     value[i++] = (char*)luaL_checkstring(L, -1);
     lua_pop(L, 1);
   }
@@ -139,25 +139,26 @@ static int opt_exists(lua_State *L, int idx, const char *name){
 }
 
 static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
-  size_t i, j, n;
+  size_t i, n;
 
   rawgets(L, idx, "stdio");
   if(lua_isnil(L, -1)){
     lua_settop(L, 1);
-    return 1;
+    return;
   }
 
   if(!lua_istable(L, -1)){
     lua_pop(L, 1);
     lua_pushstring(L, "stdio option must be an array");
-    return lua_error(L);
+    lua_error(L);
+    return;
   }
 
   n = lua_objlen(L, -1);
 
   if(n == 0){
     lua_pop(L, 1);
-    return 0;
+    return;
   }
 
   opt->stdio = lluv_alloc(L, n * sizeof(*opt->stdio));
@@ -203,19 +204,18 @@ static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
     }
     else{
       lua_pushstring(L, "stdio element must be table, stream or number");
-      return lua_error(L);
+      lua_error(L);
+      return;
     }
 
     lua_pop(L, 1);
   }
   lua_pop(L, 1);
-  return 0;
 }
 
 
 static int lluv_fill_process_options_(lua_State *L){
   uv_process_options_t *opt = (uv_process_options_t *)lua_touserdata(L, 2);
-  int i, n;
   lua_settop(L, 1);
 
   opt->exit_cb = lluv_on_process_exit;

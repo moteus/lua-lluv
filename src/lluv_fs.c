@@ -707,7 +707,7 @@ static int lluv_file_read(lua_State* L) {
 
 static int lluv_file_write(lua_State* L) {
   // if you provide string then function does not copy this string
-  // read(buffer | string, [position, [ [offset,] [length,] ] ] [callback])
+  // write(buffer | string, [position, [ [offset,] [length,] ] ] [callback])
 
   const char  *path           = NULL;
   lluv_file_t *f              = lluv_check_file(L, 1, LLUV_FLAG_OPEN);

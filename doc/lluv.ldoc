@@ -1,39 +1,57 @@
 ---
 --
 -- Main architecture.
--- * All function with callback - callback is last argument.
--- * In callback first argument is object. It could be loop or specific object(e.g. file).
--- * Second argument is error object or nil.
--- * loop parameter could be omit in constructors.
---    uv.XXX(loop, ...) - correct
---    uv.XXX(...) - correct loop is uv.default_loop()
---    uv.XXX(nil, ...) - loop is uv.default_loop(), but first parameter in ctor is nil
+-- <br/>* All function with callback - callback is last argument.
+-- <br/>* In callback first argument is object. It could be loop or specific object(e.g. file).
+-- <br/>* Second argument is error object or nil.
+-- <br/>* loop parameter could be omit in constructors.
+-- <br/>   uv.XXX(loop, ...) - correct
+-- <br/>   uv.XXX(...) - correct loop is uv.default_loop()
+-- <br/>   uv.XXX(nil, ...) - loop is uv.default_loop(), but first parameter in ctor is nil
 --
 -- @module lluv
+
+-- callbacks
+do
+
+--- Definition for callback passed to uv.walk.
+--
+-- @tparam uv_handle handle
+function walk_cb                    () end
+
+end
 
 -- loop
 do
 
----
+--- Run event loop.
 --
+-- @tparam[opt] function msgh error message handler
+-- @tparam[opt=uv.RUN_DEFAULT] number run mode
+--
+-- @usage
+--  uv.run(debug.traceback)
+--  uv.run(uv.RUN_ONCE)
 function run                        () end
 
----
+--- Stop event loop.
 --
 function stop                       () end
 
----
+--- Iterate over handles.
 --
+-- @tparam walk_cb callback
 function walk                       () end
 
----
+--- Return the current timestamp in milliseconds.
 --
+-- @treturn number milliseconds
 function now                        () end
 
----
+--- Return default loop object.
 --
+-- @treturn uv_loop loop
 function default_loop               () end
-
 
 end
 
@@ -115,14 +133,14 @@ function fs_readdir                 () end
 --
 -- @tparam[opt] uv_loop loop
 -- @tparam string path file to stat
--- @tparam[opt] function callback(loop, err, path)
+-- @tparam[opt] function callback(loop, err, path, stat)
 function fs_stat                    () end
 
 --- Crossplatform link stat.
 --
 -- @tparam[opt] uv_loop loop
 -- @tparam string path link to stat
--- @tparam[opt] function callback(loop, err, path)
+-- @tparam[opt] function callback(loop, err, path, stat)
 function fs_lstat                   () end
 
 --- Rename file.
@@ -155,7 +173,7 @@ function fs_utime                   () end
 -- @tparam[opt] uv_loop loop
 -- @tparam string path original file
 -- @tparam string new_path name for the symlink
--- @tparam[opt] flags 
+-- @tparam[opt] number flags 
 -- @tparam[opt] function callback(loop, err, path)
 function fs_symlink                 () end
 
@@ -229,20 +247,33 @@ end
 --
 do
 
----
+--- Free buffer.
 --
 function free                       () end
 
----
+--- Return buffer data as string.
 --
+-- @tparam[opt=0] number offset starting from 0
+-- @tparam[opt=self:size()] number size
+-- @treturn string data
+--
+-- @usage
+-- str = buf:to_s(10) -- return first 10 bytes
+-- str = buf:to_s(5, 10) -- return 10 bytes starting from 5th
 function to_s                       () end
 
----
+--- Return buffer data as lightuserdata.
 --
+-- @tparam[opt=0] number offset starting from 0
+-- @treturn lightuserdata pointer
+--
+-- @usage
+-- ptr = buf:to_p(4)
 function to_p                       () end
 
----
+--- Return number of bytes in buffer.
 --
+-- @treturn number size
 function size                       () end
 
 end
@@ -252,28 +283,37 @@ end
 --
 do
 
----
+--- Return loop object where this handle runs.
 --
+-- @treturn uv_loop
 function loop                       () end
 
----
+--- Crossplatform file stat.
 --
+-- @tparam[opt] uv_loop loop
+-- @tparam string path file to stat
+-- @tparam[opt] function callback(self, err, stat)
 function stat                       () end
 
----
+--- Sync all changes made to file.
 --
+-- @tparam[opt] function callback(self, err)
 function sync                       () end
 
----
+--- Sync data changes made to file.
 --
+-- @tparam[opt] function callback(self, err)
 function datasync                   () end
 
----
+--- Truncate the contents of a file to the specified offset.
 --
+-- @tparam number offset
+-- @tparam[opt] function callback(self, err)
 function truncate                   () end
 
----
+--- Close file handle.
 --
+-- @tparam[opt] function callback(self, err)
 function close                      () end
 
 ---
@@ -288,12 +328,41 @@ function chmod                      () end
 --
 function utime                      () end
 
----
+--- Read data from file.
 --
+-- @tparam uv_fbuffer buffer
+-- @tparam[opt=0] number position specifying where to begin reading from in the file.
+-- @tparam[opt=0] number offset offset in the buffer to start writing at.
+-- @tparam[opt=buffer:size()-offset] number length number of bytes to reading.
+-- @tparam function callback(file, err, buffer, size)
 function read                       () end
 
----
+--- Read data from file.
 --
+-- @tparam number buffer_length allocate buffer that size.
+-- @tparam[opt=0] number position specifying where to begin reading from in the file.
+-- @tparam[opt=0] number offset offset in the buffer to start writing at.
+-- @tparam[opt=buffer:size()-offset] number length number of bytes to reading.
+-- @tparam function callback(file, err, buffer, size)
+function read                       () end
+
+--- Read data from file.
+--
+-- @tparam lightuserdata buffer pointer to buffer
+-- @tparam number buffer_length buffer size.
+-- @tparam[opt=0] number position specifying where to begin reading from in the file.
+-- @tparam[opt=0] number offset offset in the buffer to start writing at.
+-- @tparam[opt=buffer:size()-offset] number length number of bytes to reading.
+-- @tparam function callback(file, err, buffer, size)
+function read                       () end
+
+--- Write data to file.
+--
+-- @tparam buffer|string data
+-- @tparam[opt=0] number position specifying where to begin writing to in the file.
+-- @tparam[opt=0] number offset offset in the buffer to start reading at.
+-- @tparam[opt=buffer:size()-offset] number length number of bytes to writing.
+-- @tparam function callback(file, err, data, size)
 function write                      () end
 
 end
