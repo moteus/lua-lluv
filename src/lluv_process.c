@@ -15,8 +15,11 @@
 #include "lluv_req.h"
 #include "lluv_loop.h"
 #include "lluv_error.h"
+#include <memory.h>
 #include <assert.h>
 
+#define LLUV_PROCESS_NAME LLUV_PREFIX" Process"
+static const char *LLUV_PROCESS = LLUV_PROCESS_NAME;
 
 static void lluv_on_process_exit(uv_process_t* arg, int64_t exit_status, int term_signal){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
@@ -240,9 +243,6 @@ static int lluv_fill_process_options_(lua_State *L){
   return 1;
 }
 
-#define LLUV_PROCESS_NAME LLUV_PREFIX" Process"
-static const char *LLUV_PROCESS = LLUV_PROCESS_NAME;
-
 LLUV_INTERNAL int lluv_process_index(lua_State *L){
   return lluv__index(L, LLUV_PROCESS, lluv_handle_index);
 }
@@ -336,7 +336,6 @@ static int lluv_disable_stdio_inheritance(lua_State* L) {
   uv_disable_stdio_inheritance();
   return 0;
 }
-
 
 static const struct luaL_Reg lluv_process_methods[] = {
   { "pid",                                lluv_process_pid                      },
