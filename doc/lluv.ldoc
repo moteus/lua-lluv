@@ -203,6 +203,21 @@ function fs_open                    () end
 
 end
 
+-- process submodule
+do
+--- Disables inheritance for file descriptors / handles that this process inherited from its parent.
+--
+function disable_stdio_inheritance  () end
+
+--- Sends the specified signal to the given PID.
+--
+-- @tparam number pid process id
+-- @tparam[opt=uv.SIGTERM] number sugnal
+-- @return true
+function kill                       () end
+
+end
+
 --- lluv error object
 -- @type uv_error
 --
@@ -374,31 +389,31 @@ do
 
 ---
 --
-function run        ()end
+function run        () end
 
 ---
 --
-function close      ()end
+function close      () end
 
 ---
 --
-function alive      ()end
+function alive      () end
 
 ---
 --
-function stop       ()end
+function stop       () end
 
 ---
 --
-function now        ()end
+function now        () end
 
 ---
 --
-function walk       ()end
+function walk       () end
 
 ---
 --
-function close_all_handles()end
+function close_all_handles() end
 
 end
 
@@ -495,117 +510,129 @@ end
 -- @type uv_fs_event
 --
 do
-function start                      ()end
-function stop                       ()end
-function getpath                    ()end
+function start                      () end
+function stop                       () end
+function getpath                    () end
 end
 
 ---
 -- @type ub_fs_poll
 --
 do
-function start                      ()end
-function stop                       ()end
-function getpath                    ()end
+function start                      () end
+function stop                       () end
+function getpath                    () end
 end
 
 ---
 -- @type ub_pipe
 --
 do
-function open                       ()end
-function bind                       ()end
-function connect                    ()end
-function getsockname                ()end
-function pending_instances          ()end
-function pending_count              ()end
-function pending_type               ()end
+function open                       () end
+function bind                       () end
+function connect                    () end
+function getsockname                () end
+function pending_instances          () end
+function pending_count              () end
+function pending_type               () end
 end
 
 ---
 -- @type ub_prepare
 --
 do
-function start                      ()end
-function stop                       ()end
+function start                      () end
+function stop                       () end
 end
 
 ---
 -- @type ub_check
 --
 do
-function start                      ()end
-function stop                       ()end
+function start                      () end
+function stop                       () end
 end
 
 ---
--- @type ub_process
+-- @type uv_process
 --
 do
+
+--- Get process ID.
+-- 
+-- @treturn number process id
+function pid                        () end
+
+--- Sends the specified signal to the given process handle.
+--
+-- @tparam[opt=uv.SIGTERM] number sugnal
+-- @treturn uv_process self
+function kill                       () end
+
 end
 
 ---
 -- @type ub_signal
 --
 do
-function start                      ()end
-function stop                       ()end
+function start                      () end
+function stop                       () end
 end
 
 ---
 -- @type ub_stream
 --
 do
-function shutdown                   ()end
-function listen                     ()end
-function accept                     ()end
-function start_read                 ()end
-function stop_read                  ()end
-function try_write                  ()end
-function write                      ()end
-function is_readable                ()end
-function is_writable                ()end
-function set_blocking               ()end
+function shutdown                   () end
+function listen                     () end
+function accept                     () end
+function start_read                 () end
+function stop_read                  () end
+function try_write                  () end
+function write                      () end
+function is_readable                () end
+function is_writable                () end
+function set_blocking               () end
 end
 
 ---
 -- @type ub_tcp
 --
 do
-function open                       ()end
-function bind                       ()end
-function connect                    ()end
-function nodelay                    ()end
-function keepalive                  ()end
-function simultaneous_accepts       ()end
-function getsockname                ()end
-function getpeername                ()end
+function open                       () end
+function bind                       () end
+function connect                    () end
+function nodelay                    () end
+function keepalive                  () end
+function simultaneous_accepts       () end
+function getsockname                () end
+function getpeername                () end
 end
 
 ---
 -- @type ub_tty
 --
 do
-function set_mode                   ()end
-function get_winsize                ()end
+function set_mode                   () end
+function get_winsize                () end
 end
 
 ---
 -- @type ub_udp
 --
 do
-function open                       ()end
-function bind                       ()end
-function try_send                   ()end
-function send                       ()end
-function getsockname                ()end
-function start_recv                 ()end
-function stop_recv                  ()end
-function set_membership             ()end
-function set_multicast_loop         ()end
-function set_multicast_ttl          ()end
-function set_multicast_interface    ()end
-function set_broadcast              ()end
-function set_ttl                    ()end
+function open                       () end
+function bind                       () end
+function try_send                   () end
+function send                       () end
+function getsockname                () end
+function start_recv                 () end
+function stop_recv                  () end
+function set_membership             () end
+function set_multicast_loop         () end
+function set_multicast_ttl          () end
+function set_multicast_interface    () end
+function set_broadcast              () end
+function set_ttl                    () end
 end
 

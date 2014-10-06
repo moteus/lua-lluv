@@ -213,7 +213,6 @@ static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
   lua_pop(L, 1);
 }
 
-
 static int lluv_fill_process_options_(lua_State *L){
   uv_process_options_t *opt = (uv_process_options_t *)lua_touserdata(L, 2);
   lua_settop(L, 1);
@@ -300,11 +299,48 @@ static int lluv_process_spawn(lua_State *L){
     }
     LLUV_START_CB(handle) = cb;
 
-    return 1;
+    lutil_pushint64(L, LLUV_H(handle, uv_process_t)->pid);
+    return 2;
   }
 }
 
+static int lluv_process_pid(lua_State *L){
+  lluv_handle_t *handle = lluv_check_process(L, 1, LLUV_FLAG_OPEN);
+  lutil_pushint64(L, LLUV_H(handle, uv_process_t)->pid);
+  return 1;
+}
+
+static int lluv_process_kill(lua_State *L){
+  lluv_handle_t *handle = lluv_check_process(L, 1, LLUV_FLAG_OPEN);
+  int sig = luaL_optint(L, 2, SIGTERM);
+  int err = uv_process_kill(LLUV_H(handle, uv_process_t), sig);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+  }
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_pid_kill(lua_State *L){
+  int64_t pid = lutil_checkint64(L, 1);
+  int sig = luaL_optint(L, 2, SIGTERM);
+  int err = uv_kill(pid, sig);
+  if(err < 0){
+    return lluv_fail(L, 0, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+  }
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+static int lluv_disable_stdio_inheritance(lua_State* L) {
+  uv_disable_stdio_inheritance();
+  return 0;
+}
+
+
 static const struct luaL_Reg lluv_process_methods[] = {
+  { "pid",                                lluv_process_pid                      },
+  { "kill",                               lluv_process_kill                     },
 
   {NULL,NULL}
 };
@@ -329,7 +365,9 @@ static const lluv_uv_const_t lluv_process_constants[] = {
 };
 
 static const struct luaL_Reg lluv_process_functions[] = {
-  {"spawn", lluv_process_spawn},
+  { "spawn",                               lluv_process_spawn                   },
+  { "kill",                                lluv_pid_kill                        },
+  { "disable_stdio_inheritance",           lluv_disable_stdio_inheritance       },
 
   {NULL,NULL}
 };
