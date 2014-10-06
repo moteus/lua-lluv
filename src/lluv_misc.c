@@ -184,7 +184,7 @@ static int lluv_interface_addresses(lua_State *L){
 #define MAX_PATH_LEN 4096
 
 static int lluv_exepath(lua_State *L){
-  char *buf = malloc(MAX_PATH_LEN); size_t len = MAX_PATH_LEN;
+  char *buf = lluv_alloc(L, MAX_PATH_LEN); size_t len = MAX_PATH_LEN;
   int err = uv_exepath(buf, &len);
   if(err < 0){
     lua_pushstring(L, "");
@@ -192,12 +192,12 @@ static int lluv_exepath(lua_State *L){
   else{
     lua_pushlstring(L, buf, len);
   }
-  free(buf);
+  lluv_free(L, buf);
   return 1;
 }
 
 static int lluv_cwd(lua_State *L){
-  char *buf = malloc(MAX_PATH_LEN); size_t len = MAX_PATH_LEN;
+  char *buf = lluv_alloc(L, MAX_PATH_LEN); size_t len = MAX_PATH_LEN;
   int err = uv_cwd(buf, &len);
   if(err < 0){
     lua_pushstring(L, "");
@@ -205,7 +205,7 @@ static int lluv_cwd(lua_State *L){
   else{
     lua_pushlstring(L, buf, len);
   }
-  free(buf);
+  lluv_free(L, buf);
   return 1;
 }
 

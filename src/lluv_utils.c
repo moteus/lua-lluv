@@ -14,6 +14,7 @@
 #include "lluv_handle.h"
 #include "lluv_loop.h"
 #include <memory.h>
+#include <stdlib.h>
 #include <assert.h>
 
 const char *LLUV_MEMORY_ERROR_MARK = LLUV_PREFIX" Error mark";
