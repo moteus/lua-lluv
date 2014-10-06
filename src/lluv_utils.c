@@ -331,6 +331,7 @@ LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d
       }
     }
     lua_pushfstring(L, "Unknown constant: `%s`", key);
+    return lua_error(L);
   }
   lua_pushstring(L, "Unsupported constant type");
   return lua_error(L);
