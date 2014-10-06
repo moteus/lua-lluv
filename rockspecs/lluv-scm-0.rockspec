@@ -48,7 +48,7 @@ build = {
     }},
     unix    = { modules = {
       lluv = {
-        libraries = {"uv"},
+        libraries = {"uv", "rt"},
       }
     }}
   },
