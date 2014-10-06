@@ -98,6 +98,11 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
       }
     }
 
+    if(a->ai_canonname){
+      lua_pushstring(L, a->ai_canonname);
+      lua_setfield(L, -2, "canonname");
+    }
+
     lua_rawseti(L, -2, ++i);
   }
 
@@ -108,32 +113,126 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
 }
 
 static int lluv_getaddrinfo(lua_State *L){
+  static const lluv_uv_const_t ai_family[] = {
+    { AF_UNSPEC,       "unspec"    },
+    { AF_INET,         "inet"      },
+    { AF_INET6,        "inet6"     },
+    { AF_UNIX,         "unix"      },
+
+    // { AF_IMPLINK,      "implink"   },
+    // { AF_PUP,          "pup"       },
+    // { AF_CHAOS,        "chaos"     },
+    // { AF_NS,           "ns"        },
+    // { AF_IPX,          "ipx"       },
+    // { AF_ISO,          "iso"       },
+    // { AF_OSI,          "osi"       },
+    // { AF_ECMA,         "ecma"      },
+    // { AF_DATAKIT,      "datakit"   },
+    // { AF_CCITT,        "ccitt"     },
+    // { AF_SNA,          "sna"       },
+    // { AF_DECnet,       "decnet"    },
+    // { AF_DLI,          "dli"       },
+    // { AF_LAT,          "lat"       },
+    // { AF_HYLINK,       "hylink"    },
+    // { AF_APPLETALK,    "appletalk" },
+    // { AF_NETBIOS,      "netbios"   },
+    // { AF_VOICEVIEW,    "voiceview" },
+    // { AF_FIREFOX,      "firefox"   },
+    // { AF_UNKNOWN1,     "unknown1"  },
+    // { AF_BAN,          "ban"       },
+    // { AF_ATM,          "atm"       },
+    // { AF_CLUSTER,      "cluster"   },
+    // { AF_12844,        "12844"     },
+    // { AF_IRDA,         "irda"      },
+    // { AF_NETDES,       "netdes"    },
+
+    //! @todo extend list
+
+    { 0, NULL }
+  };
+
+  static const lluv_uv_const_t ai_stype[] = {
+    { SOCK_STREAM,        "stream"    },
+    { SOCK_DGRAM,         "dgram"     },
+    { SOCK_RAW,           "raw"       },
+    // { SOCK_RDM,           "rdm"       },
+    // { SOCK_SEQPACKET,     "seqpacket" },
+
+    //! @todo extend list
+
+    { 0, NULL }
+  };
+
+  static const lluv_uv_const_t ai_proto[] = {
+    { IPPROTO_TCP,  "tcp"  },
+    { IPPROTO_UDP,  "udp"  },
+    { IPPROTO_ICMP, "icmp" },
+
+    //! @todo extend list
+
+    { 0, NULL }
+  };
+
+  static const lluv_uv_const_t FLAGS[] = {
+    { AI_ADDRCONFIG,   "addrconfig"  },
+    { AI_V4MAPPED,     "v4mapped"    },
+    { AI_ALL,          "all"         },
+    { AI_NUMERICHOST,  "numerichost" },
+    { AI_PASSIVE,      "passive"     },
+    { AI_NUMERICSERV,  "numericserv" },
+    { AI_CANONNAME,    "canonname"   },
+
+    //! @todo extend/check list
+
+    { 0, NULL }
+  };
+
   lluv_loop_t *loop = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int argc = loop ? 1 : 0;
+  int hi = 0;
   if(!loop)loop = lluv_default_loop(L);
   {
     const char *node;
-    const char *service;
+    const char *service = NULL;
     lluv_req_t *req; int err;
     struct addrinfo hints;
 
     memset(&hints, 0, sizeof(hints));
 
     node = luaL_optstring(L, argc + 1, NULL);
+
     if(!lua_isfunction(L, argc + 2))
-      service = luaL_optstring(L, argc + 2, NULL);
-    else service = NULL;
+      if(lua_istable(L, argc + 2)) hi = argc + 2;
+      else service = luaL_optstring(L, argc + 2, NULL);
 
     luaL_argcheck(L, node || service, argc + 1, "you must specify node or service");
+    
+    if(!hi && lua_istable(L, argc + 3)) hi = argc + 3;
 
-    if(!lua_isfunction(L, argc + 3)){
-      //! @todo hint
+    if(hi){
+      lua_getfield(L, hi, "family");
+      hints.ai_family = lluv_opt_named_const(L, -1, 0, ai_family);
+      lua_pop(L, 1);
+
+      lua_getfield(L, hi, "socktype");
+      hints.ai_socktype = lluv_opt_named_const(L, -1, 0, ai_stype);
+      lua_pop(L, 1);
+
+      lua_getfield(L, hi, "protocol");
+      hints.ai_protocol = lluv_opt_named_const(L, -1, 0, ai_proto);
+      lua_pop(L, 1);
+
+      lua_getfield(L, hi, "flags");
+      hints.ai_flags = lluv_opt_flags_ui(L, -1, 0, FLAGS);
+      lua_pop(L, 1);
     }
+    
+
 
     lluv_check_args_with_cb(L, argc + 4);
     req = lluv_req_new(L, UV_GETADDRINFO, NULL);
 
-    err = uv_getaddrinfo(loop->handle, LLUV_R(req, getaddrinfo), lluv_on_getaddrinfo, node, service, NULL);
+    err = uv_getaddrinfo(loop->handle, LLUV_R(req, getaddrinfo), lluv_on_getaddrinfo, node, service, &hints);
     if(err < 0){
       lluv_req_free(L, req);
       return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
