@@ -54,8 +54,7 @@ LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
   assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+  lluv_push_status(L, status);
 
   lluv_lua_call(L, 2, 0);
 
@@ -106,8 +105,7 @@ static void lluv_on_stream_connection_cb(uv_stream_t* arg, int status){
   assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+  lluv_push_status(L, status);
 
   lluv_lua_call(L, 2, 0);
 
@@ -263,8 +261,7 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
   assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+  lluv_push_status(L, status);
 
   lluv_lua_call(L, 2, 0);
 

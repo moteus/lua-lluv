@@ -50,8 +50,7 @@ static void lluv_on_fs_poll_start(uv_fs_poll_t *arg, int status, const uv_stat_t
   assert(!lua_isnil(L, -1)); /* is callble */
 
   lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+  lluv_push_status(L, status);
 
   if(prev)lluv_push_stat(L, prev); else lua_pushnil(L);
   if(curr)lluv_push_stat(L, curr); else lua_pushnil(L);

@@ -7,11 +7,12 @@ source = {
 }
 
 description = {
-  summary = "Lua binding to libuv",
-  detailed = [[
+  summary    = "Lua low-level binding to libuv",
+  homepage   = "https://github.com/moteus/lua-lluv",
+  license    = "MIT/X11",
+  maintainer = "Alexey Melnichuk",
+  detailed   = [[
   ]],
-  homepage = "https://github.com/moteus/lua-lluv",
-  license  = "MIT/X11"
 }
 
 dependencies = {
@@ -63,7 +64,7 @@ build = {
         "src/lluv_tty.c",      "src/lluv_udp.c",      "src/lluv_prepare.c",
         "src/lluv_check.c",    "src/lluv_poll.c",     "src/lluv_signal.c",
         "src/lluv_fs_event.c", "src/lluv_fs_poll.c",  "src/lluv_req.c",
-        "src/lluv_misc.c",     "src/lluv_process.c",
+        "src/lluv_misc.c",     "src/lluv_process.c",  "src/lluv_dns.c",
         "src/l52util.c",     
       },
       incdirs   = { "$(UV_INCDIR)" },

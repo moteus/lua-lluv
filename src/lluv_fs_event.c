@@ -50,8 +50,7 @@ static void lluv_on_fs_event_start(uv_fs_event_t *arg, const char* filename, int
   assert(!lua_isnil(L, -1)); /* is callble */
 
   lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+  lluv_push_status(L, status);
 
   if(filename)lua_pushstring(L, filename); else lua_pushnil(L);
   lua_pushinteger(L, events);

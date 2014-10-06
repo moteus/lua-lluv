@@ -22,6 +22,7 @@
 typedef struct lluv_loop_tag{
   uv_loop_t   *handle;/* read only */
   lluv_flags_t flags; /* read only */
+  lua_State   *L;
   size_t       buffer_size;
   char         buffer[LLUV_BUFFER_SIZE];
 }lluv_loop_t;
@@ -41,6 +42,10 @@ LLUV_INTERNAL lluv_loop_t* lluv_push_default_loop(lua_State *L);
 LLUV_INTERNAL lluv_loop_t* lluv_default_loop(lua_State *L);
 
 LLUV_INTERNAL lluv_loop_t* lluv_ensure_loop_at(lua_State *L, int idx);
+
+LLUV_INTERNAL lluv_loop_t* lluv_loop_byptr(uv_loop_t *h);
+
+LLUV_INTERNAL void lluv_loop_pushself(lua_State *L, lluv_loop_t *loop);
 
 #define LLUV_CHECK_LOOP_CB_INVARIANT(L) \
   assert("Some one use invalid callback handler" && (lua_gettop(L) == LLUV_CALLBACK_TOP_SIZE));

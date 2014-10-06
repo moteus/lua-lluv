@@ -48,6 +48,7 @@ LLUV_INTERNAL lluv_loop_t* lluv_ensure_loop_at(lua_State *L, int idx){
 
 LLUV_INTERNAL int lluv_loop_create(lua_State *L, uv_loop_t *h, lluv_flags_t flags){
   lluv_loop_t *loop = lutil_newudatap(L, lluv_loop_t, LLUV_LOOP);
+  loop->L            = L;
   loop->handle       = h;
   loop->handle->data = loop;
   loop->flags        = flags | LLUV_FLAG_OPEN;
@@ -73,6 +74,17 @@ LLUV_INTERNAL lluv_loop_t* lluv_opt_loop(lua_State *L, int idx, lluv_flags_t fla
 LLUV_INTERNAL lluv_loop_t* lluv_opt_loop_ex(lua_State *L, int idx, lluv_flags_t flags){
   if(!lutil_isudatap(L, idx, LLUV_LOOP)) return lluv_default_loop(L);
   return lluv_check_loop(L, idx, flags);
+}
+
+LLUV_INTERNAL lluv_loop_t* lluv_loop_byptr(uv_loop_t *h){
+  lluv_loop_t *loop = h->data;
+  assert(loop->handle == h);
+  return loop;
+}
+
+LLUV_INTERNAL void lluv_loop_pushself(lua_State *L, lluv_loop_t *loop){
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, loop->handle);
+  assert(loop == lua_touserdata(L, -1));
 }
 
 static int lluv_loop_new_impl(lua_State *L, lluv_flags_t flags){
@@ -336,4 +348,5 @@ LLUV_INTERNAL void lluv_loop_initlib(lua_State *L, int nup){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_loop_functions, nup);
+  lluv_register_constants(L, lluv_loop_constants);
 }

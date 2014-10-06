@@ -189,6 +189,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_dns.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_error.c"
 				>
 			</File>
@@ -284,6 +288,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_check.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_dns.h"
 				>
 			</File>
 			<File

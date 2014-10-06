@@ -71,8 +71,7 @@ static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
   assert(!lua_isnil(L, -1)); /* is callble */
 
   lluv_handle_pushself(L, handle);
-  if(status >= 0) lua_pushnil(L);
-  else lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+  lluv_push_status(L, status);
 
   lluv_lua_call(L, 2, 0);
 

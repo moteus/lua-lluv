@@ -94,10 +94,17 @@ LLUV_INTERNAL void lluv_check_args_with_cb(lua_State *L, int n){
   lluv_check_callable(L, -1);
 }
 
+LLUV_INTERNAL void lluv_push_status(lua_State *L, int status){
+  if(status >= 0)
+    lua_pushnil(L);
+  else
+    lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+}
+
+
 static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
   lluv_handle_t *handle = lluv_handle_byptr(h);
-  lluv_loop_t *loop = handle->handle.loop->data;
-  return loop;
+  return lluv_loop_byptr(handle->handle.loop);
 }
 
 LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf){
