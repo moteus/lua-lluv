@@ -150,7 +150,7 @@ static int lluv_stream_accept(lua_State *L){
 
 //{ Read
 
-static void lluv_on_stream_read_cb(uv_stream_t* arg, int nread, const uv_buf_t* buf){
+static void lluv_on_stream_read_cb(uv_stream_t* arg, ssize_t nread, const uv_buf_t* buf){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
   lua_State *L = handle->L;
 
