@@ -64,15 +64,15 @@ static void lluv_on_fs_poll_start(uv_fs_poll_t *arg, int status, const uv_stat_t
 static int lluv_fs_poll_start(lua_State *L){
   lluv_handle_t *handle = lluv_check_fs_poll(L, 1, LLUV_FLAG_OPEN);
   const char *path   = luaL_checkstring(L, 2);
-  unsigned int flags = 0;
+  unsigned int interval = 0;
   int err;
 
-  if(lua_gettop(L) > 3) flags = luaL_optint(L, 3, 0);
+  if(lua_gettop(L) > 3) interval = luaL_optint(L, 3, 0);
 
   lluv_check_args_with_cb(L, 4);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
-  err = uv_fs_poll_start(LLUV_H(handle, uv_fs_poll_t), lluv_on_fs_poll_start, path, flags);
+  err = uv_fs_poll_start(LLUV_H(handle, uv_fs_poll_t), lluv_on_fs_poll_start, path, interval);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
