@@ -142,6 +142,17 @@ static int opt_exists(lua_State *L, int idx, const char *name){
 }
 
 static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_IGNORE,         "ignore"         },
+    { UV_CREATE_PIPE,    "create_pipe"    },
+    { UV_INHERIT_FD,     "inherit_fd"     },
+    { UV_INHERIT_STREAM, "inherit_stream" },
+    { UV_READABLE_PIPE,  "readable_pipe"  },
+    { UV_WRITABLE_PIPE,  "writable_pipe"  },
+
+    { 0, NULL }
+  };
+
   size_t i, n;
 
   rawgets(L, idx, "stdio");
@@ -191,7 +202,10 @@ static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
       }
 
       if(opt_exists(L, -1, "flags")){
-        flags = opt_get_int64 (L, -1, "flags",  0, "stdio.flags option must be a number" );
+        rawgets(L, -1, "flags");
+        flags = lluv_opt_flags_ui(L, -1, 0, FLAGS);
+        lua_pop(L, 1);
+        // flags = opt_get_int64 (L, -1, "flags",  0, "stdio.flags option must be a number" );
       }
 
       opt->stdio[i].flags = flags;
@@ -217,7 +231,19 @@ static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
 }
 
 static int lluv_fill_process_options_(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_PROCESS_SETUID,                     "setuid"   },
+    { UV_PROCESS_SETGID,                     "setgid"   },
+    { UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS, "verbatim" },
+    { UV_PROCESS_DETACHED,                   "detached" },
+    { UV_PROCESS_WINDOWS_HIDE,               "hide"     },
+
+    { 0, NULL }
+  };
+
   uv_process_options_t *opt = (uv_process_options_t *)lua_touserdata(L, 2);
+  unsigned int flags = opt->flags;
+
   lua_settop(L, 1);
 
   opt->exit_cb = lluv_on_process_exit;
@@ -229,13 +255,19 @@ static int lluv_fill_process_options_(lua_State *L){
 
   luaL_checktype(L, 1, LUA_TTABLE);
 
-  opt->file  =           opt_get_string(L, 1, "file",   1,  "file option required and must be a string");
-  opt->cwd   =           opt_get_string(L, 1, "cwd",    0,  "cwd option must be a string");
+  opt->file  =           opt_get_string(L, 1, "file",   1, "file option required and must be a string");
+  opt->cwd   =           opt_get_string(L, 1, "cwd",    0, "cwd option must be a string");
   opt->args  =           opt_get_sarray(L, 1, "args",   0, (char*)opt->file, "args option must be an array");
   opt->env   =           opt_get_sarray(L, 1, "env",    0, NULL, "env option must be an array");
   opt->uid   = (uv_uid_t)opt_get_int64 (L, 1, "uid",    0, "uid option must be a number"   );
   opt->gid   = (uv_gid_t)opt_get_int64 (L, 1, "gid",    0, "gid option must be a number"   );
-  opt->flags = (unsigned)opt_get_int64 (L, 1, "flags",  0, "flags option must be a number" );
+
+  if(opt_exists(L, 1, "uid")) flags |= UV_PROCESS_SETUID;
+  if(opt_exists(L, 1, "gid")) flags |= UV_PROCESS_SETGID;
+
+  rawgets(L, 1, "flags");
+  opt->flags = flags | lluv_opt_flags_ui(L, -1, 0, FLAGS);
+  lua_pop(L, 1);
 
   opt_get_stdio(L, 1, opt);
 

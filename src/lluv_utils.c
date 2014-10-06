@@ -273,3 +273,59 @@ LLUV_INTERNAL void lluv_register_constants(lua_State* L, const lluv_uv_const_t* 
     lua_rawset(L, -3);
   }
 }
+
+LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names){
+  if(lua_isnoneornil(L, idx)) return d;
+  if(lua_isnumber(L, idx)) return (unsigned int)lutil_checkint64(L, idx);
+  if(lua_istable(L, idx)){
+    unsigned int flags = 0;
+    idx = lua_absindex(L, idx);
+    lua_pushnil(L);
+    while(lua_next(L, idx) != 0){
+      const lluv_uv_const_t *name; int found = 0;
+      const char *key; int value;
+      if(lua_isnumber(L, -2)){ // array
+        value = 1;
+        key = luaL_checkstring(L, -1);
+      }
+      else{ // set
+        key = luaL_checkstring(L, -2);
+        value = lua_toboolean(L, -1);
+      }
+      lua_pop(L, 1);
+      for(name = names; name->name; ++name){
+        if(0 == strcmp(name->name, key)){
+          if(value) flags |= (unsigned int)name->code;
+          else flags &= ~((unsigned int)name->code);
+          found = 1;
+          break;
+        }
+      }
+      if(!found){
+        lua_pushfstring(L, "Unknown flag: `%s`", key);
+        return lua_error(L);
+      }
+    }
+    return flags;
+  }
+  lua_pushstring(L, "Unsupported flag type");
+  return lua_error(L);
+}
+
+LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names){
+  if(lua_isnoneornil(L, idx)) return d;
+  if(lua_isnumber(L, idx)) return (lua_Integer)lutil_checkint64(L, idx);
+  if(lua_isstring(L, idx)){
+    const char *key = lua_tostring(L, idx);
+    const lluv_uv_const_t *name;
+    for(name = names; name->name; ++name){
+      if(0 == strcmp(name->name, key)){
+        return name->code;
+      }
+    }
+    lua_pushfstring(L, "Unknown constant: `%s`", key);
+  }
+  lua_pushstring(L, "Unsupported constant type");
+  return lua_error(L);
+}
+

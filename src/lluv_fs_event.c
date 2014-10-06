@@ -62,12 +62,18 @@ static void lluv_on_fs_event_start(uv_fs_event_t *arg, const char* filename, int
 }
 
 static int lluv_fs_event_start(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_FS_EVENT_WATCH_ENTRY, "watch_entry"    },
+    { UV_FS_EVENT_STAT,        "stat"           },
+    { UV_FS_EVENT_RECURSIVE,   "recursive"      },
+
+    { 0, NULL }
+  };
+
   lluv_handle_t *handle = lluv_check_fs_event(L, 1, LLUV_FLAG_OPEN);
   const char *path   = luaL_checkstring(L, 2);
-  unsigned int flags = 0;
+  unsigned int flags = lluv_opt_flags_ui(L, 3, 0, FLAGS);
   int err;
-
-  if(lua_gettop(L) > 3) flags = luaL_optint(L, 3, 0);
 
   lluv_check_args_with_cb(L, 4);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);

@@ -71,10 +71,16 @@ static int lluv_tcp_connect(lua_State *L){
 }
 
 static int lluv_tcp_bind(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_TCP_IPV6ONLY ,   "ipv6only"   },
+
+    { 0, NULL }
+  };
+
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa;
   int err = lluv_check_addr(L, 2, &sa);
-  lua_Integer flags = luaL_optint(L, 4, 0);
+  unsigned int flags = lluv_opt_flags_ui(L, 4, 0, FLAGS);
 
   lua_settop(L, 3);
 

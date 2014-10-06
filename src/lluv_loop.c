@@ -208,10 +208,22 @@ static int lluv_loop_run_impl(lua_State *L){
 }
 
 static int lluv_loop_run(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_RUN_DEFAULT, "default" },
+    { UV_RUN_ONCE,    "once"    },
+    { UV_RUN_NOWAIT,  "nowait"  },
+
+    { 0, NULL }
+  };
+
   lluv_ensure_loop_at(L, 1);
 
-  if(lua_isnumber(L, 2)){
+  if(lua_isnumber(L, 2) || lua_isstring(L, 2)){
+    uv_run_mode mode;
     luaL_checkinteger(L, 2);
+    mode = (uv_run_mode)lluv_opt_named_const(L, 2, UV_RUN_DEFAULT, FLAGS);
+    lua_pushinteger(L, mode);
+    lua_replace(L, 2);
   }
   else{
     if(lua_isnil(L, 2)) lua_remove(L, 2);

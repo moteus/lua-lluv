@@ -55,9 +55,16 @@ static int lluv_udp_open(lua_State *L){
 }
 
 static int lluv_udp_bind(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_UDP_IPV6ONLY ,   "ipv6only"   },
+    { UV_UDP_REUSEADDR,   "reuseaddr"  },
+
+    { 0, NULL }
+  };
+
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
-  lua_Integer flags = luaL_optint(L, 4, 0);
+  unsigned int flags = lluv_opt_flags_ui(L, 4, 0, FLAGS);
 
   lua_settop(L, 3);
 
@@ -237,10 +244,17 @@ static int lluv_udp_getsockname(lua_State *L){
 }
 
 static int lluv_udp_set_membership(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_LEAVE_GROUP,   "leave" },
+    { UV_JOIN_GROUP,    "join"  },
+
+    { 0, NULL }
+  };
+
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   const char *multicast_addr = luaL_checkstring(L, 2);
   const char *interface_addr = luaL_checkstring(L, 3);
-  uv_membership membership   = (uv_membership)luaL_checkint(L, 4);
+  uv_membership membership   = (uv_membership)lluv_opt_named_const(L, 4, UV_JOIN_GROUP, FLAGS);
 
   int err = uv_udp_set_membership(LLUV_H(handle, uv_udp_t), multicast_addr, interface_addr, membership);
   if(err < 0){
