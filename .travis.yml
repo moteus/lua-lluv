@@ -1,0 +1,36 @@
+language: c
+
+env:
+  global:
+    - LUAROCKS=2.2.0
+  matrix:
+    - LUA=lua5.1
+    - LUA=lua5.2
+    - LUA=luajit
+
+branches:
+  only:
+    - master
+
+before_install:
+  - sudo apt-get update
+  - bash .travis/setup_lua.sh
+  - bash .travis/setup_uv.sh
+  - sudo luarocks install lunitx
+  - sudo pip install cpp-coveralls
+
+install:
+  - sudo luarocks make rockspecs/lluv-scm-0.rockspec UV_INCDIR=./libuv/include UV_LIBDIR=./libuv/out/Release
+
+script: 
+  - cd test
+  - lua test-active.lua
+
+# after_success:
+#   - coveralls -b .. -r .. --dump c.report.json
+#   - luacov-coveralls -j c.report.json
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
