@@ -92,10 +92,19 @@ static const struct luaL_Reg lluv_signal_methods[] = {
 };
 
 static const lluv_uv_const_t lluv_signal_constants[] = {
+#ifdef SIGINT
   { SIGINT,   "SIGINT"   },
+#endif
+#ifdef SIGBREAK
   { SIGBREAK, "SIGBREAK" },
+#endif
+#ifdef SIGHUP
   { SIGHUP,   "SIGHUP"   },
+#endif
+#ifdef SIGWINCH
   { SIGWINCH, "SIGWINCH" },
+#endif
+  { SIGTERM,  "SIGTERM"  },
 
   { 0, NULL }
 };
