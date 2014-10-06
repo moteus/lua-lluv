@@ -191,6 +191,11 @@ static int lluv_getnameinfo(lua_State *L){
 }
 
 static const lluv_uv_const_t lluv_dns_constants[] = {
+  { NI_NOFQDN,        "NI_NOFQDN"       },
+  { NI_NUMERICHOST,   "NI_NUMERICHOST"  },
+  { NI_NAMEREQD,      "NI_NAMEREQD"     },
+  { NI_NUMERICSERV,   "NI_NUMERICSERV"  },
+  { NI_DGRAM,         "NI_DGRAM"        },
 
   { 0, NULL }
 };
