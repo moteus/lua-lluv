@@ -47,7 +47,7 @@ build = {
         libraries = {"libuv", "ws2_32"},
       }
     }},
-    linix   = { modules = {
+    linux   = { modules = {
       lluv = {
         libraries = {"uv", "rt"},
       }
