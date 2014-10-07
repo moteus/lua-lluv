@@ -75,6 +75,25 @@
   XX( IPPROTO_ICMP,    "IPPROTO_ICMP",   "icmp"        ) \
 
 
+#define XX(C,X,N) if(code == C){lua_pushliteral(L, N); return;}
+
+static void lluv_push_ai_family(lua_State *L, int code){
+  LLUV_AI_FAMILY_MAP(XX)
+  lua_pushnumber(L, code);
+}
+
+static void lluv_push_ai_stype(lua_State *L, int code){
+  LLUV_AI_STYPE_MAP(XX)
+  lua_pushnumber(L, code);
+}
+
+static void lluv_push_ai_proto(lua_State *L, int code){
+  LLUV_AI_PROTO_MAP(XX)
+  lua_pushnumber(L, code);
+}
+
+#undef XX
+
 static void lluv_on_getnameinfo(uv_getnameinfo_t* arg, int status, const char* hostname, const char* service){
   lluv_req_t  *req  = lluv_req_byptr((uv_req_t*)arg);
   lluv_loop_t *loop = lluv_loop_byptr(arg->loop);
@@ -161,6 +180,15 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
       lua_pushstring(L, a->ai_canonname);
       lua_setfield(L, -2, "canonname");
     }
+
+    lluv_push_ai_family(L, a->ai_family);
+    lua_setfield(L, -2, "family");
+
+    lluv_push_ai_stype(L, a->ai_socktype);
+    lua_setfield(L, -2, "socktype");
+
+    lluv_push_ai_proto(L, a->ai_protocol);
+    lua_setfield(L, -2, "protocol");
 
     lua_rawseti(L, -2, ++i);
   }
