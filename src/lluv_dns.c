@@ -16,6 +16,65 @@
 #include <memory.h>
 #include <assert.h>
 
+
+#ifndef AI_ADDRCONFIG
+#define AI_ADDRCONFIG 0
+#endif
+
+#ifndef AI_V4MAPPED
+#define AI_V4MAPPED 0
+#endif
+
+#ifndef AI_ALL
+#define AI_ALL 0
+#endif
+
+#ifndef AI_NUMERICHOST
+#define AI_NUMERICHOST 0
+#endif
+
+#ifndef AI_PASSIVE
+#define AI_PASSIVE 0
+#endif
+
+#ifndef AI_NUMERICSERV
+#define AI_NUMERICSERV 0
+#endif
+
+#ifndef AI_CANONNAME
+#define AI_CANONNAME 0
+#endif
+
+//! @todo extend/check list
+#define LLUV_AI_FLAG_MAP(XX)                             \
+  XX( AI_ADDRCONFIG,   "AI_ADDRCONFIG",  "addrconfig"  ) \
+  XX( AI_V4MAPPED,     "AI_V4MAPPED",    "v4mapped"    ) \
+  XX( AI_ALL,          "AI_ALL",         "all"         ) \
+  XX( AI_NUMERICHOST,  "AI_NUMERICHOST", "numerichost" ) \
+  XX( AI_PASSIVE,      "AI_PASSIVE",     "passive"     ) \
+  XX( AI_NUMERICSERV,  "AI_NUMERICSERV", "numericserv" ) \
+  XX( AI_CANONNAME,    "AI_CANONNAME",   "canonname"   ) \
+
+//! @todo extend list
+#define LLUV_AI_FAMILY_MAP(XX)                           \
+  XX( AF_UNSPEC,       "AF_UNSPEC",      "unspec"      ) \
+  XX( AF_INET,         "AF_INET",        "inet"        ) \
+  XX( AF_INET6,        "AF_INET6",       "inet6"       ) \
+  XX( AF_UNIX,         "AF_UNIX",        "unix"        ) \
+
+//! @todo extend list
+#define LLUV_AI_STYPE_MAP(XX)                            \
+  XX( SOCK_STREAM,     "SOCK_STREAM",    "stream"      ) \
+  XX( SOCK_DGRAM,      "SOCK_DGRAM",     "dgram"       ) \
+  XX( SOCK_RAW,        "SOCK_RAW",       "raw"         ) \
+
+//! @todo extend list
+#define LLUV_AI_PROTO_MAP(XX)                            \
+  XX( IPPROTO_TCP,     "IPPROTO_TCP",    "tcp"         ) \
+  XX( IPPROTO_UDP,     "IPPROTO_UDP",    "udp"         ) \
+  XX( IPPROTO_ICMP,    "IPPROTO_ICMP",   "icmp"        ) \
+
+
 static void lluv_on_getnameinfo(uv_getnameinfo_t* arg, int status, const char* hostname, const char* service){
   lluv_req_t  *req  = lluv_req_byptr((uv_req_t*)arg);
   lluv_loop_t *loop = lluv_loop_byptr(arg->loop);
@@ -113,79 +172,33 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
 }
 
 static int lluv_getaddrinfo(lua_State *L){
+#define XX(C, L, N) {C, N},
+
   static const lluv_uv_const_t ai_family[] = {
-    { AF_UNSPEC,       "unspec"    },
-    { AF_INET,         "inet"      },
-    { AF_INET6,        "inet6"     },
-    { AF_UNIX,         "unix"      },
-
-    // { AF_IMPLINK,      "implink"   },
-    // { AF_PUP,          "pup"       },
-    // { AF_CHAOS,        "chaos"     },
-    // { AF_NS,           "ns"        },
-    // { AF_IPX,          "ipx"       },
-    // { AF_ISO,          "iso"       },
-    // { AF_OSI,          "osi"       },
-    // { AF_ECMA,         "ecma"      },
-    // { AF_DATAKIT,      "datakit"   },
-    // { AF_CCITT,        "ccitt"     },
-    // { AF_SNA,          "sna"       },
-    // { AF_DECnet,       "decnet"    },
-    // { AF_DLI,          "dli"       },
-    // { AF_LAT,          "lat"       },
-    // { AF_HYLINK,       "hylink"    },
-    // { AF_APPLETALK,    "appletalk" },
-    // { AF_NETBIOS,      "netbios"   },
-    // { AF_VOICEVIEW,    "voiceview" },
-    // { AF_FIREFOX,      "firefox"   },
-    // { AF_UNKNOWN1,     "unknown1"  },
-    // { AF_BAN,          "ban"       },
-    // { AF_ATM,          "atm"       },
-    // { AF_CLUSTER,      "cluster"   },
-    // { AF_12844,        "12844"     },
-    // { AF_IRDA,         "irda"      },
-    // { AF_NETDES,       "netdes"    },
-
-    //! @todo extend list
+    LLUV_AI_FAMILY_MAP(XX)
 
     { 0, NULL }
   };
 
   static const lluv_uv_const_t ai_stype[] = {
-    { SOCK_STREAM,        "stream"    },
-    { SOCK_DGRAM,         "dgram"     },
-    { SOCK_RAW,           "raw"       },
-    // { SOCK_RDM,           "rdm"       },
-    // { SOCK_SEQPACKET,     "seqpacket" },
-
-    //! @todo extend list
+    LLUV_AI_STYPE_MAP(XX)
 
     { 0, NULL }
   };
 
   static const lluv_uv_const_t ai_proto[] = {
-    { IPPROTO_TCP,  "tcp"  },
-    { IPPROTO_UDP,  "udp"  },
-    { IPPROTO_ICMP, "icmp" },
-
-    //! @todo extend list
+    LLUV_AI_PROTO_MAP(XX)
 
     { 0, NULL }
   };
 
   static const lluv_uv_const_t FLAGS[] = {
-    { AI_ADDRCONFIG,   "addrconfig"  },
-    { AI_V4MAPPED,     "v4mapped"    },
-    { AI_ALL,          "all"         },
-    { AI_NUMERICHOST,  "numerichost" },
-    { AI_PASSIVE,      "passive"     },
-    { AI_NUMERICSERV,  "numericserv" },
-    { AI_CANONNAME,    "canonname"   },
-
-    //! @todo extend/check list
+    LLUV_AI_FLAG_MAP(XX)
 
     { 0, NULL }
   };
+
+#undef XX
 
   lluv_loop_t *loop = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int argc = loop ? 1 : 0;
@@ -201,9 +214,10 @@ static int lluv_getaddrinfo(lua_State *L){
 
     node = luaL_optstring(L, argc + 1, NULL);
 
-    if(!lua_isfunction(L, argc + 2))
+    if(!lua_isfunction(L, argc + 2)){
       if(lua_istable(L, argc + 2)) hi = argc + 2;
       else service = luaL_optstring(L, argc + 2, NULL);
+    }
 
     luaL_argcheck(L, node || service, argc + 1, "you must specify node or service");
     
@@ -290,11 +304,12 @@ static int lluv_getnameinfo(lua_State *L){
 }
 
 static const lluv_uv_const_t lluv_dns_constants[] = {
-  { NI_NOFQDN,        "NI_NOFQDN"       },
-  { NI_NUMERICHOST,   "NI_NUMERICHOST"  },
-  { NI_NAMEREQD,      "NI_NAMEREQD"     },
-  { NI_NUMERICSERV,   "NI_NUMERICSERV"  },
-  { NI_DGRAM,         "NI_DGRAM"        },
+#define XX(C, L, N) {C, L},
+    LLUV_AI_FAMILY_MAP(XX)
+    LLUV_AI_STYPE_MAP(XX)
+    LLUV_AI_PROTO_MAP(XX)
+    LLUV_AI_FLAG_MAP(XX)
+#undef  XX
 
   { 0, NULL }
 };
