@@ -327,7 +327,7 @@ static int lluv_process_spawn(lua_State *L){
     if(err < 0){
       luaL_unref(L, LLUV_LUA_REGISTRY, cb);
       lluv_handle_cleanup(L, handle);
-      return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+      return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
     }
     LLUV_START_CB(handle) = cb;
 
