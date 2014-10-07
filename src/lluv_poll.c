@@ -79,9 +79,19 @@ static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
 }
 
 static int lluv_poll_start(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_READABLE, "readable" },
+    { UV_WRITABLE, "writable" },
+
+    { 0, NULL }
+  };
+
   lluv_handle_t *handle = lluv_check_poll(L, 1, LLUV_FLAG_OPEN);
-  int events = luaL_checkint(L, 2);
+  int events = UV_READABLE;
   int err;
+
+  if(!lua_isfunction(L, 2))
+    events = lluv_opt_flags_ui(L, 2, UV_READABLE, FLAGS);
 
   lluv_check_args_with_cb(L, 3);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
@@ -112,6 +122,13 @@ static const struct luaL_Reg lluv_poll_methods[] = {
   {NULL,NULL}
 };
 
+static const lluv_uv_const_t lluv_poll_constants[] = {
+  { UV_READABLE, "READABLE" },
+  { UV_WRITABLE, "WRITABLE" },
+
+  { 0, NULL }
+};
+
 static const struct luaL_Reg lluv_poll_functions[] = {
   {"poll",        lluv_poll_create},
   {"poll_socket", lluv_poll_create_socket},
@@ -126,4 +143,5 @@ LLUV_INTERNAL void lluv_poll_initlib(lua_State *L, int nup){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_poll_functions, nup);
+  lluv_register_constants(L, lluv_poll_constants);
 }
