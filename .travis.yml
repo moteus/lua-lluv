@@ -1,4 +1,4 @@
-language: objective-c
+language: c
 
 env:
   global:
@@ -20,7 +20,7 @@ before_install:
   # - sudo pip install cpp-coveralls
 
 install:
-  - sudo luarocks make rockspecs/lluv-scm-0.rockspec UV_INCDIR=./libuv/include UV_LIBDIR=./libuv/build/Release
+  - sudo luarocks make rockspecs/lluv-scm-0.rockspec UV_DIR=./libuv
 
 script: 
   - cd test
