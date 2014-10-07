@@ -12,7 +12,7 @@ end
 uv.poll_socket(sock:fd()):start(function(handle, err, event)
   if err then
     print("Poll error: ", err)
-    uv.stop()
+    return uv.stop()
   end
 
   -- with zmq we must read all avaliable messages

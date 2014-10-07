@@ -72,8 +72,9 @@ static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
 
   lluv_handle_pushself(L, handle);
   lluv_push_status(L, status);
+  lua_pushinteger(L, events);
 
-  lluv_lua_call(L, 2, 0);
+  lluv_lua_call(L, 3, 0);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
