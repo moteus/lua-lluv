@@ -47,11 +47,16 @@ build = {
         libraries = {"libuv", "ws2_32"},
       }
     }},
-    unix    = { modules = {
+    linix   = { modules = {
       lluv = {
         libraries = {"uv", "rt"},
       }
-    }}
+    }},
+    unix    = { modules = {
+      lluv = {
+        libraries = {"uv"},
+      }
+    }},
   },
 
   modules = {
