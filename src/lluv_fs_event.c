@@ -71,8 +71,10 @@ static int lluv_fs_event_start(lua_State *L){
 
   lluv_handle_t *handle = lluv_check_fs_event(L, 1, LLUV_FLAG_OPEN);
   const char *path   = luaL_checkstring(L, 2);
-  unsigned int flags = lluv_opt_flags_ui(L, 3, 0, FLAGS);
+  unsigned int flags = 0;
   int err;
+
+  if(!lua_isfunction(L, 3)) flags = lluv_opt_flags_ui(L, 3, flags, FLAGS);
 
   lluv_check_args_with_cb(L, 4);
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
