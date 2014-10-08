@@ -24,7 +24,7 @@ LLUV_INTERNAL int lluv_tcp_index(lua_State *L){
   return lluv__index(L, LLUV_TCP, lluv_stream_index);
 }
 
-static int lluv_tcp_create(lua_State *L){
+LLUV_INTERNAL int lluv_tcp_create(lua_State *L){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
   lluv_handle_t *handle = lluv_stream_create(L, UV_TCP, INHERITE_FLAGS(loop));
   int err = uv_tcp_init(loop->handle, LLUV_H(handle, uv_tcp_t));

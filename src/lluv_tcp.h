@@ -15,4 +15,6 @@ LLUV_INTERNAL void lluv_tcp_initlib(lua_State *L, int nup);
 
 LLUV_INTERNAL int lluv_tcp_index(lua_State *L);
 
+LLUV_INTERNAL int lluv_tcp_create(lua_State *L);
+
 #endif

@@ -33,11 +33,9 @@ local function on_connection(srv, err)
     srv:close()
     return
   end
-  local cli = uv.pipe(srv:loop())
-  local _, err = srv:accept(cli)
-  if err then
+  local cli, err = srv:accept()
+  if not cli then
     print("ACCEPT: ", err)
-    cli:close()
     return
   end
   cli:start_read(on_read)

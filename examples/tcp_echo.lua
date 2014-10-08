@@ -24,8 +24,8 @@ print("LISTEN_START:", server:listen(function(server, err)
   if err then return end
 
   -- create client socket in same loop as server
-  local cli, err = server:accept(uv.tcp(server:loop()))
-  if err then print("ACCEPT: ", err) else print("ACCEPT: ", cli:getpeername()) end
+  local cli, err = server:accept()
+  if not cli then print("ACCEPT: ", err) else print("ACCEPT: ", cli:getpeername()) end
 
   cli:start_read(on_read)
 end))

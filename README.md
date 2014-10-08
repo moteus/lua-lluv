@@ -22,20 +22,20 @@ local function on_read(cli, err, data)
   cli:write(data, on_write)
 end
 
-local function on_connection(ctor) return function(server, err)
+local function on_connection(server, err)
   if err then return server:close() end
   server
-    :accept(ctor(server:loop()))
+    :accept()
     :start_read(on_read)
-end end
+end
 
 uv.tcp()
   :bind("127.0.0.1", 5555)
-  :listen(on_connection(uv.tcp))
+  :listen(on_connection)
 
 uv.pipe()
   :bind([[\\.\pipe\sock.echo]])
-  :listen(on_connection(uv.pipe))
+  :listen(on_connection)
 
 uv.run()
 ```
