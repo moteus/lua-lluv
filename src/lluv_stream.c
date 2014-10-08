@@ -373,6 +373,35 @@ static int lluv_stream_write(lua_State *L){
   return 1;
 }
 
+static int lluv_stream_write2(lua_State *L){
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *src    = lluv_check_stream(L, 2, LLUV_FLAG_OPEN);
+  size_t len; const char *str;
+  int err; lluv_req_t *req;
+  uv_buf_t buf;
+
+  if(lua_isfunction(L, 3)){
+    lua_pushliteral(L, ".");
+    lua_insert(L, 3);
+  }
+  str = luaL_checklstring(L, 3, &len);
+  buf = uv_buf_init((char*)str, len);
+  
+  lluv_check_args_with_cb(L, 4);
+
+  req = lluv_req_new(L, UV_WRITE, handle);
+  lluv_req_ref(L, req); /* string */
+
+  err = uv_write2(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), &buf, 1, LLUV_H(src, uv_stream_t), lluv_on_stream_write_cb);
+  if(err < 0){
+    lluv_req_free(L, req);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
 //}
 
 static int lluv_stream_is_readable(lua_State *L){
@@ -412,6 +441,7 @@ static const struct luaL_Reg lluv_stream_methods[] = {
   { "stop_read",    lluv_stream_stop_read     },
   { "try_write",    lluv_stream_try_write     },
   { "write",        lluv_stream_write         },
+  { "write2",       lluv_stream_write2        },
   { "is_readable",  lluv_stream_is_readable   },
   { "is_writable",  lluv_stream_is_writable   },
   { "set_blocking", lluv_stream_set_blocking  },
