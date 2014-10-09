@@ -159,6 +159,8 @@ static const struct luaL_Reg lluv_err_methods[] = {
   { "name",            lluv_err_name             },
   { "ext",             lluv_err_ext              },
   { "category",        lluv_err_category         },
+  { "to_s",            lluv_err_tostring         },
+  { "tostring",        lluv_err_tostring         },
   { "__tostring",      lluv_err_tostring         },
   { "__eq",            lluv_err_equal            },
 

@@ -93,6 +93,7 @@ static void lluv_push_interface(lua_State *L, uv_interface_address_t* s){
     SET_FIELD_STR  ( "phys_addr" , phys_addr  );
     lluv_push_if_addr(L, (struct sockaddr*)&s->address.address4); lua_setfield(L, -2, "address");
     lluv_push_if_addr(L, (struct sockaddr*)&s->netmask.netmask4); lua_setfield(L, -2, "netmask");
+    lua_pushboolean(L, s->is_internal); lua_setfield(L, -2, "internal");
 
 #undef SET_FIELD_STR
 #undef SET_FIELD_INT
