@@ -27,7 +27,7 @@ local function on_new_connection(pipe, err, data)
     if err:no() ~= uv.EOF then
       fprintf(stderr, "Read error %s\n", tostring(err))
     end
-    pipe:close()
+    return pipe:close()
   end
 
   local c = 0

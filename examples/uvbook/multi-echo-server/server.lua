@@ -46,7 +46,7 @@ local function on_new_connection(server, err)
   round_robin_counter = round_robin_counter % child_worker_count + 1
   local worker = assert(workers[round_robin_counter], round_robin_counter)
 
-  local ok, err = worker.pipe:write2(cli, function()end)
+  local ok, err = worker.pipe:write2(cli, function() cli:close() end)
   if not ok then
     fprintf(stderr, "Write2 error: %s\n", tostring(err))
     cli:close()
