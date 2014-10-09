@@ -37,7 +37,7 @@ external_dependencies = {
 }
 
 build = {
-  copy_directories = {'doc', 'examples'},
+  copy_directories = {'doc', 'examples', 'test'},
 
   type = "builtin",
 
