@@ -5,28 +5,31 @@ local fprintf = function(f, ...) f:write((string.format(...))) end
 
 local stderr = io.stderr
 
+local function cleanup_handles(handle, exit_status, term_signal)
+  local client = handle.data
+  handle:close()
+  client:close()
+  fprintf(stderr, "Process exited with status %d, signal %d\n", exit_status, term_signal)
+end
+
 local function invoke_cgi_script(client)
   local lua_path = uv.exepath()
   local cgi_path = path.join(path.currentdir(), "tick.lua")
 
-  local function cleanup_handles(handle, exit_status, term_signal)
-    handle:close()
-    client:close()
-    fprintf(stderr, "Process exited with status %d, signal %d\n", exit_status, term_signal)
-  end
-
   --/* ... finding the executable path and setting up arguments ... */
-  local child_req, err = uv.spawn({
+  local process, err = uv.spawn({
     file  = lua_path,
     args  = {cgi_path},
     stdio = { {}, client }
   }, cleanup_handles)
 
-  if not child_req then
+  if not process then
     client:close()
     fprintf(stderr, "Spawn error %s\n", tostring(err))
     return;
   end
+
+  process.data = client
 
 end
 
