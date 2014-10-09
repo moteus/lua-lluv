@@ -1,6 +1,6 @@
 lua-lluv
 ========
-[![Licence](http://img.shields.io/badge/Licence-MIT-brightgreen.svg)](LICENCE.txt)
+[![Licence](http://img.shields.io/badge/Licence-MIT-brightgreen.svg)](LICENSE)
 [![Build Status](https://travis-ci.org/moteus/lua-lluv.svg?branch=master)](https://travis-ci.org/moteus/lua-lluv)
 
 ##Lua low level binding to [libuv](https://github.com/joyent/libuv)
