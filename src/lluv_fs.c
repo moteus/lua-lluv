@@ -472,6 +472,16 @@ static int lluv_fs_open(lua_State* L) {
   LLUV_POST_FS();
 }
 
+static int lluv_fs_open_fd(lua_State* L) {
+  LLUV_CHECK_LOOP_FS()
+  int64_t fd = lutil_checkint64(L, ++argc);
+  int noclose = lua_toboolean(L, ++argc);
+
+  if(!loop)loop = lluv_default_loop(L);
+  lluv_file_create(L, loop, (uv_file)fd, noclose ? LLUV_FLAG_NOCLOSE : 0);
+  return 1;
+}
+
 //}
 
 //{ File object
@@ -525,10 +535,11 @@ static int lluv_file_close(lua_State *L){
     const char  *path = NULL;
     int          argc = 1;
     UNSET_(f, OPEN);
-
-    LLUV_PRE_FS();
-    err = uv_fs_close(loop->handle, &req->req, f->handle, cb);
-    LLUV_POST_FS();
+    if(!IS_(f, NOCLOSE)){
+      LLUV_PRE_FS();
+      err = uv_fs_close(loop->handle, &req->req, f->handle, cb);
+      LLUV_POST_FS();
+    }
   }
 
   return 0;
@@ -795,6 +806,7 @@ static const struct luaL_Reg lluv_fs_functions[] = {
   { "fs_chown",    lluv_fs_chown    },
 
   { "fs_open",     lluv_fs_open     },
+  { "fs_open_fd",  lluv_fs_open_fd  },
 
   {NULL,NULL}
 };
