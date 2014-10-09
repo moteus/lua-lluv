@@ -22,7 +22,7 @@ local function on_type(file, err, buffer, size)
 
   if size > 0 then
     fprintf(stdout, "Typed %s\n", buffer:to_s(size))
-    file:read(buffer, on_type)
+    file:read(buffer, -1, on_type)
   end
 end
 
@@ -30,6 +30,6 @@ uv.idle()
   :start(crunch_away)
 
 uv.fs_open_fd(0, true)
-  :read(1024, on_type)
+  :read(1024, -1, on_type)
 
 return uv.run(debug.traceback)
