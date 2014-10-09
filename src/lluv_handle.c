@@ -49,7 +49,7 @@ static int lluv_handle_dispatch(lua_State *L){
     case UV_FS_POLL:    return lluv_fs_poll_index(L);
     case UV_PROCESS:    return lluv_process_index(L);
   }
-  assert(0 && "please provive index function for this handle type");
+  assert(0 && "please provide index function for this handle type");
   return 0;
 }
 
@@ -58,8 +58,29 @@ static int lluv_handle_dispatch(lua_State *L){
 #define LLUV_HANDLE_NAME LLUV_PREFIX" Handle"
 static const char *LLUV_HANDLE = LLUV_HANDLE_NAME;
 
+static int lluv_handle_set_data(lua_State *L);
+
+static int lluv_handle_get_data(lua_State *L);
+
 LLUV_INTERNAL int lluv_handle_index(lua_State *L){
+  const char *key = luaL_checkstring(L, 2);
+  if(0 == strcmp("data", key)){
+    lua_remove(L, 2);
+    return lluv_handle_get_data(L);
+  }
+
   return lluv__index(L, LLUV_HANDLE, NULL);
+}
+
+LLUV_INTERNAL int lluv_handle_newindex(lua_State *L){
+  const char *key = luaL_checkstring(L, 2);
+  if(0 == strcmp("data", key)){
+    lua_remove(L, 2);
+    return lluv_handle_set_data(L);
+  }
+
+  lua_pushfstring(L, "can not set field `%s` to userdata", key);
+  return lua_error(L);
 }
 
 LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type type, lluv_flags_t flags){
@@ -76,6 +97,8 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type typ
   for(i = 0; i < LLUV_MAX_HANDLE_CB; ++i){
     handle->callbacks[i] = LUA_NOREF;
   }
+
+  handle->ud_ref = LUA_NOREF;
 
   lua_pushvalue(L, -1);
   handle->self = luaL_ref(L, LLUV_LUA_REGISTRY);
@@ -119,7 +142,8 @@ LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
     handle->callbacks[i] = LUA_NOREF;
   }
   luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
-  handle->self = LUA_NOREF;
+  luaL_unref(L, LLUV_LUA_REGISTRY, handle->ud_ref);
+  handle->self = handle->ud_ref = LUA_NOREF;
 }
 
 static void lluv_on_handle_close(uv_handle_t *arg){
@@ -135,10 +159,8 @@ static void lluv_on_handle_close(uv_handle_t *arg){
 
   lluv_handle_cleanup(L, handle);
 
-  if(!lua_isnil(L, -2))
-    lluv_lua_call(L, 1, 0);
-  else
-    lua_pop(L, 2);
+  if(lua_isnil(L, -2)) lua_pop(L, 2);
+  else lluv_lua_call(L, 1, 0);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -265,9 +287,26 @@ static int lluv_handle_fileno(lua_State *L){
 }
 #endif
 
+static int lluv_handle_set_data(lua_State *L){
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  luaL_checkany(L, 2);
+  lua_settop(L, 2);
+  luaL_unref(L, LLUV_LUA_REGISTRY, handle->ud_ref);
+  handle->ud_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
+  return 0;
+}
+
+static int lluv_handle_get_data(lua_State *L){
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  lua_settop(L, 1);
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->ud_ref);
+  return 1;
+}
+
 static const struct luaL_Reg lluv_handle_methods[] = {
   { "__gc",             lluv_handle_close            },
   { "__index",          lluv_handle_dispatch         },
+  { "__newindex",       lluv_handle_newindex         },
   { "__tostring",       lluv_handle_to_s             },
   { "loop",             lluv_handle_loop             },
   { "close",            lluv_handle_close            },

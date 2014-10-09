@@ -14,6 +14,7 @@
 #define LLUV_CLOSE_CB(H)      H->callbacks[0]
 #define LLUV_START_CB(H)      H->callbacks[1]
 #define LLUV_READ_CB(H)       H->callbacks[1]
+#define LLUV_EXIT_CB(H)       H->callbacks[1]
 #define LLUV_CONNECTION_CB(H) H->callbacks[2]
 #define LLUV_MAX_HANDLE_CB    3
 
@@ -25,6 +26,7 @@ typedef struct lluv_handle_tag{
   int         self;
   lua_State   *L;
   lluv_flags_t flags;
+  int          ud_ref; /* userdata reference */
   int          callbacks[LLUV_MAX_HANDLE_CB];
   uv_handle_t  handle;
 } lluv_handle_t;

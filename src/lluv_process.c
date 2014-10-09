@@ -29,7 +29,7 @@ static void lluv_on_process_exit(uv_process_t* arg, int64_t exit_status, int ter
 
   if(!IS_(handle, OPEN)) return;
 
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_START_CB(handle));
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_EXIT_CB(handle));
   if(lua_isnil(L, -1)){
     lua_pop(L, 1);
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -329,7 +329,7 @@ static int lluv_process_spawn(lua_State *L){
       lluv_handle_cleanup(L, handle);
       return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
     }
-    LLUV_START_CB(handle) = cb;
+    LLUV_EXIT_CB(handle) = cb;
 
     lutil_pushint64(L, LLUV_H(handle, uv_process_t)->pid);
     return 2;
