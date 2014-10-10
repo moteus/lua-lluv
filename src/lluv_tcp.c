@@ -24,13 +24,13 @@ LLUV_INTERNAL int lluv_tcp_index(lua_State *L){
   return lluv__index(L, LLUV_TCP, lluv_stream_index);
 }
 
-LLUV_INTERNAL int lluv_tcp_create(lua_State *L){
+LLUV_IMPL_SAFE_(lluv_tcp_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_stream_create(L, UV_TCP, INHERITE_FLAGS(loop));
+  lluv_handle_t *handle = lluv_stream_create(L, UV_TCP, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_tcp_init(loop->handle, LLUV_H(handle, uv_tcp_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -196,18 +196,28 @@ static const lluv_uv_const_t lluv_tcp_constants[] = {
   { 0, NULL }
 };
 
-static const struct luaL_Reg lluv_tcp_functions[] = {
-  { "tcp", lluv_tcp_create },
+#define LLUV_FUNCTIONS(F)         \
+  {"tcp", lluv_tcp_create_##F},   \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_tcp_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_tcp_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_TCP, lluv_tcp_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_tcp_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
   lluv_register_constants(L, lluv_tcp_constants);
 }

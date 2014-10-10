@@ -286,7 +286,7 @@ static lluv_handle_t* lluv_check_process(lua_State *L, int idx, lluv_flags_t fla
   return handle;
 }
 
-static int lluv_process_spawn(lua_State *L){
+LLUV_IMPL_SAFE(lluv_process_spawn){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int first_arg = loop ? 2 : 1;
   int cb = LUA_NOREF;
@@ -317,7 +317,7 @@ static int lluv_process_spawn(lua_State *L){
   if(!loop) loop = lluv_default_loop(L);
 
   {
-    lluv_handle_t *handle = lluv_handle_create(L, UV_PROCESS, INHERITE_FLAGS(loop));
+    lluv_handle_t *handle = lluv_handle_create(L, UV_PROCESS, safe_flag | INHERITE_FLAGS(loop));
     int err = uv_spawn(loop->handle, LLUV_H(handle, uv_process_t), &opt);
 
     if(opt.args)  lluv_free(L, opt.args);
@@ -327,7 +327,7 @@ static int lluv_process_spawn(lua_State *L){
     if(err < 0){
       luaL_unref(L, LLUV_LUA_REGISTRY, cb);
       lluv_handle_cleanup(L, handle);
-      return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
+      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
     }
     LLUV_EXIT_CB(handle) = cb;
 
@@ -353,12 +353,12 @@ static int lluv_process_kill(lua_State *L){
   return 1;
 }
 
-static int lluv_pid_kill(lua_State *L){
+LLUV_IMPL_SAFE(lluv_pid_kill){
   int64_t pid = lutil_checkint64(L, 1);
   int sig = luaL_optint(L, 2, SIGTERM);
   int err = uv_kill(pid, sig);
   if(err < 0){
-    return lluv_fail(L, 0, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   lua_pushboolean(L, 1);
   return 1;
@@ -395,20 +395,30 @@ static const lluv_uv_const_t lluv_process_constants[] = {
   { 0, NULL }
 };
 
-static const struct luaL_Reg lluv_process_functions[] = {
-  { "spawn",                               lluv_process_spawn                   },
-  { "kill",                                lluv_pid_kill                        },
-  { "disable_stdio_inheritance",           lluv_disable_stdio_inheritance       },
+#define LLUV_FUNCTIONS(F)                                        \
+  {"spawn", lluv_process_spawn_##F},                             \
+  {"kill", lluv_pid_kill_##F},                                   \
+  {"disable_stdio_inheritance", lluv_disable_stdio_inheritance}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][4] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_process_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_process_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_PROCESS, lluv_process_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_process_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
   lluv_register_constants(L, lluv_process_constants);
 }

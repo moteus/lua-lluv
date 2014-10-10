@@ -11,6 +11,6 @@
 #ifndef _LLUV_MISC_H_
 #define _LLUV_MISC_H_
 
-LLUV_INTERNAL void lluv_misc_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_misc_initlib(lua_State *L, int nup, int safe);
 
 #endif

@@ -11,10 +11,12 @@
 #ifndef _LLUV_PIPE_H_
 #define _LLUV_PIPE_H_
 
-LLUV_INTERNAL void lluv_pipe_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_pipe_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_pipe_index(lua_State *L);
 
-LLUV_INTERNAL int lluv_pipe_create(lua_State *L);
+LLUV_INTERNAL int lluv_pipe_create_safe(lua_State *L);
+
+LLUV_INTERNAL int lluv_pipe_create_unsafe(lua_State *L);
 
 #endif

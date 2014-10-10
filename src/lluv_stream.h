@@ -11,7 +11,7 @@
 #ifndef _LLUV_STREAM_H_
 #define _LLUV_STREAM_H_
 
-LLUV_INTERNAL void lluv_stream_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_stream_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_stream_index(lua_State *L);
 

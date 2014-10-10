@@ -11,7 +11,7 @@
 #ifndef _LLUV_SIGNAL_H_
 #define _LLUV_SIGNAL_H_
 
-LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_signal_index(lua_State *L);
 

@@ -23,7 +23,7 @@ LLUV_INTERNAL int lluv_tty_index(lua_State *L){
   return lluv__index(L, LLUV_TTY, lluv_stream_index);
 }
 
-static int lluv_tty_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_tty_create){
   lluv_loop_t *loop = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   uv_file fd        = (uv_file)lutil_checkint64(L, loop ? 2 : 1);
   int readable      = lua_toboolean(L, loop ? 3 : 2);
@@ -32,11 +32,11 @@ static int lluv_tty_create(lua_State *L){
 
   if(!loop) loop = lluv_default_loop(L);
 
-  handle = lluv_stream_create(L, UV_TTY, INHERITE_FLAGS(loop));
+  handle = lluv_stream_create(L, UV_TTY, safe_flag | INHERITE_FLAGS(loop));
   err = uv_tty_init(loop->handle, LLUV_H(handle, uv_tty_t), fd, readable);
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -59,7 +59,7 @@ static int lluv_tty_set_mode(lua_State *L){
   return 1;
 }
 
-static int lluv_tty_reset_mode(lua_State *L){
+LLUV_IMPL_SAFE(lluv_tty_reset_mode){
   lluv_loop_t *loop = lluv_opt_loop_ex(L, 1, 0);
   int err = uv_tty_reset_mode();
 
@@ -92,18 +92,28 @@ static const struct luaL_Reg lluv_tty_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_tty_functions[] = {
-  { "tty",            lluv_tty_create       },
-  { "tty_reset_mode", lluv_tty_reset_mode   },
+#define LLUV_FUNCTIONS(F)                      \
+  {"tty",            lluv_tty_create_##F},     \
+  {"tty_reset_mode", lluv_tty_reset_mode_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][3] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_tty_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_tty_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_TTY, lluv_tty_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_tty_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
 }

@@ -22,13 +22,13 @@ LLUV_INTERNAL int lluv_check_index(lua_State *L){
   return lluv__index(L, LLUV_CHECK, lluv_handle_index);
 }
 
-static int lluv_check_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_check_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_handle_create(L, UV_CHECK, INHERITE_FLAGS(loop));
+  lluv_handle_t *handle = lluv_handle_create(L, UV_CHECK, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_check_init(loop->handle, LLUV_H(handle, uv_check_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -77,17 +77,26 @@ static const struct luaL_Reg lluv_check_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_check_functions[] = {
-  {"check", lluv_check_create},
+#define LLUV_FUNCTIONS(F)           \
+  {"check", lluv_check_create_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
-
-LLUV_INTERNAL void lluv_check_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_check_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_CHECK, lluv_check_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_check_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
 }

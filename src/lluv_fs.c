@@ -201,51 +201,69 @@ static void lluv_on_fs(uv_fs_t *arg){
 }
 
 //{ Macro
-#define LLUV_CHECK_LOOP_FS()                                           \
-  lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);            \
-  int argc = loop? 1 : 0;                                              \
+#define LLUV_CHECK_LOOP_FS()                                              \
+  lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);               \
+  int argc = loop? 1 : 0;                                                 \
 
-#define LLUV_PRE_FS(){                                                 \
-  lluv_fs_request_t *req = lluv_fs_request_new(L);                     \
-  int err;  uv_fs_cb cb = NULL;                                        \
-                                                                       \
-  if(!loop)loop = lluv_default_loop(L);                                \
-                                                                       \
-  if(lua_gettop(L) > argc){                                            \
-    lua_settop(L, argc + 1);                                           \
-    cb = lluv_on_fs;                                                   \
-  }                                                                    \
+#define LLUV_PRE_FS(){                                                    \
+  lluv_fs_request_t *req = lluv_fs_request_new(L);                        \
+  int err;  uv_fs_cb cb = NULL;                                           \
+                                                                          \
+  if(!loop)loop = lluv_default_loop(L);                                   \
+                                                                          \
+  if(lua_gettop(L) > argc){                                               \
+    lua_settop(L, argc + 1);                                              \
+    cb = lluv_on_fs;                                                      \
+  }                                                                       \
 
-#define LLUV_POST_FS()                                                 \
-  if(err < 0){                                                         \
-    lluv_fs_request_free(L, req);                                      \
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, path);          \
-  }                                                                    \
-                                                                       \
-  if(cb){                                                              \
-    req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);                          \
-    return 0;                                                          \
-  }                                                                    \
-                                                                       \
-  if(req->req.result < 0){                                             \
-    lua_pushnil(L);                                                    \
-    lluv_error_create(L, LLUV_ERR_UV, req->req.result, req->req.path); \
-    argc = 2;                                                          \
-  }                                                                    \
-  else{                                                                \
-    if(req->req.fs_type == UV_FS_OPEN){                                \
-      lluv_file_create(L, loop, (uv_file)req->req.result, 0);          \
-      argc = 1;                                                        \
-    }                                                                  \
-    else argc = 0;                                                     \
-    argc += lluv_push_fs_result(L, req);                               \
-  }                                                                    \
-                                                                       \
-  uv_fs_req_cleanup(&req->req);                                        \
-  lluv_fs_request_free(L, req);                                        \
-                                                                       \
-  return argc;                                                         \
+#define LLUV_POST_FS_FILE()                                               \
+  if(err < 0){                                                            \
+    lluv_fs_request_free(L, req);                                         \
+    return lluv_fail(L, f->flags, LLUV_ERR_UV, err, path);                \
+  }                                                                       \
+
+#define LLUV_POST_FS_LOOP()                                               \
+  if(err < 0){                                                            \
+    lluv_fs_request_free(L, req);                                         \
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, path); \
+  }                                                                       \
+
+#define LLUV_POST_FS_COMMON()                                             \
+                                                                          \
+  if(cb){                                                                 \
+    req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);                             \
+    return 0;                                                             \
+  }                                                                       \
+                                                                          \
+  if(req->req.result < 0){                                                \
+    lua_pushnil(L);                                                       \
+    lluv_error_create(L, LLUV_ERR_UV, req->req.result, req->req.path);    \
+    argc = 2;                                                             \
+  }                                                                       \
+  else{                                                                   \
+    if(req->req.fs_type == UV_FS_OPEN){                                   \
+      lluv_file_create(L, loop, (uv_file)req->req.result, 0);             \
+      argc = 1;                                                           \
+    }                                                                     \
+    else argc = 0;                                                        \
+    argc += lluv_push_fs_result(L, req);                                  \
+  }                                                                       \
+                                                                          \
+  uv_fs_req_cleanup(&req->req);                                           \
+  lluv_fs_request_free(L, req);                                           \
+                                                                          \
+  return argc;                                                            \
 }
+
+#define LLUV_POST_FS()                                                    \
+  LLUV_POST_FS_LOOP()                                                     \
+  LLUV_POST_FS_COMMON()                                                   \
+
+#define LLUV_POST_FILE()                                                  \
+  LLUV_POST_FS_FILE()                                                     \
+  LLUV_POST_FS_COMMON()                                                   \
+
+#define LLUV_PRE_FILE() LLUV_PRE_FS()
 
 #define lluv_arg_exists(L, idx) ((!lua_isnone(L, idx)) && (lua_type(L, idx) != LUA_TFUNCTION))
 
@@ -253,7 +271,7 @@ static void lluv_on_fs(uv_fs_t *arg){
 
 //{ FS operations
 
-static int lluv_fs_unlink(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_unlink){
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -263,7 +281,7 @@ static int lluv_fs_unlink(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_mkdtemp(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_mkdtemp) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = "./XXXXXX";
@@ -276,7 +294,7 @@ static int lluv_fs_mkdtemp(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_mkdir(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_mkdir) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path   = luaL_checkstring(L, ++argc);
@@ -290,7 +308,7 @@ static int lluv_fs_mkdir(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_rmdir(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_rmdir) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -300,7 +318,7 @@ static int lluv_fs_rmdir(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_readdir(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_readdir) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -314,7 +332,7 @@ static int lluv_fs_readdir(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_stat(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_stat) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -324,7 +342,7 @@ static int lluv_fs_stat(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_lstat(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_lstat) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -334,7 +352,7 @@ static int lluv_fs_lstat(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_rename(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_rename) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path     = luaL_checkstring(L, ++argc);
@@ -345,7 +363,7 @@ static int lluv_fs_rename(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_chmod(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_chmod) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring (L, ++argc);
@@ -356,7 +374,7 @@ static int lluv_fs_chmod(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_utime(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_utime) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -368,7 +386,7 @@ static int lluv_fs_utime(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_symlink(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_symlink) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path     = luaL_checkstring(L, ++argc);
@@ -383,7 +401,7 @@ static int lluv_fs_symlink(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_readlink(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_readlink) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -393,7 +411,7 @@ static int lluv_fs_readlink(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_chown(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_chown) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -456,7 +474,7 @@ static int luv_check_open_flags(lua_State *L, int idx, const char *def){
   return flags[flag];
 }
 
-static int lluv_fs_open(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_open) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -472,7 +490,7 @@ static int lluv_fs_open(lua_State* L) {
   LLUV_POST_FS();
 }
 
-static int lluv_fs_open_fd(lua_State* L) {
+LLUV_IMPL_SAFE(lluv_fs_open_fd) {
   LLUV_CHECK_LOOP_FS()
   int64_t fd = lutil_checkint64(L, ++argc);
   int noclose = lua_toboolean(L, ++argc);
@@ -536,9 +554,9 @@ static int lluv_file_close(lua_State *L){
     int          argc = 1;
     UNSET_(f, OPEN);
     if(!IS_(f, NOCLOSE)){
-      LLUV_PRE_FS();
+      LLUV_PRE_FILE();
       err = uv_fs_close(loop->handle, &req->req, f->handle, cb);
-      LLUV_POST_FS();
+      LLUV_POST_FILE();
     }
   }
 
@@ -557,11 +575,11 @@ static int lluv_file_stat(lua_State *L){
   lluv_loop_t *loop = f->loop;
   int          argc = 1;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_fstat(loop->handle, &req->req, f->handle, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_sync(lua_State *L){
@@ -570,11 +588,11 @@ static int lluv_file_sync(lua_State *L){
   lluv_loop_t *loop = f->loop;
   int          argc = 1;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_fsync(loop->handle, &req->req, f->handle, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_datasync(lua_State *L){
@@ -583,11 +601,11 @@ static int lluv_file_datasync(lua_State *L){
   lluv_loop_t *loop = f->loop;
   int          argc = 1;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_fdatasync(loop->handle, &req->req, f->handle, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_truncate(lua_State *L){
@@ -597,11 +615,11 @@ static int lluv_file_truncate(lua_State *L){
   int64_t      len  = lutil_checkint64(L, 2);
   int         argc  = 2;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_ftruncate(loop->handle, &req->req, f->handle, len, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_chown(lua_State* L) {
@@ -612,11 +630,11 @@ static int lluv_file_chown(lua_State* L) {
   uv_gid_t     gid  = (uv_gid_t)lutil_checkint64(L, 3);
   int         argc  = 3;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_fchown(loop->handle, &req->req, f->handle, uid, gid, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_chmod(lua_State* L) {
@@ -626,11 +644,11 @@ static int lluv_file_chmod(lua_State* L) {
   int         mode  = (int)luaL_checkinteger(L, 2);
   int         argc  = 2;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_fchmod(loop->handle, &req->req, f->handle, mode, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_utime(lua_State* L) {
@@ -641,11 +659,11 @@ static int lluv_file_utime(lua_State* L) {
   double     mtime  = luaL_checknumber(L, 3);
   int         argc  = 3;
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   lua_pushvalue(L, 1);
   req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
   err = uv_fs_futime(loop->handle, &req->req, f->handle, atime, mtime, cb);
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_readb(lua_State* L) {
@@ -690,7 +708,7 @@ static int lluv_file_readb(lua_State* L) {
   luaL_argcheck (L, capacity > (size_t)offset, 4, LLUV_PREFIX" offset out of index"); 
   luaL_argcheck (L, capacity >= ((size_t)offset + length), 5, LLUV_PREFIX" length out of index");
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   {
     uv_buf_t ubuf = uv_buf_init(&base[offset], length);
 
@@ -700,7 +718,7 @@ static int lluv_file_readb(lua_State* L) {
     req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
     err = uv_fs_read(loop->handle, &req->req, f->handle, &ubuf, 1, position, cb);
   }
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static int lluv_file_read(lua_State* L) {
@@ -756,7 +774,7 @@ static int lluv_file_write(lua_State* L) {
   luaL_argcheck (L, capacity > (size_t)offset, 4, LLUV_PREFIX" offset out of index"); 
   luaL_argcheck (L, capacity >= ((size_t)offset + length), 5, LLUV_PREFIX" length out of index");
 
-  LLUV_PRE_FS();
+  LLUV_PRE_FILE();
   {
     uv_buf_t ubuf = uv_buf_init((char*)&str[offset], length);
     
@@ -766,7 +784,7 @@ static int lluv_file_write(lua_State* L) {
     req->file_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
     err = uv_fs_write(loop->handle, &req->req, f->handle, &ubuf, 1, position, cb);
   }
-  LLUV_POST_FS();
+  LLUV_POST_FILE();
 }
 
 static const struct luaL_Reg lluv_file_methods[] = {
@@ -790,33 +808,43 @@ static const struct luaL_Reg lluv_file_methods[] = {
 
 //}
 
-static const struct luaL_Reg lluv_fs_functions[] = {
-  { "fs_unlink",   lluv_fs_unlink   },
-  { "fs_mkdtemp",  lluv_fs_mkdtemp  },
-  { "fs_mkdir",    lluv_fs_mkdir    },
-  { "fs_rmdir",    lluv_fs_rmdir    },
-  { "fs_readdir",  lluv_fs_readdir  },
-  { "fs_stat",     lluv_fs_stat     },
-  { "fs_lstat",    lluv_fs_lstat    },
-  { "fs_rename",   lluv_fs_rename   },
-  { "fs_chmod",    lluv_fs_chmod    },
-  { "fs_utime",    lluv_fs_utime    },
-  { "fs_symlink",  lluv_fs_symlink  },
-  { "fs_readlink", lluv_fs_readlink },
-  { "fs_chown",    lluv_fs_chown    },
+#define LLUV_FS_FUNCTIONS(F)                \
+  { "fs_unlink",   lluv_fs_unlink_##F   },  \
+  { "fs_mkdtemp",  lluv_fs_mkdtemp_##F  },  \
+  { "fs_mkdir",    lluv_fs_mkdir_##F    },  \
+  { "fs_rmdir",    lluv_fs_rmdir_##F    },  \
+  { "fs_readdir",  lluv_fs_readdir_##F  },  \
+  { "fs_stat",     lluv_fs_stat_##F     },  \
+  { "fs_lstat",    lluv_fs_lstat_##F    },  \
+  { "fs_rename",   lluv_fs_rename_##F   },  \
+  { "fs_chmod",    lluv_fs_chmod_##F    },  \
+  { "fs_utime",    lluv_fs_utime_##F    },  \
+  { "fs_symlink",  lluv_fs_symlink_##F  },  \
+  { "fs_readlink", lluv_fs_readlink_##F },  \
+  { "fs_chown",    lluv_fs_chown_##F    },  \
+                                            \
+  { "fs_open",     lluv_fs_open_##F     },  \
+  { "fs_open_fd",  lluv_fs_open_fd_##F  },  \
 
-  { "fs_open",     lluv_fs_open     },
-  { "fs_open_fd",  lluv_fs_open_fd  },
-
-  {NULL,NULL}
+static const struct luaL_Reg lluv_fs_functions[][16] = {
+  {
+    LLUV_FS_FUNCTIONS(unsafe)
+    {NULL,NULL}
+  },
+  {
+    LLUV_FS_FUNCTIONS(safe)
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_fs_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_fs_initlib(lua_State *L, int nup, int safe){
+  assert((safe == 0) || (safe == 1));
+
   lutil_pushnvalues(L, nup);
 
   if(!lutil_createmetap(L, LLUV_FILE, lluv_file_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_fs_functions, nup);
+  luaL_setfuncs(L, lluv_fs_functions[safe], nup);
 }

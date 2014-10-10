@@ -11,7 +11,7 @@
 #ifndef _LLUV_PREPARE_H_
 #define _LLUV_PREPARE_H_
 
-LLUV_INTERNAL void lluv_prepare_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_prepare_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_prepare_index(lua_State *L);
 

@@ -146,11 +146,11 @@ UV_HANDLE_TYPE_MAP(XX)
   return "<unknown>";
 }
 
-static int lluv_new_(lua_State *L, lluv_loop_t *loop, uv_handle_type type){
+static int lluv_new_(lua_State *L, lluv_loop_t *loop, uv_handle_type type, int unsafe){
   if(type == UV_TCP){
     /*local ok, err = uv.tcp(loop)*/
     lua_pushvalue(L, LLUV_LUA_REGISTRY);
-    lua_pushcclosure(L, lluv_tcp_create, 1);
+    lua_pushcclosure(L, unsafe ? lluv_tcp_create_unsafe : lluv_tcp_create_safe, 1);
     lluv_loop_pushself(L, loop);
     lua_call(L, 1, 2);
 
@@ -163,7 +163,7 @@ static int lluv_new_(lua_State *L, lluv_loop_t *loop, uv_handle_type type){
   if(type == UV_NAMED_PIPE){
     /*local ok, err = uv.pipe(loop)*/
     lua_pushvalue(L, LLUV_LUA_REGISTRY);
-    lua_pushcclosure(L, lluv_pipe_create, 1);
+    lua_pushcclosure(L, unsafe ? lluv_pipe_create_unsafe : lluv_pipe_create_safe, 1);
     lluv_loop_pushself(L, loop);
     lua_call(L, 1, 2);
 
@@ -187,7 +187,7 @@ static int lluv_stream_accept(lua_State *L){
     uv_handle_type ht = handle->handle.type;
     lua_settop(L, 1);
     if(ht == UV_TCP){
-      int ret = lluv_new_(L, loop, UV_TCP);
+      int ret = lluv_new_(L, loop, UV_TCP, IS_(handle, RAISE_ERROR));
       if(ret != 1)return ret;
 
     }
@@ -198,10 +198,10 @@ static int lluv_stream_accept(lua_State *L){
       }
       if(err > 0){
         uv_handle_type type = uv_pipe_pending_type(LLUV_H(handle, uv_pipe_t));
-        err = lluv_new_(L, loop, type);
+        err = lluv_new_(L, loop, type, IS_(handle, RAISE_ERROR));
       }
       else{
-        err = lluv_new_(L, loop, UV_NAMED_PIPE);
+        err = lluv_new_(L, loop, UV_NAMED_PIPE, IS_(handle, RAISE_ERROR));
       }
       if(err != 1) return err;
     }
@@ -454,7 +454,7 @@ static const struct luaL_Reg lluv_stream_functions[] = {
   {NULL,NULL}
 };
 
-LLUV_INTERNAL void lluv_stream_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_stream_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_STREAM, lluv_stream_methods, nup))
     lua_pop(L, nup);

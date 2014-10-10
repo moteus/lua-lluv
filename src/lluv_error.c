@@ -173,7 +173,7 @@ static const struct luaL_Reg lluv_error_functions[] = {
   {NULL,NULL}
 };
 
-LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
 
   if(!lutil_createmetap(L, LLUV_ERROR, lluv_err_methods, nup))

@@ -199,7 +199,7 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
-static int lluv_getaddrinfo(lua_State *L){
+LLUV_IMPL_SAFE(lluv_getaddrinfo){
 #define XX(C, L, N) {C, N},
 
   static const lluv_uv_const_t ai_family[] = {
@@ -285,7 +285,7 @@ static int lluv_getaddrinfo(lua_State *L){
   return 1;
 }
 
-static int lluv_getnameinfo(lua_State *L){
+LLUV_IMPL_SAFE(lluv_getnameinfo){
   static const lluv_uv_const_t FLAGS[] = {
     { NI_NOFQDN,        "nofqdn"       },
     { NI_NUMERICHOST,   "numerichost"  },
@@ -342,14 +342,24 @@ static const lluv_uv_const_t lluv_dns_constants[] = {
   { 0, NULL }
 };
 
-static const struct luaL_Reg lluv_dns_functions[] = {
-  {"getaddrinfo", lluv_getaddrinfo},
-  {"getnameinfo", lluv_getnameinfo},
+#define LLUV_FUNCTIONS(F)                \
+  {"getaddrinfo", lluv_getaddrinfo_##F}, \
+  {"getnameinfo", lluv_getnameinfo_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][3] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_dns_initlib(lua_State *L, int nup){
-  luaL_setfuncs(L, lluv_dns_functions, nup);
+LLUV_INTERNAL void lluv_dns_initlib(lua_State *L, int nup, int safe){
+  luaL_setfuncs(L, lluv_functions[safe], nup);
   lluv_register_constants(L, lluv_dns_constants);
 }

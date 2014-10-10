@@ -22,13 +22,13 @@ LLUV_INTERNAL int lluv_idle_index(lua_State *L){
   return lluv__index(L, LLUV_IDLE, lluv_handle_index);
 }
 
-static int lluv_idle_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_idle_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_handle_create(L, UV_IDLE, INHERITE_FLAGS(loop));
+  lluv_handle_t *handle = lluv_handle_create(L, UV_IDLE, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_idle_init(loop->handle, LLUV_H(handle, uv_idle_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -77,17 +77,35 @@ static const struct luaL_Reg lluv_idle_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_idle_functions[] = {
-  {"idle", lluv_idle_create},
+static const struct luaL_Reg lluv_idle_functions_safe[] = {
+  {"idle", lluv_idle_create_safe},
 
   {NULL,NULL}
 };
 
-LLUV_INTERNAL void lluv_idle_initlib(lua_State *L, int nup){
+#define LLUV_FUNCTIONS(F)         \
+  {"idle", lluv_idle_create_##F}, \
+
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
+};
+
+LLUV_INTERNAL void lluv_idle_initlib(lua_State *L, int nup, int safe){
+  assert((safe == 0) || (safe == 1));
+
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_IDLE, lluv_idle_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_idle_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
 }

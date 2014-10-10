@@ -111,6 +111,17 @@ typedef unsigned char lluv_flag_t;
 
 #define INHERITE_FLAGS(O) (O->flags & (LLUV_FLAG_RAISE_ERROR))
 
+#define LLUV_IMPL_SAFE(N)                                                                \
+  static int N##_impl(lua_State *L, lluv_flags_t safe_flag);                             \
+  static int N##_safe(lua_State *L){return N##_impl(L, 0);}                              \
+  static int N##_unsafe(lua_State *L){return N##_impl(L, LLUV_FLAG_RAISE_ERROR);}        \
+  static int N##_impl(lua_State *L, lluv_flags_t safe_flag)                              \
+
+#define LLUV_IMPL_SAFE_(N)                                                               \
+  static int N##_impl(lua_State *L, lluv_flags_t safe_flag);                             \
+  LLUV_INTERNAL int N##_safe(lua_State *L){return N##_impl(L, 0);}                       \
+  LLUV_INTERNAL int N##_unsafe(lua_State *L){return N##_impl(L, LLUV_FLAG_RAISE_ERROR);} \
+  static int N##_impl(lua_State *L, lluv_flags_t safe_flag)                              \
 
 #define UNUSED_ARG(arg) (void)arg
 

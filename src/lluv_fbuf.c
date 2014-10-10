@@ -109,7 +109,7 @@ static const struct luaL_Reg lluv_fbuf_functions[] = {
   {NULL,NULL}
 };
 
-void lluv_fbuf_initlib(lua_State *L, int nup){
+void lluv_fbuf_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_FIXEDBUFFER, lluv_fbuf_methods, nup))
     lua_pop(L, nup);

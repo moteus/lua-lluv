@@ -13,7 +13,7 @@
 
 #include "lluv.h"
 
-LLUV_INTERNAL void lluv_fs_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_fs_initlib(lua_State *L, int nup, int safe);
 
 #endif
 

@@ -24,7 +24,7 @@ typedef struct lluv_error_tag{
   char       ext[1];
 }lluv_error_t;
 
-LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_error_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_error_create(lua_State *L, int error_category, uv_errno_t error_no, const char *ext);
 

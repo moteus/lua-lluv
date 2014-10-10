@@ -11,6 +11,6 @@
 #ifndef _LLUV_DNS_H_
 #define _LLUV_DNS_H_
 
-LLUV_INTERNAL void lluv_dns_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_dns_initlib(lua_State *L, int nup, int safe);
 
 #endif

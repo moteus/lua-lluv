@@ -345,7 +345,7 @@ static const struct luaL_Reg lluv_handle_functions[] = {
   {NULL,NULL}
 };
 
-LLUV_INTERNAL void lluv_handle_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_handle_initlib(lua_State *L, int nup, int safe){
   int ret;
   lutil_pushnvalues(L, nup);
 

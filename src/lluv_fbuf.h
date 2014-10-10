@@ -18,7 +18,7 @@ typedef struct lluv_fixed_buffer_tag{
   char    data[1];
 }lluv_fixed_buffer_t;
 
-LLUV_INTERNAL void lluv_fbuf_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_fbuf_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL lluv_fixed_buffer_t *lluv_fbuf_alloc(lua_State *L, size_t n);
 

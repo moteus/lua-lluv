@@ -24,18 +24,18 @@ LLUV_INTERNAL int lluv_pipe_index(lua_State *L){
   return lluv__index(L, LLUV_PIPE, lluv_stream_index);
 }
 
-LLUV_INTERNAL int lluv_pipe_create(lua_State *L){
+LLUV_IMPL_SAFE_(lluv_pipe_create){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int ipc = lua_toboolean(L, loop ? 2 : 1);
   lluv_handle_t *handle; int err;
 
   if(!loop) loop = lluv_default_loop(L);
 
-  handle = lluv_stream_create(L, UV_NAMED_PIPE, INHERITE_FLAGS(loop));
+  handle = lluv_stream_create(L, UV_NAMED_PIPE, safe_flag | INHERITE_FLAGS(loop));
   err = uv_pipe_init(loop->handle, LLUV_H(handle, uv_pipe_t), ipc);
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -152,17 +152,27 @@ static const struct luaL_Reg lluv_pipe_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_pipe_functions[] = {
-  { "pipe",      lluv_pipe_create      },
+#define LLUV_FUNCTIONS(F)         \
+  {"pipe", lluv_pipe_create_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_pipe_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_pipe_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_PIPE, lluv_pipe_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_pipe_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
 }

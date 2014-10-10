@@ -22,9 +22,9 @@ LLUV_INTERNAL int lluv_prepare_index(lua_State *L){
   return lluv__index(L, LLUV_PREPARE, lluv_handle_index);
 }
 
-static int lluv_prepare_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_prepare_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_handle_create(L, UV_PREPARE, INHERITE_FLAGS(loop));
+  lluv_handle_t *handle = lluv_handle_create(L, UV_PREPARE, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_prepare_init(loop->handle, LLUV_H(handle, uv_prepare_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
@@ -77,17 +77,27 @@ static const struct luaL_Reg lluv_prepare_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_prepare_functions[] = {
-  {"prepare", lluv_prepare_create},
+#define LLUV_FUNCTIONS(F)               \
+  {"prepare", lluv_prepare_create_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_prepare_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_prepare_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_PREPARE, lluv_prepare_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_prepare_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
 }

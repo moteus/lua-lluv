@@ -11,7 +11,7 @@
 #ifndef _LLUV_FS_POLL_H_
 #define _LLUV_FS_POLL_H_
 
-LLUV_INTERNAL void lluv_fs_poll_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_fs_poll_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_fs_poll_index(lua_State *L);
 

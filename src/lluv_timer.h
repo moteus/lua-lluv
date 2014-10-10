@@ -11,7 +11,7 @@
 #ifndef _LLUV_TIMER_H_
 #define _LLUV_TIMER_H_
 
-LLUV_INTERNAL void lluv_timer_initlib(lua_State *L, int nup);
+LLUV_INTERNAL void lluv_timer_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_timer_index(lua_State *L);
 

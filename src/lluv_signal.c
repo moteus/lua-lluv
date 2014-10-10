@@ -22,7 +22,7 @@ LLUV_INTERNAL int lluv_signal_index(lua_State *L){
   return lluv__index(L, LLUV_SIGNAL, lluv_handle_index);
 }
 
-static int lluv_signal_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_signal_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
   lluv_handle_t *handle = lluv_handle_create(L, UV_SIGNAL, INHERITE_FLAGS(loop));
   int err = uv_signal_init(loop->handle, LLUV_H(handle, uv_signal_t));
@@ -32,7 +32,6 @@ static int lluv_signal_create(lua_State *L){
   }
   return 1;
 }
-
 
 static lluv_handle_t* lluv_check_signal(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_handle(L, idx, flags);
@@ -109,18 +108,29 @@ static const lluv_uv_const_t lluv_signal_constants[] = {
   { 0, NULL }
 };
 
-static const struct luaL_Reg lluv_signal_functions[] = {
-  {"signal", lluv_signal_create},
+#define LLUV_FUNCTIONS(F)       \
+  {"signal", lluv_signal_create_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup){
+
+LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_SIGNAL, lluv_signal_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_signal_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
   lluv_register_constants(L, lluv_signal_constants);
 }

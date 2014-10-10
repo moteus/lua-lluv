@@ -22,13 +22,13 @@ LLUV_INTERNAL int lluv_poll_index(lua_State *L){
   return lluv__index(L, LLUV_POLL, lluv_handle_index);
 }
 
-static int lluv_poll_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_poll_create){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   int fd = luaL_checkint(L, loop ? 2 : 1);
   lluv_handle_t *handle; int err;
 
   if(!loop) loop = lluv_default_loop(L);
-  handle = lluv_handle_create(L, UV_POLL, INHERITE_FLAGS(loop));
+  handle = lluv_handle_create(L, UV_POLL, safe_flag | INHERITE_FLAGS(loop));
 
   err = uv_poll_init(loop->handle, LLUV_H(handle, uv_poll_t), fd);
   if(err < 0){
@@ -38,13 +38,13 @@ static int lluv_poll_create(lua_State *L){
   return 1;
 }
 
-static int lluv_poll_create_socket(lua_State *L){
+LLUV_IMPL_SAFE(lluv_poll_create_socket){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
   uv_os_sock_t socket = (uv_os_sock_t)lutil_checkint64(L, loop ? 2 : 1);
   lluv_handle_t *handle; int err;
 
   if(!loop) loop = lluv_default_loop(L);
-  handle = lluv_handle_create(L, UV_POLL, INHERITE_FLAGS(loop));
+  handle = lluv_handle_create(L, UV_POLL, safe_flag | INHERITE_FLAGS(loop));
 
   err = uv_poll_init_socket(loop->handle, LLUV_H(handle, uv_poll_t), socket);
   if(err < 0){
@@ -130,19 +130,31 @@ static const lluv_uv_const_t lluv_poll_constants[] = {
   { 0, NULL }
 };
 
-static const struct luaL_Reg lluv_poll_functions[] = {
-  {"poll",        lluv_poll_create},
-  {"poll_socket", lluv_poll_create_socket},
+#define LLUV_POLL_FUNCTIONS(F)                  \
+  {"poll", lluv_poll_create_##F},               \
+  {"poll_socket", lluv_poll_create_socket_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_poll_functions[][3] = {
+  {
+    LLUV_POLL_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_POLL_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_poll_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_poll_initlib(lua_State *L, int nup, int safe){
+  assert((safe == 0) || (safe == 1));
+
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_POLL, lluv_poll_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_poll_functions, nup);
+  luaL_setfuncs(L, lluv_poll_functions[safe], nup);
   lluv_register_constants(L, lluv_poll_constants);
 }

@@ -22,13 +22,13 @@ LLUV_INTERNAL int lluv_timer_index(lua_State *L){
   return lluv__index(L, LLUV_TIMER, lluv_handle_index);
 }
 
-static int lluv_timer_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_timer_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_handle_create(L, UV_TIMER, INHERITE_FLAGS(loop));
+  lluv_handle_t *handle = lluv_handle_create(L, UV_TIMER, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_timer_init(loop->handle, LLUV_H(handle, uv_timer_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -118,17 +118,28 @@ static const struct luaL_Reg lluv_timer_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_timer_functions[] = {
-  { "timer",      lluv_timer_create     },
+#define LLUV_FUNCTIONS(F)           \
+  {"timer", lluv_timer_create_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_functions[][2] = {
+  {
+    LLUV_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
-LLUV_INTERNAL void lluv_timer_initlib(lua_State *L, int nup){
+
+LLUV_INTERNAL void lluv_timer_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_TIMER, lluv_timer_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_timer_functions, nup);
+  luaL_setfuncs(L, lluv_functions[safe], nup);
 }

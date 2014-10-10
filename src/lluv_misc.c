@@ -254,7 +254,7 @@ static const struct luaL_Reg lluv_misc_functions[] = {
   {NULL,NULL}
 };
 
-LLUV_INTERNAL void lluv_misc_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_misc_initlib(lua_State *L, int nup, int safe){
   luaL_setfuncs(L, lluv_misc_functions, nup);
   lluv_register_constants(L, lluv_misc_constants);
 }

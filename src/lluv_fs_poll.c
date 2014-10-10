@@ -22,13 +22,13 @@ LLUV_INTERNAL int lluv_fs_poll_index(lua_State *L){
   return lluv__index(L, LLUV_FS_POLL, lluv_handle_index);
 }
 
-static int lluv_fs_poll_create(lua_State *L){
+LLUV_IMPL_SAFE(lluv_fs_poll_create){
   lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_handle_create(L, UV_FS_POLL, INHERITE_FLAGS(loop));
+  lluv_handle_t *handle = lluv_handle_create(L, UV_FS_POLL, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_fs_poll_init(loop->handle, LLUV_H(handle, uv_fs_poll_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -127,10 +127,20 @@ static const struct luaL_Reg lluv_fs_poll_methods[] = {
   {NULL,NULL}
 };
 
-static const struct luaL_Reg lluv_fs_poll_functions[] = {
-  {"fs_poll", lluv_fs_poll_create},
+#define LLUV_FS_POLL_FUNCTIONS(F)       \
+  {"fs_poll", lluv_fs_poll_create_##F}, \
 
-  {NULL,NULL}
+static const struct luaL_Reg lluv_fs_poll_functions[][2] = {
+  {
+    LLUV_FS_POLL_FUNCTIONS(unsafe)
+
+    {NULL,NULL}
+  },
+  {
+    LLUV_FS_POLL_FUNCTIONS(safe)
+
+    {NULL,NULL}
+  },
 };
 
 static const lluv_uv_const_t lluv_fs_poll_constants[] = {
@@ -138,12 +148,12 @@ static const lluv_uv_const_t lluv_fs_poll_constants[] = {
   { 0, NULL }
 };
 
-LLUV_INTERNAL void lluv_fs_poll_initlib(lua_State *L, int nup){
+LLUV_INTERNAL void lluv_fs_poll_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_FS_POLL, lluv_fs_poll_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
-  luaL_setfuncs(L, lluv_fs_poll_functions, nup);
+  luaL_setfuncs(L, lluv_fs_poll_functions[safe], nup);
   lluv_register_constants(L, lluv_fs_poll_constants);
 }
