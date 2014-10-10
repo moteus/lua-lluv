@@ -28,7 +28,8 @@ LLUV_INTERNAL lluv_loop_t* lluv_push_default_loop(lua_State *L){
     lua_pushvalue(L, -1);
     lua_rawsetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
   }
-  return lluv_check_loop(L, -1, 0);
+  assert(lutil_isudatap(L, -1, LLUV_LOOP));
+  return lua_touserdata(L, -1);
 }
 
 LLUV_INTERNAL lluv_loop_t* lluv_default_loop(lua_State *L){
