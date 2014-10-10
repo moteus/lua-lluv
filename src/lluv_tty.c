@@ -64,7 +64,7 @@ LLUV_IMPL_SAFE(lluv_tty_reset_mode){
   int err = uv_tty_reset_mode();
 
   if(err < 0){
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   
   lua_pushboolean(L, 1);

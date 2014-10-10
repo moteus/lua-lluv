@@ -28,7 +28,7 @@ LLUV_IMPL_SAFE(lluv_prepare_create){
   int err = uv_prepare_init(loop->handle, LLUV_H(handle, uv_prepare_t));
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }

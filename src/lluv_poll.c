@@ -33,7 +33,7 @@ LLUV_IMPL_SAFE(lluv_poll_create){
   err = uv_poll_init(loop->handle, LLUV_H(handle, uv_poll_t), fd);
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }
@@ -49,7 +49,7 @@ LLUV_IMPL_SAFE(lluv_poll_create_socket){
   err = uv_poll_init_socket(loop->handle, LLUV_H(handle, uv_poll_t), socket);
   if(err < 0){
     lluv_handle_cleanup(L, handle);
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;
 }

@@ -277,7 +277,7 @@ LLUV_IMPL_SAFE(lluv_getaddrinfo){
     err = uv_getaddrinfo(loop->handle, LLUV_R(req, getaddrinfo), lluv_on_getaddrinfo, node, service, &hints);
     if(err < 0){
       lluv_req_free(L, req);
-      return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
     }
   }
   lua_settop(L, 0);
@@ -311,7 +311,7 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
 
     err = lluv_check_addr(L, argc + 1, &sa);
     if(err < 0){
-      return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
     }
     
     if(!lua_isfunction(L, argc + 3))
@@ -323,7 +323,7 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
     err = uv_getnameinfo(loop->handle, LLUV_R(req, getnameinfo), lluv_on_getnameinfo, (struct sockaddr*)&sa, flags);
     if(err < 0){
       lluv_req_free(L, req);
-      return lluv_fail(L, loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
+      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
     }
   }
   lua_settop(L, 0);
