@@ -127,7 +127,7 @@ function fs_rmdir                   () end
 -- @tparam[opt] uv_loop loop
 -- @tparam string path directory to list
 -- @tparam[opt] function callback(loop, err, path, files)
-function fs_readdir                 () end
+function fs_scandir                 () end
 
 --- Crossplatform file stat.
 --

@@ -65,7 +65,7 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_SYMLINK:
     case UV_FS_CHOWN:
     case UV_FS_READLINK:
-    case UV_FS_READDIR:
+    case UV_FS_SCANDIR:
     case UV_FS_STAT:
     case UV_FS_LSTAT:
       lua_pushvalue(L, LLUV_LOOP_INDEX);
@@ -153,12 +153,12 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
       lutil_pushint64(L, req->result);
       return 2;
 
-    case UV_FS_READDIR:{
+    case UV_FS_SCANDIR:{
       uv_dirent_t ent;
       int i = 0, err;
       lua_pushstring(L, req->path);
       lua_createtable(L, (int)req->result, 0);
-      while((err = uv_fs_readdir_next(req, &ent)) >= 0){
+      while((err = uv_fs_scandir_next(req, &ent)) >= 0){
         lua_createtable(L, 2, 0);
           lua_pushstring (L, ent.name); lua_rawseti(L, -2, 1);
           lutil_pushint64(L, ent.type); lua_rawseti(L, -2, 2);
@@ -318,7 +318,7 @@ LLUV_IMPL_SAFE(lluv_fs_rmdir) {
   LLUV_POST_FS();
 }
 
-LLUV_IMPL_SAFE(lluv_fs_readdir) {
+LLUV_IMPL_SAFE(lluv_fs_scandir) {
   LLUV_CHECK_LOOP_FS()
 
   const char *path = luaL_checkstring(L, ++argc);
@@ -328,7 +328,7 @@ LLUV_IMPL_SAFE(lluv_fs_readdir) {
   }
 
   LLUV_PRE_FS();
-  err = uv_fs_readdir(loop->handle, &req->req, path, flags, cb);
+  err = uv_fs_scandir(loop->handle, &req->req, path, flags, cb);
   LLUV_POST_FS();
 }
 
@@ -813,7 +813,7 @@ static const struct luaL_Reg lluv_file_methods[] = {
   { "fs_mkdtemp",  lluv_fs_mkdtemp_##F  },  \
   { "fs_mkdir",    lluv_fs_mkdir_##F    },  \
   { "fs_rmdir",    lluv_fs_rmdir_##F    },  \
-  { "fs_readdir",  lluv_fs_readdir_##F  },  \
+  { "fs_scandir",  lluv_fs_scandir_##F  },  \
   { "fs_stat",     lluv_fs_stat_##F     },  \
   { "fs_lstat",    lluv_fs_lstat_##F    },  \
   { "fs_rename",   lluv_fs_rename_##F   },  \
