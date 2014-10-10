@@ -15,35 +15,30 @@
 #include "lauxlib.h"
 #include <stdint.h>
 
-#if LUA_VERSION_NUM >= 502 // lua 5.2
+#if LUA_VERSION_NUM >= 502 /* lua 5.2 */
 
-// lua_rawgetp
-// lua_rawsetp
-// luaL_setfuncs
-// lua_absindex
+/* lua_rawgetp */
+/* lua_rawsetp */
+/* luaL_setfuncs */
+/* lua_absindex */
+
 #ifndef lua_objlen
-
 #define lua_objlen      lua_rawlen
-
 #endif
 
 int   luaL_typerror (lua_State *L, int narg, const char *tname);
 
 #ifndef luaL_register
-
 void luaL_register (lua_State *L, const char *libname, const luaL_Reg *l);
-
 #endif
 
 #ifndef lua_equal
-
 #define lua_equal(L,idx1,idx2) lua_compare(L,(idx1),(idx2),LUA_OPEQ)
-
 #endif
 
-#else                      // lua 5.1
+#else                      /* lua 5.1 */
 
-// functions form lua 5.2
+/* functions form lua 5.2 */
 
 # define lua_absindex(L, i) (((i)>0)?(i):((i)<=LUA_REGISTRYINDEX?(i):(lua_gettop(L)+(i)+1)))
 # define lua_rawlen  lua_objlen
