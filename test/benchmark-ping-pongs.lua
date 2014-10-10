@@ -62,6 +62,8 @@ end
 local function pinger_connect_cb(handle, err)
   assert(not err, tostring(err))
 
+  start_time = uv.now()
+
   pinger_write_ping(pinger);
 
   assert(handle:start_read(pinger_read_cb))
@@ -83,7 +85,14 @@ return pinger
 end
 
 local function start()
-  start_time = uv.now()
+
+  local process = uv.spawn({
+    file = uv.exepath();
+    args = {"tcp_echo.lua"};
+    cwd  = uv.cwd();
+  }, function()
+    print("server closed")
+  end):unref()
 
   local p1 = pinger_new()
   -- local p2 = pinger_new()
@@ -92,6 +101,10 @@ local function start()
 
   assert(p1.complite)
   -- assert(p2.complite)
+  
+  process:ref():kill()
+
+  uv.run()
 end
 
 start()

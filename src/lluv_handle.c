@@ -223,13 +223,15 @@ static int lluv_handle_loop(lua_State *L){
 static int lluv_handle_ref(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   uv_ref(LLUV_H(handle, uv_handle_t));
-  return 0;
+  lua_settop(L, 1);
+  return 1;
 }
 
 static int lluv_handle_unref(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   uv_unref(LLUV_H(handle, uv_handle_t));
-  return 0;
+  lua_settop(L, 1);
+  return 1;
 }
 
 static int lluv_handle_has_ref(lua_State *L){

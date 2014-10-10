@@ -213,7 +213,7 @@ static int lluv_loop_run_impl(lua_State *L){
   }
   else if(!lua_isnil(L, LLUV_ERROR_MARK_INDEX)){
     lua_pushvalue(L, LLUV_ERROR_MARK_INDEX);
-    lua_error(L);
+    return lua_error(L);
   }
 
   lua_pushinteger(L, err);
