@@ -126,7 +126,11 @@ static int lluv_udp_send(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  lluv_check_args_with_cb(L, 5);
+  if(lua_gettop(L) == 4)
+    lua_settop(L, 5);
+  else
+    lluv_check_args_with_cb(L, 5);
+
   req = lluv_req_new(L, UV_UDP_SEND, handle);
 
   lluv_req_ref(L, req); /* string */
@@ -373,7 +377,6 @@ static const struct luaL_Reg lluv_functions[][2] = {
     {NULL,NULL}
   },
 };
-
 
 LLUV_INTERNAL void lluv_udp_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);

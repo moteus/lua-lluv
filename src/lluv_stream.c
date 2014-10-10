@@ -51,9 +51,15 @@ LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
     lluv_req_free(L, req);
     return;
   }
+
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
   lluv_req_free(L, req);
-  assert(!lua_isnil(L, -1));
+
+  if(lua_isnil(L, -1)){
+    lua_pop(L, 1);
+    LLUV_CHECK_LOOP_CB_INVARIANT(L);
+    return;
+  }
 
   lluv_handle_pushself(L, handle);
   lluv_push_status(L, status);
@@ -77,7 +83,10 @@ static int lluv_stream_shutdown(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   lluv_req_t *req; int err;
 
-  lluv_check_args_with_cb(L, 2);
+  if(lua_gettop(L) == 1)
+    lua_settop(L, 2);
+  else
+    lluv_check_args_with_cb(L, 2);
 
   req = lluv_req_new(L, UV_SHUTDOWN, handle);
 
@@ -342,7 +351,12 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
   lluv_req_free(L, req);
-  assert(!lua_isnil(L, -1));
+
+  if(lua_isnil(L, -1)){
+    lua_pop(L, 1);
+    LLUV_CHECK_LOOP_CB_INVARIANT(L);
+    return;
+  }
 
   lluv_handle_pushself(L, handle);
   lluv_push_status(L, status);
@@ -358,7 +372,10 @@ static int lluv_stream_write(lua_State *L){
   int err; lluv_req_t *req;
   uv_buf_t buf = uv_buf_init((char*)str, len);
 
-  lluv_check_args_with_cb(L, 3);
+  if(lua_gettop(L) == 2)
+    lua_settop(L, 3);
+  else
+    lluv_check_args_with_cb(L, 3);
 
   req = lluv_req_new(L, UV_WRITE, handle);
   lluv_req_ref(L, req); /* string */
@@ -386,8 +403,11 @@ static int lluv_stream_write2(lua_State *L){
   }
   str = luaL_checklstring(L, 3, &len);
   buf = uv_buf_init((char*)str, len);
-  
-  lluv_check_args_with_cb(L, 4);
+
+  if(lua_gettop(L) == 3)
+    lua_settop(L, 4);
+  else
+    lluv_check_args_with_cb(L, 4);
 
   req = lluv_req_new(L, UV_WRITE, handle);
   lluv_req_ref(L, req); /* string */
