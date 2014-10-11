@@ -1,4 +1,4 @@
-local uv = require "lluv"
+local uv = require "lluv.unsafe"
 
 uv.tcp():bind("127.0.0.1", 5555):listen(function(server, err)
   server:accept():start_read(function(cli, err)
