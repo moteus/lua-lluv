@@ -25,6 +25,7 @@ install:
 script: 
   - cd test
   - lua test-active.lua
+  - lua benchmark-ping-pongs.lua
 
 # after_success:
 #   - coveralls -b .. -r .. --dump c.report.json
