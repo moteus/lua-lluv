@@ -135,9 +135,10 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
 
     case UV_FS_STAT:
     case UV_FS_LSTAT:
-      lua_pushstring(L, req->path);
       lluv_push_stat(L, &req->statbuf);
+      lua_pushstring(L, req->path);
       return 2;
+
     case UV_FS_FSTAT:
       lluv_push_stat(L, &req->statbuf);
       return 1;
@@ -232,7 +233,8 @@ static void lluv_on_fs(uv_fs_t *arg){
                                                                           \
   if(cb){                                                                 \
     req->cb = luaL_ref(L, LLUV_LUA_REGISTRY);                             \
-    return 0;                                                             \
+    lua_pushboolean(L, 1);                                                \
+    return 1;                                                             \
   }                                                                       \
                                                                           \
   if(req->req.result < 0){                                                \
