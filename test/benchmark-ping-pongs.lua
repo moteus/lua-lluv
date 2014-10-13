@@ -90,6 +90,7 @@ local function start()
     file = uv.exepath();
     args = {"tcp_echo.lua"};
     cwd  = uv.cwd();
+    stdio = {{}, 1, 2}
   }, function()
     print("server closed")
   end):unref()
