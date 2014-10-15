@@ -1,462 +1,264 @@
--- Implementation of https://github.com/silentbicycle/lua-memcached 
--- using lua-lluv library
 --
---[[
+--[[-- usage
+local umc = mc.Connection("127.0.0.1:11211")
 
-local umc = mc.new()
-
-umc:connect("127.0.0.1", function(self, err)
+umc:open(function(err)
   if err then return print(err) end
-  self:set("test_key", "test_value", 10, function(...)
-    print(...)
-    self:get("test_key", function(...)
-      print(...)
-      self:delete("test_key", function(...)
-        print(...)
-        self:quit(function(...)
-          print(...)
-          self:close()
-        end)
-      end)
+
+  for i = 1, 10 do
+    umc:set("test_key", "test_value " .. i, 10, function(err, result)
+      print("Set #" .. i, err, result)
     end)
-  end)
+
+    umc:get("test_key", function(err, value)
+      print("Get #" .. i, err, value)
+    end)
+  end
+
+  umc:get("test_key", function(err, value) umc:close() end)
 end)
 
 uv.run(debug.traceback)
-
---]]
+]]
 
 local uv = require "lluv"
 local va = require "vararg"
-
-local function Next(eol)
-  local eol  = eol or "\r\n"
-  local neol = #eol
-
-  local tail = ""
-
-  local function next_line(data)
-    data = tail .. data
-
-    local e, e2 = string.find(data, eol, nil, true)
-    if e then
-      local line = string.sub(data, 1, e - 1)
-      tail = string.sub(data, e2 + 1)
-      return line
-    else
-      tail = data
-    end
-    return nil
-  end
-
-  local function next_n(data, n)
-    data = tail .. data
-    if n > #data then
-      tail = data
-      return nil
-    end
-
-    local res = string.sub(data, 1, n)
-    tail = string.sub(data, n+1)
-    return res
-  end
-
-  local function reset()
-    tail = ""
-  end
-
-  local function self_test()
-      -- test next_xxx
-    assert("aaa" == next_line("aaa" .. eol .. "bbb"))
-    assert("bbb" == tail, tail)
-
-    assert("bbbccc" == next_line("ccc" .. eol .. "ddd" .. eol))
-    assert("ddd"..eol == tail, tail)
-
-    assert("ddd" == next_line(eol))
-    assert(eol == tail, "'" .. tail .."'")
-
-    assert("" == next_line(""))
-    assert("" == tail, "'" .. tail .."'")
-
-    assert(nil == next_line("aaa"))
-    assert("aaa" == tail, "'" .. tail .."'")
-
-    assert("aaa" == next_n("123456", 3))
-    assert("123456" == tail, "'" .. tail .."'")
-
-    assert(nil == next_n("", 8))
-    assert("123456" == tail, "'" .. tail .."'")
-
-    assert("123"== next_n("", 3))
-    assert("456" == tail, "'" .. tail .."'")
-
-    assert("456" == next_line(eol))
-    assert("" == tail, "'" .. tail .."'")
-
-    tail = ""
-  end
-
-  local function append(data)
-    tail = tail .. data
-  end
-
-  return {
-    line   = next_line;
-    n      = next_n;
-    reset  = reset;
-    append = append;
-  }
-end
+local ut = require "utils"
 
 local EOL = "\r\n"
 
-local fmt = string.format
+local REQ_STORE      = 0 -- single line response
+local REQ_RETR       = 1 -- line + data response
+local REQ_RETR_MULTI = 2 -- line + data response (many keys)
+
+local SERVER_ERRORS = {
+  ERROR        = true;
+  CLIENT_ERROR = true;
+  SERVER_ERROR = true
+}
+
+local STORE_RESP = {
+  STORED        = true;
+  NOT_STORED    = true;
+  EXISTS        = true;
+  NOT_EXISTS    = true;
+}
+
+local ocall       = ut.ocall
+local usplit      = ut.usplit
+local split_first = ut.split_first
 
 local function cb_args(...)
   local n = select("#", ...)
   local cb = va.range(n, n, ...)
-  assert(type(cb) == 'function')
-  return cb, va.remove(n, ...)
+  if type(cb) == 'function' then
+    return cb, va.remove(n, ...)
+  end
+  return nil, ...
 end
 
-local function get_key(self, key)
-  if self.on_key then return self:on_key(key) end
-  return key
+-------------------------------------------------------------------
+local Error = {} do
+Error.__index = Error
+
+function Error:new(err)
+  local o = setmetatable({}, self)
+  o._err = err
+  return o
 end
 
-local function store_cmd(...)
-  local fn, self, cmd, key, data, exptime, flags, noreply, cas_id = cb_args(...)
+function Error:__tostring()
+  return self._err
+end
 
-  key = get_key(self, key)
+end
+-------------------------------------------------------------------
+
+local function make_store(cmd, key, data, exptime, flags, noreply, cas)
+  assert(cmd)
+  assert(key)
+  assert(data)
 
   if type(data) == "number" then data = tostring(data) end
-  if not key then return false, "no key"
-  elseif type(data) ~= "string" then return false, "no data" end
+
   exptime = exptime or 0
   noreply = noreply or false
   flags   = flags   or 0
 
-  local buf = {cmd, key, flags, exptime, #data, cas_id}
-  if noreply then buf[#buf+1] = "noreply" end
+  local buf = { cmd, key, flags or 0, exptime or 0, #data, cas}
 
-  buf = table.concat(buf, " ") .. EOL ..  data .. EOL
+  if noreply then buf[#buf + 1] = "noreply" end
 
-  if noreply then return self:send(buf, fn) end
-  return self:send_recv(buf, fn)
+  return table.concat(buf, " ") .. EOL ..  data .. EOL
 end
 
-local function do_get(...)
-  local fn, self, cmd, keys, pattern = cb_args(...)
-
-  local mk = {} -- map key
-  local rk      -- real keys
-  if type(keys) == "string" then 
-    keys = { get_key(self, keys) }
-  else
-    rk = {}
-    for i, key in ipairs(keys) do
-      rk[i]       = get_key(self, key)
-      mk[ rk[i] ] = key
-    end
-  end
-
-  local buf = fmt("%s %s\r\n", cmd, table.concat(rk or keys, " "))
-
-  return self:send(buf, function(self, err)
-    if err then return fn(self, err) end
-
-    local res, key, flags, len, data, cas = {}
-    local on_line, on_data
-
-    function on_line(self, err, line)
-      if err then return fn(self, err) end
-      if line ~= "END" then
-        key, flags, len, cas = line:match(pattern)
-        if not key then
-          self:close()
-          return fn(self, 'bad response:' .. line)
-        end
-        return self:recv_n(tonumber(len) + 2, on_data)
-      end
-
-      if not rk then return fn(self, nil, data, flags, cas) end
-      return fn(self, nil, res)
-    end
-
-    function on_data(self, err, line)
-      if err then return fn(self, err) end
-      data = line:sub(1, -3)
-      res[ mk[key] or key ] = { data=data, flags=flags, cas = cas }
-      return self:recv_line(on_line)
-    end
-
-    self:recv_line(on_line)
-  end)
+local function make_retr(cmd, key)
+  assert(cmd)
+  assert(key)
+  return cmd .. " " .. key .. EOL
 end
 
-local function adjust_key(self, cmd, key, val, noreply, fn)
-  key = get_key(self, key)
-  assert(val, "No number")
-  noreply = noreply and " noreply" or ""
-  local msg = fmt("%s %s %d%s\r\n", cmd, key, val, noreply)
+-------------------------------------------------------------------
+local Connection = {} do
+Connection.__index = Connection
 
-  if noreply ~= "" then return self:send(msg, fn) end
+function Connection:new(server)
+  local o = setmetatable({}, self)
 
-  return self:send_recv(msg, fn)
-end
-
---------------------------------------------------
-local umc = {} do
-umc.__index = umc
-
-function umc:new()
-  local o  = setmetatable({}, self)
+  local host, port = usplit(server, ":")
+  o._host  = host or "127.0.0.1"
+  o._port  = port or "11211"
+  o._buff  = ut.Buffer(EOL) -- pending data
+  o._queue = ut.Queue()     -- pending requests
 
   return o
 end
 
-function umc:connect(...)
-  assert(not self:connected())
+function Connection:connected()
+  return not not self._cnn
+end
 
-  local fn, host, port = cb_args(...)
-
-  self._cli = uv.tcp()
-  self._cli.data = self
-
-  host = host or "127.0.0.1"
-  port = port or "11211"
-
-  self._cli:connect(host, port, function(cli, err)
-    local self = cli.data
+function Connection:open(cb)
+  if self:connected() then return ocall(cb) end
+  return uv.tcp():connect(self._host, self._port, function(cli, err)
     if err then
-      cli.data:close()
-      return fn(cli.data, err)
+      cli:close()
+      return ocall(cb, err)
     end
-
-    self._next = Next("\r\n")
-  
+    cli.data = self
+    self._cnn = cli
     cli:start_read(function(cli, err, data)
-      local self = cli.data
       if err then
-        cli.data:close()
-        if self._on_data then
-          return self:_on_data(err)
-        else
-          self._recv_error = err
-        end
-        return 
+        self:close()
+        return ocall(self.on_error, self, err)
       end
-
-      if self._on_data then
-        return self:_on_data(nil, data)
-      end
-
-      self._next.append(data)
+      return self:_read(data)
     end)
-
-    fn(cli.data)
+    return ocall(cb)
   end)
 end
 
-do -- private
-
-function umc:send(msg, fn)
-  self._cli:write(msg, function(cli, err)
-    if err then cli.data:close() end
-    fn(cli.data, err)
-  end)
+function Connection:close()
+  if not self:connected() then return end
+  self._cnn:close()
+  self._cnn = nil
 end
 
-function umc:recv_line(fn)
-  local data = self._next.line("")
-  if data then return fn(self, nil, data) end
+function Connection:on_error(err) end
 
-  self._on_data = function(self, err, data)
-    if err then
-      self._on_data = nil
-      return fn(self, err)
-    end
-
-    local line = self._next.line(data)
-    if line then
-      self._on_data = nil
-      return fn(self, nil, line)
-    end
-  end
-end
-
-function umc:recv_n(n, fn)
-  local data = self._next.n("", n)
-  if data then return fn(self, nil, data) end
-  self._on_data = function(self, err, data)
-    if err then
-      self._on_data = nil
-      return fn(self, err)
-    end
-
-    local line = self._next.n(data, n)
-    if line then
-      self._on_data = nil
-      return fn(self, nil, line)
-    end
-  end
-end
-
-function umc:send_recv(msg, fn)
-  self:send(msg, function(self, err)
-    if err then return fn(self, err) end
-    self:recv_line(function(self, err, data)
-      fn(self, err, data)
-    end, true)
-  end)
-end
-
-end
-
-do -- get
-
-function umc:get(keys, fn)
-  assert(not self:busy())
-  return do_get(self, "get", keys, "^VALUE ([^ ]+) (%d+) (%d+)", fn)
-end
-
-function umc:gets(keys, fn)
-  assert(not self:busy())
-  return do_get(self, "gets", keys, "^VALUE ([^ ]+) (%d+) (%d+) (%d+)", fn)
-end
-
-end
-
-do -- set
-
----Set a key to a value.
--- @tparam string key A key, which cannot have whitespace or control characters
---     and must be less than 250 chars long.
--- @tparam string data Value to associate with the key. Must be under 1 megabyte.
--- @tparam[opt] number exptime Optional expiration time, in seconds.
--- @tparam[opt] number flags Optional 16-bit int to associate with the key,
---     for bit flags.
--- @tparam[opt] boolean noreply Do not expect a reply, just set it.
--- @tparam function callback callback function that will be called
-function umc:set(...)
-  assert(not self:busy())
-  return store_cmd(self, "set", ...)
-end
-
-function umc:add(...)
-  assert(not self:busy())
-  return store_cmd(self, "add", ...)
-end
-
-function umc:replace(...)
-  assert(not self:busy())
-  return store_cmd(self, "replace", ...)
-end
-
-function umc:append(...)
-  assert(not self:busy())
-  return store_cmd(self, "append", ...)
-end
-
-function umc:prepend(...)
-  assert(not self:busy())
-  return store_cmd(self, "prepend", ...)
-end
-
-function umc:cas(...)
-  assert(not self:busy())
-  return store_cmd(self, "cas", ...)
-end
-
-function umc:connected()
-  return not not self._cli
-end
-
-function umc:busy()
-  --- @fixme
-  return not not self._on_data
-end
-
-function umc:close()
-  if self._cli then
-    self._cli:close()
-    self._cli = nil
-  end
-end
-
-end
-
-do -- misc
-
-function umc:version(fn)
-  assert(not self:busy())
-  return self:send_recv("version\r\n", fn)
-end
-
-function umc:delete(...)
-  assert(not self:busy())
-  local fn, key, noreply = cb_args(...)
-  
-  key = get_key(self, key)
-  local msg = fmt("delete %s%s\r\n", key, noreply and " noreply" or "")
-  if noreply then return self:send(msg, fn) end
-  return self:send_recv(msg, fn)
-end
-
-function umc:flush_all(fn)
-  assert(not self:busy())
-  return self:send_recv("flush_all\r\n", fn)
-end
-
-function umc:incr(...)
-  assert(not self:busy())
-  local fn, key, val, noreply = cb_args(...)
-  return adjust_key(self, "incr", key, val, noreply, fn)
-end
-
-function umc:decr(...)
-  assert(not self:busy())
-  local fn, key, val, noreply = cb_args(...)
-  return adjust_key(self, "decr", key, val, noreply, fn)
-end
-
-function umc:stats(...)
-  local fn, key = cb_args(...)
-  key = key or ''
-  if (key ~= '') and (not STATS_KEYS[key]) then
-    return error(fmt("Unknown stats key '%s'", key))
+function Connection:_read(data)
+  local req = self._queue.peek()
+  if not req then -- unexpected reply
+    self:close()
+    return ocall(self.on_error, self, Error:new("Protocol error"))
   end
 
-  return self:send("stats " ..key .. "\r\n", function(self, err)
-    if err then return fn(self, err) end
+  while req do
+    if req.type == REQ_STORE then
+      local line = self._buff.next_line(data)
+      if not line then return end
+      assert(self._queue.pop() == req)
 
-    local s = {}
-    local function on_line(self, err, line)
-      if err then return fn(self, err) end
-      if line ~= "END" then
-        if line == 'ERROR' then return fn(self, line) end
-        local k,v = line:match("STAT ([^ ]+) (.*)")
-        if k ~= "version" then v = tonumber(v) end
-        s[k] = v
-        return self:recv_line(on_line)
+      if STORE_RESP[line] then
+        ocall(req.cb, nil, line)
+      else
+        local res, value = split_first(line, " ", true)
+        if SERVER_ERRORS[res] then
+          ocall(req.cb, Error:new(line))
+        else
+          self:close()
+          return ocall(self.on_error, self, Error:new("Protocol error"))
+        end
       end
-      return fn(self, nil, s)
+      
+    elseif req.type == REQ_RETR then
+
+      if not req.len then -- we wait next data
+        local line = self._buff.next_line(data)
+        if not line then return end
+        data = ""
+
+        if line == "END" then -- no more data
+          assert(self._queue.pop() == req)
+
+          if req.multi then
+            ocall(req.cb, nil, req.res)
+          elseif not req.res then -- no data
+            ocall(req.cb, nil, nil)
+          else
+            ocall(req.cb, nil, req.res[1].data, req.res[1].flags, req.res[1].cas)
+          end
+
+          req = nil
+        else
+          local res, key, flags, len, cas = usplit(line, " ", true)
+          if res == "VALUE" then
+            req.key   = key
+            req.len   = tonumber(len) + #EOL
+            req.flags = tonumber(flags) or 0
+            req.cas   = tonumber(cas)
+          elseif SERVER_ERRORS[res] then
+            assert(self._queue.pop() == req)
+            ocall(req.cb, Error:new(line))
+            req = nil
+          else
+            self:close()
+            return ocall(self.on_error, self, Error:new("Protocol error"))
+          end
+        end
+      end
+
+      if req then -- we need next chunk of data
+        assert(req.len)
+
+        local data = self._buff.next_n(data, req.len)
+        if not data then return end
+        
+        if not req.res then req.res = {} end
+        req.res[#req.res + 1] = { data = string.sub(data, 1, -3); flags = req.flags; cas = req.cas; key = req.key; }
+        req.len = nil
+      end
+
+    else
+      assert(false, "unknown request type :" .. tostring(req.type))
     end
 
-    return self:recv_line(on_line)
-  end)
+    data, req = "", self._queue.peek()
+  end
 end
 
-function umc:quit(fn)
-  return self:send_recv("quit\r\n", fn)
+function Connection:_send(data, type, cb)
+  self._cnn:write(data)
+  local req
+  if type == REQ_RETR_MULTI then
+    req = {type = REQ_RETR, cb=cb, multi = true}
+  else
+    req = {type = type, cb=cb}
+  end
+  self._queue.push(req)
+  return self
+end
+
+-- (key, data, [[[exptime,] flags,] noreply])
+function Connection:set(...)
+  local cb, key, data, exptime, flags, noreply = cb_args(...)
+  return self:_send(
+    make_store("set", key, data, exptime, flags, noreply),
+    REQ_STORE, cb
+  )
+end
+
+function Connection:get(key, cb)
+  return self:_send(
+    make_retr("get", key),
+    REQ_RETR, cb
+  )
 end
 
 end
-
-end
---------------------------------------------------
+-------------------------------------------------------------------
 
 return {
-  new = function(...) return umc:new() end
+  Connection = function(...) return Connection:new(...) end
 }
+
