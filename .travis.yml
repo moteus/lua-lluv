@@ -16,7 +16,9 @@ before_install:
   # - sudo apt-get update
   - bash .travis/setup_lua.sh
   - bash .travis/setup_uv.sh
-  # - sudo luarocks install lunitx
+  - sudo luarocks install lunitx
+  - sudo luarocks install lua-path
+  - sudo luarocks install luafilesystem
   # - sudo pip install cpp-coveralls
 
 install:
@@ -25,7 +27,7 @@ install:
 script: 
   - cd test
   - lua test-active.lua
-  - lua benchmark-ping-pongs.lua
+  - lunit.sh test-fs.lua
 
 # after_success:
 #   - coveralls -b .. -r .. --dump c.report.json

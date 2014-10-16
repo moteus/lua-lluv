@@ -37,7 +37,7 @@ local ENABLE = true
 
 local _ENV = TEST_CASE'fs' if ENABLE then
 
-local it = setmetatable(_ENV, {__call = function(self, describe, fn)
+local it = setmetatable(_ENV or _M, {__call = function(self, describe, fn)
   self["test " .. describe] = fn
 end})
 
