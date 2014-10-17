@@ -192,6 +192,14 @@ function fs_readlink                () end
 -- @tparam number gid GroupID
 function fs_chown                   () end
 
+--- Check real user's permissions for a file.
+--
+-- @tparam[opt] uv_loop loop
+-- @tparam string path original file
+-- @tparam[opt] number|table checked access permissions
+-- @tparam[opt] function callback(loop, err, ok, path)
+function fs_access                  () end
+
 --- Open file.
 --
 -- @tparam[opt] uv_loop loop

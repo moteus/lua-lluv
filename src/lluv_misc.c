@@ -16,7 +16,7 @@
 
 static void lluv_push_rusage(lua_State *L, const uv_rusage_t* s){
 #define SET_FIELD_INT(F,V)  lutil_pushint64(L, s->V);         lua_setfield(L, -2, F)
-#define SET_FIELD_TIME(F,V) lutil_pushint64(L, (int64_t)s->V.tv_sec + (int64_t)s->V.tv_usec * 1000000);  lua_setfield(L, -2, F)
+#define SET_FIELD_TIME(F,V) lluv_push_timeval(L, &s->V);      lua_setfield(L, -2, F)
 
   lua_newtable(L);
 
@@ -70,12 +70,37 @@ static int lluv_push_if_addr(lua_State *L, const struct sockaddr* addr){
       uv_ip4_name(sa, buf, sizeof(buf));
       lua_pushstring(L, buf);
       return 1;
-    }
+                 }
 
     case AF_INET6:{
       struct sockaddr_in6 *sa = (struct sockaddr_in6*)addr;
       uv_ip6_name(sa, buf, sizeof(buf));
       lua_pushstring(L, buf);
+      return 1;
+                  }
+  }
+
+  lua_pushnil(L);
+  return 1;
+}
+
+static int lluv_push_phys_addr(lua_State *L, const unsigned char* a){
+  char buf[32] = {'\0'};
+  sprintf(buf, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X", a[0],a[1],a[2],a[3],a[4],a[5]);
+  lua_pushstring(L, buf);
+  return 1;
+}
+
+
+static int lluv_push_if_family(lua_State *L, const struct sockaddr* addr){
+  switch (addr->sa_family){
+    case AF_INET:{
+      lua_pushstring(L, "inet");
+      return 1;
+    }
+
+    case AF_INET6:{
+      lua_pushstring(L, "inet6");
       return 1;
     }
   }
@@ -90,9 +115,10 @@ static void lluv_push_interface(lua_State *L, uv_interface_address_t* s){
 
   lua_newtable(L);
     SET_FIELD_STR  ( "name"      , name       );
-    SET_FIELD_STR  ( "phys_addr" , phys_addr  );
-    lluv_push_if_addr(L, (struct sockaddr*)&s->address.address4); lua_setfield(L, -2, "address");
-    lluv_push_if_addr(L, (struct sockaddr*)&s->netmask.netmask4); lua_setfield(L, -2, "netmask");
+    lluv_push_phys_addr(L, s->phys_addr);                           lua_setfield(L, -2, "phys_addr");
+    lluv_push_if_addr(L,   (struct sockaddr*)&s->address.address4); lua_setfield(L, -2, "address");
+    lluv_push_if_addr(L,   (struct sockaddr*)&s->netmask.netmask4); lua_setfield(L, -2, "netmask");
+    lluv_push_if_family(L, (struct sockaddr*)&s->address.address4); lua_setfield(L, -2, "family");
     lua_pushboolean(L, s->is_internal); lua_setfield(L, -2, "internal");
 
 #undef SET_FIELD_STR

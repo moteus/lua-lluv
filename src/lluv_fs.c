@@ -68,6 +68,7 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_SCANDIR:
     case UV_FS_STAT:
     case UV_FS_LSTAT:
+    case UV_FS_ACCESS:
       lua_pushvalue(L, LLUV_LOOP_INDEX);
       return 1;
 
@@ -98,6 +99,16 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
       return 0;
   }
 }
+
+#define LLUV_DIRENT_MAP(XX)        \
+  XX("unknown", UV_DIRENT_UNKNOWN) \
+  XX("file",    UV_DIRENT_FILE)    \
+  XX("dir",     UV_DIRENT_DIR)     \
+  XX("link",    UV_DIRENT_LINK)    \
+  XX("fifo",    UV_DIRENT_FIFO)    \
+  XX("socket",  UV_DIRENT_SOCKET)  \
+  XX("char",    UV_DIRENT_CHAR)    \
+  XX("block",   UV_DIRENT_BLOCK)   \
 
 static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
   uv_fs_t *req = &lreq->req;
@@ -162,9 +173,19 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
       while((err = uv_fs_scandir_next(req, &ent)) >= 0){
         lua_createtable(L, 2, 0);
           lua_pushstring (L, ent.name); lua_rawseti(L, -2, 1);
-          lutil_pushint64(L, ent.type); lua_rawseti(L, -2, 2);
+#define XX(C,S) case S: lua_pushliteral(L, C); lua_rawseti(L, -2, 2); break;
+          switch(ent.type){
+            LLUV_DIRENT_MAP(XX)
+          }
+#undef XX
         lua_rawseti(L, -2, ++i);
       }
+      return 2;
+    }
+
+    case UV_FS_ACCESS:{
+      lua_pushboolean(L, req->result == 0);
+      lua_pushstring(L, req->path);
       return 2;
     }
 
@@ -422,6 +443,29 @@ LLUV_IMPL_SAFE(lluv_fs_chown) {
 
   LLUV_PRE_FS();
   err = uv_fs_chown(loop->handle, &req->req, path, uid, gid, cb);
+  LLUV_POST_FS();
+}
+
+LLUV_IMPL_SAFE(lluv_fs_access) {
+  static const lluv_uv_const_t FLAGS[] = {
+    { F_OK, "exists"   },
+    { R_OK, "read"     },
+    { W_OK, "write"    },
+    { X_OK, "execute"  },
+
+    { 0, NULL }
+  };
+
+  LLUV_CHECK_LOOP_FS()
+
+  const char *path = luaL_checkstring(L, ++argc);
+  int flags = F_OK;
+  if(lluv_arg_exists(L, argc + 1)){
+    flags = lluv_opt_flags_ui(L, ++argc, flags, FLAGS);
+  }
+
+  LLUV_PRE_FS();
+  err = uv_fs_access(loop->handle, &req->req, path, flags, cb);
   LLUV_POST_FS();
 }
 
@@ -824,11 +868,12 @@ static const struct luaL_Reg lluv_file_methods[] = {
   { "fs_symlink",  lluv_fs_symlink_##F  },  \
   { "fs_readlink", lluv_fs_readlink_##F },  \
   { "fs_chown",    lluv_fs_chown_##F    },  \
+  { "fs_access",   lluv_fs_access_##F   },  \
                                             \
   { "fs_open",     lluv_fs_open_##F     },  \
   { "fs_open_fd",  lluv_fs_open_fd_##F  },  \
 
-static const struct luaL_Reg lluv_fs_functions[][16] = {
+static const struct luaL_Reg lluv_fs_functions[][17] = {
   {
     LLUV_FS_FUNCTIONS(unsafe)
     {NULL,NULL}

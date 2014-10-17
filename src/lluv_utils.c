@@ -101,7 +101,6 @@ LLUV_INTERNAL void lluv_push_status(lua_State *L, int status){
     lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
 }
 
-
 static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
   lluv_handle_t *handle = lluv_handle_byptr(h);
   return lluv_loop_byptr(handle->handle.loop);
@@ -187,7 +186,7 @@ LLUV_INTERNAL void lluv_push_stat(lua_State* L, const uv_stat_t* s){
 #define SET_FIELD_INT(F,V)  lutil_pushint64(L, s->V);         lua_setfield(L, -2, F)
 #define SET_FIELD_MODE(F,V) lua_pushboolean(L, V(s->st_mode));lua_setfield(L, -2, F)
   //! @todo push full time (not only seconds)
-#define SET_FIELD_TIME(F,V) lutil_pushint64(L, s->V.tv_sec);  lua_setfield(L, -2, F)
+#define SET_FIELD_TIME(F,V) lluv_push_timespec(L, &s->V); lua_setfield(L, -2, F)
 
   lua_newtable(L);
   SET_FIELD_INT( "dev"    , st_dev    );
@@ -337,3 +336,18 @@ LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d
   return lua_error(L);
 }
 
+LLUV_INTERNAL void lluv_push_timeval(lua_State *L, const uv_timeval_t *tv){
+  lua_createtable(L, 0, 2);
+  lua_pushinteger(L, tv->tv_sec);
+  lua_setfield(L, -2, "sec");
+  lua_pushinteger(L, tv->tv_usec);
+  lua_setfield(L, -2, "usec");
+}
+
+LLUV_INTERNAL void lluv_push_timespec(lua_State *L, const uv_timespec_t *ts){
+  lua_createtable(L, 0, 2);
+  lua_pushinteger(L, ts->tv_sec);
+  lua_setfield(L, -2, "sec");
+  lua_pushinteger(L, ts->tv_nsec);
+  lua_setfield(L, -2, "nsec");
+}

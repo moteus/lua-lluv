@@ -73,6 +73,10 @@ LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d
 
 LLUV_INTERNAL void lluv_push_status(lua_State *L, int status);
 
+LLUV_INTERNAL void lluv_push_timeval(lua_State *, const uv_timeval_t *tv);
+
+LLUV_INTERNAL void lluv_push_timespec(lua_State *, const uv_timespec_t *ts);
+
 typedef unsigned char lluv_flag_t;
 
 #define lluv_flags_t unsigned char

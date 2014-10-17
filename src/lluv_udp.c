@@ -169,7 +169,7 @@ static void lluv_on_udp_recv_cb(uv_udp_t *arg, ssize_t nread, const uv_buf_t* bu
   assert(!lua_isnil(L, -1));
 
   lluv_handle_pushself(L, handle);
-  
+
   if(nread >= 0){
     assert(addr);
     lua_pushnil(L);
@@ -232,7 +232,6 @@ static int lluv_udp_stop_recv(lua_State *L){
   return 1;
 }
 
-  
 //}
 
 static int lluv_udp_getsockname(lua_State *L){
