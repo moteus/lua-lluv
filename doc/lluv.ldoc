@@ -133,14 +133,14 @@ function fs_scandir                 () end
 --
 -- @tparam[opt] uv_loop loop
 -- @tparam string path file to stat
--- @tparam[opt] function callback(loop, err, path, stat)
+-- @tparam[opt] function callback(loop, err, stat, path)
 function fs_stat                    () end
 
 --- Crossplatform link stat.
 --
 -- @tparam[opt] uv_loop loop
 -- @tparam string path link to stat
--- @tparam[opt] function callback(loop, err, path, stat)
+-- @tparam[opt] function callback(loop, err, stat, path)
 function fs_lstat                   () end
 
 --- Rename file.
@@ -205,6 +205,7 @@ end
 
 -- process submodule
 do
+
 --- Disables inheritance for file descriptors / handles that this process inherited from its parent.
 --
 function disable_stdio_inheritance  () end
@@ -417,36 +418,40 @@ function close_all_handles() end
 
 end
 
---- lluv file handle
+--- lluv handle base class
 -- @type uv_handle
 --
 do
 
----
+--- Returns loop object.
 --
 function loop                       () end
 
----
+--- Close handle.
 --
+-- Callback gets already closed handle.
+--
+-- @tparam[opt] function callback(handle)
 function close                      () end
 
----
+--- Reference handle.
 --
 function ref                        () end
 
----
+--- Unreference handle.
 --
 function unref                      () end
 
----
+--- Indicates if handle is referenced.
 --
+-- @treturn boolen
 function has_ref                    () end
 
----
+--- Indicates if handle is active.
 --
 function is_active                  () end
 
----
+--- Indicates if handle is closing or already closed.
 --
 function is_closing                 () end
 
@@ -469,11 +474,12 @@ end
 --
 do
 
----
+--- Start idle handle.
 --
+-- @tparam function callback(handle)
 function start                      () end
 
----
+--- Stop idle handle.
 --
 function stop                       () end
 
@@ -484,35 +490,56 @@ end
 --
 do
 
----
+--- Start timer handle.
 --
+-- @tparam[opt] number timeout timer will start after the specified amount of time.
+-- @tparam[opt] number repeat  timer will run again after the specified amount of time.
+-- @tparam function callback(handle)
 function start                      () end
 
----
+--- Stop timer handle.
 --
 function stop                       () end
 
----
+--- Stop the Timer, and if it is repeating restart it using the repeat value as the timeout.
 --
 function again                      () end
 
----
+--- Set the repeat value. 
 --
+-- @tparam number repeat new value
 function set_repeat                 () end
 
----
+--- Get repeat value. 
 --
+-- @treturn number repeat value
 function get_repeat                 () end
 
 end
 
---- 
+--- lluv fs_event handle
 -- @type uv_fs_event
 --
 do
+
+--- Start FS Event handle.
+--
+-- @tparam string path path to monitoring
+-- @tparam[opt] number|table flags
+-- @tparam function callback(self, err, path|nil, events)
+--
+-- Usage
+-- fs_event():start("./config", function(self, err) ... end)
 function start                      () end
+
+--- Stop FS Event handle.
+--
 function stop                       () end
+
+--- Get the path being monitored by the handle.
+--
 function getpath                    () end
+
 end
 
 ---
