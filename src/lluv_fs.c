@@ -168,19 +168,20 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_SCANDIR:{
       uv_dirent_t ent;
       int i = 0, err;
-      lua_pushstring(L, req->path);
+      lua_createtable(L, (int)req->result, 0);
       lua_createtable(L, (int)req->result, 0);
       while((err = uv_fs_scandir_next(req, &ent)) >= 0){
-        lua_createtable(L, 2, 0);
-          lua_pushstring (L, ent.name); lua_rawseti(L, -2, 1);
-#define XX(C,S) case S: lua_pushliteral(L, C); lua_rawseti(L, -2, 2); break;
+        lua_pushstring (L, ent.name); lua_rawseti(L, -3, ++i);
+#define XX(C,S) case S: lua_pushliteral(L, C); lua_rawseti(L, -2, i); break;
           switch(ent.type){
             LLUV_DIRENT_MAP(XX)
+            default: lua_pushstring(L, "unknown"); lua_rawseti(L, -2, i);
           }
 #undef XX
-        lua_rawseti(L, -2, ++i);
       }
-      return 2;
+      lua_pushstring(L, req->path);
+      lua_insert(L, -2);
+      return 3;
     }
 
     case UV_FS_ACCESS:{
