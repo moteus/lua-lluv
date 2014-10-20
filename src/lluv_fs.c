@@ -8,9 +8,13 @@
 * This file is part of lua-lluv library.
 ******************************************************************************/
 
+#include "lluv.h"
 #include "lluv_fs.h"
 #include "lluv_error.h"
 #include "lluv_loop.h"
+#include "lluv_handle.h"
+#include "lluv_stream.h"
+#include "lluv_pipe.h"
 #include "lluv_fbuf.h"
 #include <assert.h>
 #include <fcntl.h>
@@ -834,6 +838,51 @@ static int lluv_file_write(lua_State* L) {
   LLUV_POST_FILE();
 }
 
+static int lluv_file_fileno(lua_State *L){
+  lluv_file_t *f = lluv_check_file(L, 1, LLUV_FLAG_OPEN);
+  lutil_pushint64(L, f->handle);
+  return 1;
+}
+
+static int lluv_file_pipe(lua_State *L){
+  lluv_file_t *f = lluv_check_file(L, 1, LLUV_FLAG_OPEN);
+  int ipc = lua_toboolean(L, 2);
+
+  /*local ok, err = uv.pipe(loop, ipc)*/
+  lua_pushvalue(L, LLUV_LUA_REGISTRY);
+  lua_pushcclosure(L, IS_(f, RAISE_ERROR) ? lluv_pipe_create_unsafe : lluv_pipe_create_safe, 1);
+  lluv_loop_pushself(L, f->loop);
+  lua_pushboolean(L, ipc);
+  lua_call(L, 2, 2);
+
+  /*if not ok then return nil, err*/
+  if(lua_isnil(L, -2)) return 2;
+  lua_pop(L, 1);
+
+  /*local ok, err = pipe:open(fd)*/
+  lua_getfield(L, -1, "open");
+  assert(lua_isfunction(L, -1));
+  lua_pushvalue(L, -2);
+  lutil_pushint64(L, f->handle);
+  lua_call(L, 2, 2);
+
+  /*if not ok then pipe:close() return nil, err*/
+  if(lua_isnil(L, -2)){
+    int top = lua_gettop(L);
+    lua_getfield(L, -3, "close");
+    assert(lua_isfunction(L, -1));
+    lua_pushvalue(L, -4);
+    lua_pcall(L, 0, 0, 0);
+    lua_settop(L, top);
+    return 2;
+  }
+  lua_pop(L, 2);
+
+  UNSET_(f, OPEN);
+
+  return 1;
+}
+
 static const struct luaL_Reg lluv_file_methods[] = {
   {"loop",         lluv_file_loop      },
   {"stat",         lluv_file_stat      },
@@ -844,6 +893,8 @@ static const struct luaL_Reg lluv_file_methods[] = {
   {"chown",        lluv_file_chown     },
   {"chmod",        lluv_file_chmod     },
   {"utime",        lluv_file_utime     },
+  {"fd",           lluv_file_fileno    },
+  {"pipe",         lluv_file_pipe      },
 
   {"read",         lluv_file_read      },
   {"write",        lluv_file_write     },
