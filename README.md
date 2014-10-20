@@ -7,6 +7,13 @@ lua-lluv
 
 ## Compatible with libuv>=1.0.0
 
+##Install
+
+Current master
+```
+luarocks install lluv --server=https://rocks.moonscript.org/dev
+```
+
 ### Example
 
 Basic tcp/pipe echo server
