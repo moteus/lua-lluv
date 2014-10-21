@@ -19,13 +19,13 @@ target('build', lluv)
 
 install = target('install', {
   file.group{odir=LIBDIR;              src = lluv                             };
-  -- file.group{odir=LIBDIR;              src = J("src", "lua") ; recurse = true };
+  file.group{odir=LIBDIR;              src = J("src", "lua") ; recurse = true };
   file.group{odir=J(ROOT, 'examples'); src = 'examples';       recurse = true };
-  -- file.group{odir=TESTDIR;             src = 'test';           recurse = true };
+  file.group{odir=TESTDIR;             src = 'test';           recurse = true };
 })
 
 target('test', install, function()
-  -- run_test('test_easy.lua')
+  run_test('test-fs.lua')
 
   if not test_summary() then
     quit("test fail")

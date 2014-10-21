@@ -27,6 +27,7 @@ install:
 script: 
   - cd test
   - lua test-active.lua
+  - lua -e"require'lluv.utils'.self_test()"
   - lunit.sh test-fs.lua
 
 # after_success:

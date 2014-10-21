@@ -75,5 +75,6 @@ build = {
       incdirs   = { "$(UV_INCDIR)" },
       libdirs   = { "$(UV_LIBDIR)" }
     },
+    ["lluv.utils"] = "src/lua/lluv/utils.lua",
   }
 }
