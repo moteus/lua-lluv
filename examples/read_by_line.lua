@@ -1,7 +1,7 @@
 -- read input stream line by line
 
 local uv = require "lluv"
-local ut = require "utils"
+local ut = require "lluv.utils"
 
 local host, port = "127.0.0.1", 5555
 

@@ -22,8 +22,8 @@ uv.run(debug.traceback)
 ]]
 
 local uv = require "lluv"
+local ut = require "lluv.utils"
 local va = require "vararg"
-local ut = require "utils"
 
 local EOL = "\r\n"
 
@@ -45,7 +45,6 @@ local STORE_RESP = {
   NOT_EXISTS    = true;
 }
 
-local ocall       = ut.ocall
 local usplit      = ut.usplit
 local split_first = ut.split_first
 
@@ -57,6 +56,8 @@ local function cb_args(...)
   end
   return nil, ...
 end
+
+local function ocall(fn, ...) if fn then return fn(...) end end
 
 -------------------------------------------------------------------
 local Error = {} do
@@ -474,7 +475,7 @@ local function self_test(server, key)
     end)
   end)
 
-  uv.run()
+  uv.run(debug.traceback)
 
 end
 

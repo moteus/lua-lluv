@@ -241,9 +241,15 @@ local function List()
     assert(false == pcall(q.push_front))
     assert(q.empty() == true)
     assert(q.size()  == 0)
+    
+    q.push_back(1).push_back(2)
+    assert(q.pop_back() == 2)
+    assert(q.pop_back() == 1)
 
-    
-    
+    q.push_back(1).push_back(2)
+    assert(q.pop_front() == 1)
+    assert(q.pop_front() == 2)
+
   end
 
   self = {
@@ -270,8 +276,8 @@ local function Queue()
 
   local function reset()        q.reset()      return self end
   local function push(v)        q.push_back(v) return self end
-  local function pop()   return q.pop_back()               end
-  local function peek()  return q.peek_back()              end
+  local function pop()   return q.pop_front()              end
+  local function peek()  return q.peek_front()             end
   local function size()  return q.size()                   end
 
   self = {
