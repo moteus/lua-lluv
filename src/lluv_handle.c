@@ -276,18 +276,16 @@ static int lluv_handle_recv_buffer_size(lua_State *L){
   return 1;
 }
 
-#ifdef LLUV_UV_HAS_FILENO
 static int lluv_handle_fileno(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   uv_os_fd_t fd;
-  int err = uv_fileno(handle->handle, &fd);
+  int err = uv_fileno(LLUV_H(handle, uv_handle_t), &fd);
   if(err<0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
-  lutil_pushint64(L, fd);
+  lutil_pushint64(L, (int64_t)fd);
   return 1;
 }
-#endif
 
 static int lluv_handle_set_data(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
@@ -318,9 +316,7 @@ static const struct luaL_Reg lluv_handle_methods[] = {
   { "is_closing",       lluv_handle_is_closing       },
   { "send_buffer_size", lluv_handle_send_buffer_size },
   { "recv_buffer_size", lluv_handle_recv_buffer_size },
-#ifdef LLUV_UV_HAS_FILENO
   { "fileno",           lluv_handle_fileno           },
-#endif
 
   {NULL,NULL}
 };
