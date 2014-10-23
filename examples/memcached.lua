@@ -48,6 +48,13 @@ local STORE_RESP = {
 local usplit      = ut.usplit
 local split_first = ut.split_first
 
+local Error = ut.Errors{
+  { EPROTO       = "Protocol error"            },
+  { ERROR        = "Unsupported command name"  },
+  { CLIENT_ERROR = "Invalid command arguments" },
+  { SERVER_ERROR = "Server error"              },
+}
+
 local function cb_args(...)
   local n = select("#", ...)
   local cb = va.range(n, n, ...)
@@ -58,23 +65,6 @@ local function cb_args(...)
 end
 
 local function ocall(fn, ...) if fn then return fn(...) end end
-
--------------------------------------------------------------------
-local Error = {} do
-Error.__index = Error
-
-function Error:new(err)
-  local o = setmetatable({}, self)
-  o._err = err
-  return o
-end
-
-function Error:__tostring()
-  return self._err
-end
-
-end
--------------------------------------------------------------------
 
 local function make_store(cmd, key, data, exptime, flags, noreply, cas)
   assert(cmd)
@@ -173,7 +163,7 @@ function Connection:_read(data)
   local req = self._queue.peek()
   if not req then -- unexpected reply
     self:close()
-    return ocall(self.on_error, self, Error:new("Protocol error"))
+    return ocall(self.on_error, self, Error("EPROTO", data))
   end
 
   self._buff.append(data)
@@ -204,7 +194,7 @@ function Connection:_on_store(req)
 
   local res, value = split_first(line, " ", true)
   if SERVER_ERRORS[res] then
-    return ocall(req.cb, self, Error:new(line))
+    return ocall(req.cb, self, Error(res, value))
   end
 
   -- for increment/decrement line is just data
@@ -232,10 +222,10 @@ function Connection:_on_retr(req)
       req.cas   = cas ~= "" and cas or nil
     elseif SERVER_ERRORS[res] then
       assert(self._queue.pop() == req)
-      return ocall(req.cb, self, Error:new(line))
+      return ocall(req.cb, self, Error(res, value))
     else
       self:close()
-      return ocall(self.on_error, self, Error:new("Protocol error"))
+      return ocall(self.on_error, self, Error("EPROTO", line))
     end
   end
 

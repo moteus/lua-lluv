@@ -292,6 +292,82 @@ local function Queue()
 end
 -------------------------------------------------------------------
 
+-------------------------------------------------------------------
+local MakeErrors = function(errors)
+  assert(type(errors) == "table")
+  
+  local numbers  = {} -- errno => name
+  local names    = {} -- name  => errno
+  local messages = {}
+
+  for no, info in pairs(errors) do
+    assert(type(info) == "table")
+    local name, msg = next(info)
+
+    assert(type(no)   == "number")
+    assert(type(name) == "string")
+    assert(type(msg)  == "string")
+    
+    assert(not numbers[no], no)
+    assert(not names[name], name)
+    
+    numbers[no]    = name
+    names[name]    = no
+    messages[no]   = msg
+    messages[name] = msg
+  end
+
+  local Error = {} do
+  Error.__index = Error
+
+  function Error:new(no, ext)
+    assert(numbers[no] or names[no], "unknown error: " ..  tostring(no))
+
+    local o = setmetatable({}, self)
+    o._no = names[no] or no
+    o._ext = ext
+
+    return o
+  end
+
+  function Error:name()
+    return assert(numbers[self._no], self._no)
+  end
+
+  function Error:no()
+    return self._no
+  end
+
+  function Error:msg()
+    return assert(messages[self._no], self._no)
+  end
+
+  function Error:ext()
+    return self._ext
+  end
+
+  function Error:__tostring()
+    local ext = self:ext()
+    if ext then
+      return string.format("[%s] %s (%d) - %s", self:name(), self:message(), self:no(), ext)
+    end
+    return string.format("[%s] %s (%d)", self:name(), self:msg(), self:no())
+  end
+
+  end
+
+  local o = setmetatable({}, {__call = function(self, ...)
+    return Error:new(...)
+  end})
+  
+  for name, no in pairs(names) do
+    o[name] = no
+  end
+
+  return o
+end
+-------------------------------------------------------------------
+
 local function self_test()
   Buffer().self_test()
   List().self_test()
@@ -302,6 +378,7 @@ return {
   Buffer      = Buffer;
   Queue       = Queue;
   List        = List;
+  Errors      = MakeErrors;
   split_first = split_first;
   split       = split;
   usplit      = usplit;
