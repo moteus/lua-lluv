@@ -331,7 +331,7 @@ local MakeErrors = function(errors)
   end
 
   function Error:name()
-    return assert(numbers[self._no], self._no)
+    return numbers[self._no]
   end
 
   function Error:no()
@@ -339,7 +339,7 @@ local MakeErrors = function(errors)
   end
 
   function Error:msg()
-    return assert(messages[self._no], self._no)
+    return messages[self._no]
   end
 
   function Error:ext()
@@ -349,7 +349,7 @@ local MakeErrors = function(errors)
   function Error:__tostring()
     local ext = self:ext()
     if ext then
-      return string.format("[%s] %s (%d) - %s", self:name(), self:message(), self:no(), ext)
+      return string.format("[%s] %s (%d) - %s", self:name(), self:msg(), self:no(), ext)
     end
     return string.format("[%s] %s (%d)", self:name(), self:msg(), self:no())
   end
