@@ -268,7 +268,7 @@ local function open(self, cb)
 end
 
 local function pasv(self, cb)
-  self:_command("PASV", uid, function(self, err, code, reply)
+  self:_command("PASV", function(self, err, code, reply)
 
     if err then return ocall(cb, self, err) end
 
@@ -295,8 +295,9 @@ local function pasv(self, cb)
   end)
 end
 
-local function pasv_command_impl(self)
+local pasv_command_impl, pasv_exec_impl
 
+local function pasv_dispatch_impl(self)
   if self._pasv_busy then return end
 
   local arg = self._pasv_pending.pop()
@@ -304,8 +305,15 @@ local function pasv_command_impl(self)
 
   local cmd, arg, cb, chunk_cb = arg()
   self._pasv_busy = true
+  
+  if type(cmd) == "function" then
+    return pasv_exec_impl(self, cmd)
+  end
+  return pasv_command_impl(self, cmd, arg, cb, chunk_cb)
+end
 
-  pasv(self, function(self, err, cli)
+pasv_command_impl = function(self, cmd, arg, cb, chunk_cb)
+  return pasv(self, function(self, err, cli)
     if err then
       if cli then cli:close() end
       return ocall(cb, self, err)
@@ -353,13 +361,82 @@ local function pasv_command_impl(self)
   end)
 end
 
+pasv_exec_impl = function (self, cmd)
+  return pasv(self, function(self, err, cli)
+    if err then
+      if cli then cli:close() end
+      return cmd(self, err)
+    end
+
+    local ctx = {} do -- pasv context
+
+    local ftp = self
+
+    function ctx:error(err)
+      cli:close()
+      return self:_return(err)
+    end
+
+    function ctx:done(code, reply)
+      if not is_2xx(code) then
+        cli:close()
+        return self:_return(nil, code, reply)
+      end
+
+      if self._done then
+        return self:_return(nil, code, self._result)
+      end
+
+      self._code, self._done = code, true
+    end
+
+    function ctx:_append(data)
+      if not self._result then self._result = {} end
+      self._result[#self._result + 1] = data
+    end
+
+    function ctx:_data()
+      return self._result or true
+    end
+
+    function ctx:_return(...)
+      ftp._pasv_busy = false
+      pasv_dispatch_impl(ftp)
+      return ocall(self.cb, ftp, ...)
+    end
+
+    end
+
+    cli:start_read(function(cli, err, data)
+      if err then
+        cli:close()
+
+        if err:name() == "EOF" then
+          if ctx._done then
+            return ctx:_return(nil, ctx._code, ctx:_data())
+          end
+          ctx._done = true
+          return
+        end
+
+        return ctx:_return(err)
+      end
+
+      if ctx.chunk_cb then pcall(ctx.chunk_cb, self, data)
+      else ctx:_append(data) end
+    end)
+
+    cmd(self, nil, ctx)
+  end)
+end
+
 local function pasv_command_(self, cmd, arg, cb, chunk_cb)
   -- passive mode require create send one extra req/rep and new connection
   -- so I think overhead to enqueue/dequeue is not too much.
 
   local callback = function(...)
     self._pasv_busy = false
-    pasv_command_impl(self)
+    pasv_dispatch_impl(self)
     return ocall(cb, ...)
   end
 
@@ -367,7 +444,7 @@ local function pasv_command_(self, cmd, arg, cb, chunk_cb)
 
   self._pasv_pending.push(args)
 
-  return pasv_command_impl(self)
+  return pasv_dispatch_impl(self)
 end
 
 local function pasv_command(self, cmd, ...)
@@ -378,6 +455,16 @@ local function pasv_command(self, cmd, ...)
   end
 end
 
+local function pasv_exec(self, cmd)
+  local args = va(cmd)
+
+  self._pasv_pending.push(args)
+
+  return pasv_dispatch_impl(self)
+end
+
+-------------------------------------------------------------------
+
 local function help(self, ...)
   self._command(self, "help", nil, ...)
 end
@@ -387,7 +474,28 @@ local function pasv_list(self, ...)
 end
 
 local function pasv_retr(self, fname, ...)
-  return pasv_command_(self, "RETR", fname, ...)
+  assert(type(fname) == "string")
+
+  local opt, cb, chunk_cb = ...
+  if type(opt) ~= "table" then
+    return pasv_command(self, "RETR", fname, ...)
+  end
+
+  return pasv_exec(self, function(self, err, ctx)
+    if err then return ocall(cb, self, err) end
+    ctx.cb, ctx.chunk_cb = cb, chunk_cb
+
+    -- @todo check result of command
+    if opt.type then self:_command("TYPE", opt.type) end
+
+    if opt.rest then self:_command("REST", opt.rest) end
+
+    self:_command("RETR", fname, function(self, err, code, data)
+      if err then return ctx:error(err) end
+      if is_1xx(code) then return end
+      ctx:done(code, reply)
+    end)
+  end)
 end
 
 Connection.auth = auth
@@ -415,9 +523,9 @@ local function run()
   --   print("**************************")
   -- end
 
-  -- function ftp:on_trace_req(req, code, reply)
-  --   print("+", req.data, " GET ", code, reply)
-  -- end
+  function ftp:on_trace_req(req, code, reply)
+    print("+", req.data, " GET ", code, reply)
+  end
 
   ftp:open(function(self, err, code, data)
     if err then
@@ -426,29 +534,22 @@ local function run()
     end
     print("OPEN: ", code, data)
 
-    self:help(print)
-
-    self:list(function(self, err)
-      if err then print("LIST:", err) end
-    end, function(self, data)
-      io.write(data)
+    self:list("test1.dat", function(self, err, code, data)
+      print("LIST #1:", err, code, data)
     end)
 
-    self:retr("test1.dat", function(self, err, code, data)
-      if err then return print("RETR:", err) end
-      print("----------------------------------------")
-      print("RETR")
-      print("----------------------------------------")
+    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
+      print("RETR #1:", err, code, data)
+    end)
 
-      if is_2xx(code) then
-        print(table.concat(data))
-      else
-        print(code, data)
-      end
+    self:list("test1.dat", function(self, err, code, data)
+      print("LIST #2:", err, code, data)
+    end)
 
+    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
+      print("RETR #2:", err, code, data)
       self:close()
     end)
-    self:_command("REST", 4)
   end)
 
   uv.run(debug.traceback)
