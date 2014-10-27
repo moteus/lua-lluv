@@ -39,6 +39,8 @@ local is_3xx = is_xxx(3)
 local is_4xx = is_xxx(4)
 local is_5xx = is_xxx(5)
 
+local function is_err(n) return is_4xx(n) or is_5xx(n) end
+
 local Error = ut.Errors{
   { EPROTO = "Protocol error" },
   { ESTATE = "Can not perform commant in this state" },
@@ -84,7 +86,7 @@ local WAIT = {}
 local ResponseParser = {} do
 ResponseParser.__index = ResponseParser
 
-function ResponseParser:new()
+function ResponseParser:new(cmd)
   local o = setmetatable({}, self)
   return o
 end
@@ -120,27 +122,43 @@ function ResponseParser:next(buf) while true do
 
   if resp then
     if (sep == " ") or (sep == "") then -- end of response
-      local res
-      if self._data then
-        if msg ~= "" then self._data[#self._data + 1] = msg end
-        res = va(tonumber(resp), table.concat(self._data, "\n"))
-      else
-        res = va(tonumber(resp), msg)
-      end
+      self:append(msg)
+
+      local resp = tonumber(resp)
+      local data = self._data
       self:reset()
-      return res
+
+      if is_err(resp) then
+        if type(data) == "table" then data = table.concat(data, "\n") end
+        return nil, ErrorState(resp, data)
+      end
+
+      return va(resp, data)
     end
     if sep ~= "-" then return nil, Error(EPROTO, line) end
   end
 
-  self._data = self._data or {}
-  if msg ~= "" then self._data[#self._data + 1] = msg end
+  self:append(msg)
 end end
 
 function ResponseParser:reset()
   -- @todo check if preview state is done
   self._data = nil
   self._resp = nil
+end
+
+function ResponseParser:append(msg)
+  if msg == "" then return end
+
+  if self._data then
+    if type(self._data) == "string" then
+      self._data = {self._data, msg}
+    else
+      self._data[#self._data + 1] = msg
+    end
+  else
+    self._data = msg
+  end
 end
 
 end
@@ -465,10 +483,10 @@ local function pasv_command_(self, cmd, arg, cb, chunk_cb)
 end
 
 local function pasv_command(self, cmd, ...)
-  if type(...) == "string" then
-    pasv_command_(self, cmd, ...)
-  else
+  if type(...) == "function" then
     pasv_command_(self, cmd, nil, ...)
+  else
+    pasv_command_(self, cmd, ...)
   end
 end
 
@@ -483,19 +501,139 @@ end
 -------------------------------------------------------------------
 
 local function auth(self, uid, pwd, cb)
-  self:_command("USER", uid, function(self, err, code, msg)
+  self:_command("USER", uid, function(self, err, code, reply)
     if err then return ocall(cb, self, err) end
-    if not is_3xx(code) then return ocall(cb, self, nil, code, msg) end
+    if not is_3xx(code) then return ocall(cb, self, nil, code, reply) end
     self:_command("PASS", pwd, cb)
   end)
 end
 
-local function help(self, ...)
-  self._command(self, "help", nil, ...)
+local function help(self, arg, cb)
+  if not cb then arg, cb = nil, arg end
+  assert(cb)
+  self._command(self, "HELP", arg, function(self, err, code, data)
+    if err then
+      if arg then
+        -- check if command not supported
+        if err:no() == Error.ESTATE and err:code() == 502 then
+          return cb(self, nil, false, err)
+        end
+      end
+      return cb(self, err)
+    end
+    if type(data) == "table" then
+      if #data > 1 then table.remove(data, 1) end
+      if #data > 1 then table.remove(data, #data) end
+      if not arg then -- return list of commands
+        local t = {}
+        data = ut.split(trim(table.concat(data, " ")), "%s+")
+      else
+        if #data == 1 then data = data[1] end
+      end
+    end
+    cb(self, nil, data)
+  end)
 end
 
-local function pasv_list(self, ...)
-  return pasv_command(self, "LIST", ...)
+local function noop(self, cb)
+  self._command(self, "NOOP", cb)
+end
+
+local trim_code = function(cb)
+  return function(self, err, code, data)
+    if not err then return cb(self, nil, data) end
+    return cb(self, err, code, data)
+  end
+end
+
+local ret_true = function(cb)
+  return function(self, err, code, data)
+    if err then return cb(self, err, code, data) end
+    return cb(self, nil, true)
+  end
+end
+
+local function cwd(self, arg, cb)
+  assert(arg)
+  assert(cb)
+  self._command(self, "CWD", arg, ret_true(cb))
+end
+
+local function pwd(self, cb)
+  assert(cb)
+  self._command(self, "PWD", trim_code(cb))
+end
+
+local function hash(self, arg, cb)
+  assert(arg)
+  assert(cb)
+  self._command(self, "HASH", arg, cb)
+end
+
+local function rename(self, fr, to, cb)
+  assert(fr)
+  assert(to)
+  assert(cb)
+  self._command(self, "RNFR", fr, function(self, err, code, data)
+    if err then return cb(self, err, code, data) end
+    assert(code == 350)
+    self._command(self, "RNTO", to, cb)
+  end)
+end
+
+local function rmd(self, arg, cb)
+  assert(cb)
+  assert(arg)
+  self._command(self, "RMD", arg, ret_true(cb))
+end
+
+local function size(self, arg, cb)
+  assert(cb)
+  assert(arg)
+  self._command(self, "SIZE", arg, function(self, err, code, data)
+    if err then return cb(self, err) end
+    return cb(self, nil, tonumber(data) or data)
+  end)
+end
+
+local function file_not_found(err)
+  return err:no() == Error.ESTATE and err:code() == 550
+end
+
+local list_cb = function(cb)
+  return function(self, err, code, data)
+    if err then
+      if file_not_found(err) then return cb(self, nil, {}, err) end
+      return cb(self, err)
+    end
+    cb(self, nil, ut.split(table.concat(data), EOL, true))
+  end
+end
+
+local function stat(self, arg, cb)
+  if not cb then arg, cb = nil, arg end
+  assert(cb)
+  self._command(self, "STAT", arg, function(self, err, code, list)
+    if err then
+      if file_not_found(err) then return cb(self, nil, {}, err) end
+      return cb(self, err)
+    end
+    if #list > 1 then table.remove(list, 1) end
+    if #list > 1 then table.remove(list, #list) end
+    cb(self, err, list)
+  end)
+end
+
+local function pasv_list(self, arg, cb)
+  if not cb then arg, cb = nil, arg end
+  assert(cb)
+  return pasv_command(self, "LIST", arg, list_cb(cb))
+end
+
+local function pasv_nlst(self, arg, cb)
+  if not cb then arg, cb = nil, arg end
+  assert(cb)
+  return pasv_command(self, "NLST", arg, list_cb(cb))
 end
 
 local function pasv_retr(self, fname, ...)
@@ -529,7 +667,6 @@ local function pasv_retr(self, fname, ...)
 end
 
 local function pasv_stor(self, fname, opt, cb)
-
   pasv_exec(self, function(self, err, ctx)
 
     local write_cb, data
@@ -579,16 +716,34 @@ local function pasv_stor(self, fname, opt, cb)
       write_cb(self, cli)
     end)
   end)
-
 end
 
-Connection.pasv = pasv
-Connection.auth = auth
-Connection.open = open
-Connection.help = help
-Connection.list = pasv_list
-Connection.retr = pasv_retr
-Connection.stor = pasv_stor
+-- This is Low Level commands
+Connection.command       = Connection._command
+Connection.pasv          = pasv
+Connection.pasv_command  = pasv_command
+Connection.pasv_exec     = pasv_exec
+
+-- Open connection to ftp
+Connection.open   = open
+
+-- Specific ftp commands
+Connection.noop   = noop
+Connection.help   = help
+Connection.auth   = auth
+Connection.chdir  = cwd
+Connection.cwd    = cwd
+Connection.pwd    = pwd
+Connection.hash   = hash
+Connection.rename = rename
+Connection.rmdir  = rmd
+Connection.rmd    = rmd
+Connection.size   = size
+Connection.stat   = stat
+Connection.list   = pasv_list
+Connection.nlst   = pasv_nlst
+Connection.retr   = pasv_retr
+Connection.stor   = pasv_stor
 
 end
 -------------------------------------------------------------------
@@ -610,38 +765,105 @@ local function run()
     print("**************************")
   end
 
-  function ftp:on_trace_req(req, code, reply)
-    print("+", req.data, " GET ", code, reply)
-  end
+  -- function ftp:on_trace_req(req, code, reply)
+  --   print("+", req.data, " GET ", code, reply)
+  -- end
 
   ftp:open(function(self, err, code, data)
     if err then
-      print("OPEN", err)
+      print("OPEN FAIL: ", err)
       return self:close()
     end
 
-    -- self:list("test1.dat", function(self, err, code, data)
-    --   print("LIST #1:", err, code, data)
-    -- end)
-    -- 
-    -- self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
-    --   print("RETR #1:", err, code, data)
-    -- end)
-    -- 
-    -- self:list("test1.dat", function(self, err, code, data)
-    --   print("LIST #2:", err, code, data)
-    -- end)
-    -- 
-    -- self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
-    --   print("RETR #2:", err, code, data)
-    --   self:close()
-    -- end)
+    self:help(function(self, err, list)
+      if err then return print("HELP #1:", err) end
+      if type(list) == "table" then -- server return list of commands
+        for k, v in ipairs(list) do
+          print(k, v)
+        end
+      else
+        -- server return just message e.g. `214 For help, please visit ...`
+        print(list)
+      end
+      print("HELP #1: done")
+    end)
 
+    self:help("RETR", print)
+
+    self:stat("test1.dat", function(self, err, list)
+      if err then return print("STAT #1:", err) end
+      for k, v in ipairs(list) do
+        print(k, v)
+      end
+      print("STAT #1: done")
+    end)
+
+    self:stat(function(self, err, list)
+      if err then return print("STAT #2:", err) end
+      for k, v in ipairs(list) do
+        print(k, v)
+      end
+      print("STAT #2: done")
+    end)
+
+    self:rename("test1.dat", "testx.dat", print)
+
+    self:noop()
+
+    self:rename("testx.dat", "test1.dat", print)
+
+    self:noop()
+
+    self:list("test1.dat", function(self, err, list)
+      if err then return print("LIST #1:", err) end
+      for k, v in ipairs(list) do
+        print(k, v)
+      end
+      print("LIST #1: done")
+    end)
+    
+    self:list("test12.dat", function(self, err, list)
+      if err then return print("LIST #2:", err) end
+      for k, v in ipairs(list) do
+        print(k, v)
+      end
+      print("LIST #2: done")
+    end)
+
+    self:list(function(self, err, list)
+      if err then return print("LIST #3:", err) end
+      for k, v in ipairs(list) do
+        print(k, v)
+      end
+      print("LIST #3: done")
+    end)
+
+    self:list("/sub", function(self, err, list)
+      if err then return print("LIST #4:", err) end
+      for k, v in ipairs(list) do
+        print(k, v)
+      end
+      print("LIST #4: done")
+    end)
+
+    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
+      print("RETR #1:", err, code, data)
+    end)
+    
+    self:list("test1.dat", function(self, err, code, data)
+      print("LIST #2:", err, code, data)
+    end)
+    
+    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
+      print("RETR #2:", err, code, data)
+      self:close()
+    end)
+    
     local src = ltn12.source.file(io.open("ftp.lua", "rb"))
     self:stor("ftp.lua", {type = "i", source = src}, function(self, err, code, data)
       print("STOR ", err, code, data)
     end)
-
+    
     local snk = ltn12.sink.file(io.open("test1.dat", "w+b"))
     self:retr("test1.dat", {type = "i", rest = 0, sink = snk}, function(self, err, code, data)
       print("RETR ", err, code, data)
