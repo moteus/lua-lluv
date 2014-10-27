@@ -26,35 +26,6 @@ end
 
 local function ocall(fn, ...) if fn then return fn(...) end end
 
-local Error = ut.Errors{
-  { EPROTO = "Protocol error" },
-  { ESTATE = "Can not perform commant in this state" },
-}
-local EPROTO = Error.EPROTO
-
-local function ErrorState(code, reply)
-  local mt = {__index = Error(Error.ESTATE)}
-  local err = setmetatable({}, mt)
-
-  function err:ftp_code()
-    return code
-  end
-
-  function err:ftp_reply()
-    return reply
-  end
-
-  local to_s = err.__tostring
-  function mt:__tostring()
-    local str = to_s(self)
-    return string.format("%s\n%d %s", to_s(self), self:ftp_code(), self:ftp_reply())
-  end
-
-  return err
-end
-
-local WAIT = {}
-
 local function is_xxx(n)
   local a, b = n * 100, (n+1)*100
   return function(code)
@@ -65,6 +36,49 @@ end
 local is_1xx = is_xxx(1)
 local is_2xx = is_xxx(2)
 local is_3xx = is_xxx(3)
+local is_4xx = is_xxx(4)
+local is_5xx = is_xxx(5)
+
+local Error = ut.Errors{
+  { EPROTO = "Protocol error" },
+  { ESTATE = "Can not perform commant in this state" },
+  { ECBACK = "Error while callink callback function" },
+}
+local EPROTO = Error.EPROTO
+local ECBACK = Error.ECBACK
+
+local function ErrorState(code, reply)
+  local mt = {__index = Error(Error.ESTATE)}
+  local err = setmetatable({}, mt)
+
+  function err:code()
+    return code
+  end
+
+  function err:reply()
+    return reply
+  end
+
+  function err:is_1xx() return is_1xx(code) end
+
+  function err:is_2xx() return is_2xx(code) end
+
+  function err:is_3xx() return is_3xx(code) end
+
+  function err:is_4xx() return is_4xx(code) end
+
+  function err:is_5xx() return is_5xx(code) end
+
+  local to_s = err.__tostring
+  function mt:__tostring()
+    local str = to_s(self)
+    return string.format("%s\n%d %s", to_s(self), self:code(), self:reply())
+  end
+
+  return err
+end
+
+local WAIT = {}
 
 -------------------------------------------------------------------
 local ResponseParser = {} do
@@ -210,7 +224,9 @@ function Connection:_read(data)
       if self.on_trace_req then
         self:on_trace_req(req, ok())
       end
-      if is_1xx(ok()) then return end
+      if is_1xx((ok())) then
+        return ocall(req.cb_1xx, self, ok())
+      end
     end
 
     assert(req == self._queue.pop())
@@ -222,18 +238,22 @@ function Connection:_read(data)
   end
 end
 
-function Connection:_send(data, cb)
+function Connection:_send(data, cb, cb_1xx)
   ocall(self.on_trace_control, self, data, true)
   self._cnn:write(data)
-  self._queue.push{parser = ResponseParser:new(data), cb = cb, data = trim(data)}
+  self._queue.push{parser = ResponseParser:new(data), cb = cb, cb_1xx = cb_1xx, data = trim(data)}
   return self
 end
 
 function Connection:_command(...)
-  local cb, cmd, arg = cb_args(...)
+  local cmd, arg, cb, cb_1xx = ...
+  if type(arg) == "function" then
+    arg, cb, cb_1xx = nil, arg, cb
+  end
+
   if arg then cmd = cmd .. " " .. arg end
   cmd = cmd .. EOL
-  return self:_send(cmd, cb)
+  return self:_send(cmd, cb, cb_1xx)
 end
 
 end
@@ -242,17 +262,9 @@ end
 -------------------------------------------------------------------
 do -- Implement FTP commands
 
-local function auth(self, uid, pwd, cb)
-  self:_command("USER", uid, function(self, err, code, msg)
-    if err then return ocall(cb, self, err) end
-    if not is_3xx(code) then return ocall(cb, self, nil, code, msg) end
-    self:_command("PASS", pwd, cb)
-  end)
-end
-
 local function on_greet(self, code, data, cb)
   if code == 220 and self._user then
-    return auth(self, self._user, self._pass, cb)
+    return self:auth(self._user, self._pass, cb)
   end
   return ocall(cb, self, code, data)
 end
@@ -336,7 +348,8 @@ pasv_command_impl = function(self, cmd, arg, cb, chunk_cb)
         return ocall(cb, self, err)
       end
 
-      if chunk_cb then pcall(chunk_cb, self, data)
+      if chunk_cb then
+        local ok, err = pcall(chunk_cb, self, data)
       else result[#result + 1] = data end
     end)
 
@@ -384,7 +397,7 @@ pasv_exec_impl = function (self, cmd)
       end
 
       if self._done then
-        return self:_return(nil, code, self._result)
+        return self:_return(nil, code, self._result or reply)
       end
 
       self._code, self._done = code, true
@@ -412,17 +425,15 @@ pasv_exec_impl = function (self, cmd)
         cli:close()
 
         if err:name() == "EOF" then
-          if ctx._done then
-            return ctx:_return(nil, ctx._code, ctx:_data())
-          end
-          ctx._done = true
-          return
+          return ctx:done(ctx._code, ctx:_data())
         end
 
         return ctx:_return(err)
       end
 
-      if ctx.chunk_cb then pcall(ctx.chunk_cb, self, data)
+      if ctx.chunk_cb then
+        local ok, err = pcall(ctx.chunk_cb, self, data)
+        -- @todo check error
       else ctx:_append(data) end
     end)
 
@@ -465,6 +476,14 @@ end
 
 -------------------------------------------------------------------
 
+local function auth(self, uid, pwd, cb)
+  self:_command("USER", uid, function(self, err, code, msg)
+    if err then return ocall(cb, self, err) end
+    if not is_3xx(code) then return ocall(cb, self, nil, code, msg) end
+    self:_command("PASS", pwd, cb)
+  end)
+end
+
 local function help(self, ...)
   self._command(self, "help", nil, ...)
 end
@@ -476,18 +495,25 @@ end
 local function pasv_retr(self, fname, ...)
   assert(type(fname) == "string")
 
-  local opt, cb, chunk_cb = ...
+  local opt, cb = ...
   if type(opt) ~= "table" then
     return pasv_command(self, "RETR", fname, ...)
   end
 
   return pasv_exec(self, function(self, err, ctx)
     if err then return ocall(cb, self, err) end
-    ctx.cb, ctx.chunk_cb = cb, chunk_cb
+    ctx.cb = cb
+    if opt.sink then
+      ctx.chunk_cb = function(self, chunk) return opt.sink(chunk) end
+      ctx.cb       = function(...) opt.sink() return ocall(cb, ...) end
+    elseif opt.reader then
+      ctx.chunk_cb = opt.reader
+    end
 
     -- @todo check result of command
     if opt.type then self:_command("TYPE", opt.type) end
 
+    -- @todo check result of command
     if opt.rest then self:_command("REST", opt.rest) end
 
     self:_command("RETR", fname, function(self, err, code, data)
@@ -498,30 +524,89 @@ local function pasv_retr(self, fname, ...)
   end)
 end
 
+local function pasv_stor(self, fname, opt, cb)
+
+  local write_cb
+  if type(opt) == "table" then
+    if opt.source then
+
+      local on_write = function(cli, err)
+        if err then
+          cli:close()
+          return ocall(cb, self, err)
+        end
+        return write_cb(self, cli)
+      end
+
+      write_cb = function(self, cli)
+        local chunk = opt.source()
+        if chunk then return cli:write(chunk, on_write) end
+        return cli:close()
+      end
+
+    else
+      write_cb = assert(opt.writer)
+    end
+
+    -- @todo check result of command
+    if opt.type then self:_command("TYPE", opt.type) end
+
+  else
+    assert(type(opt) == "string")
+    write_cb = function(self, cli)
+      cli:write(opt, function(cli, err)
+        cli:close()
+        if err then return ocall(cb, self, err) end
+      end)
+    end
+  end
+
+  self:pasv(function(self, err, cli)
+    if err then return ocall(cb, err) end
+
+    
+    self:_command("STOR", "test1.ttt", 
+    -- command
+    function(self, err, code, data)
+      cli:close()
+      if err then return ocall(cb, err) end
+      return ocall(cb, err, code, data)
+    end,
+    -- write
+    function(self, code, reply)
+      write_cb(self, cli)
+    end)
+  end)
+
+end
+
+Connection.pasv = pasv
 Connection.auth = auth
 Connection.open = open
 Connection.help = help
 Connection.list = pasv_list
 Connection.retr = pasv_retr
+Connection.stor = pasv_stor
 
 end
 -------------------------------------------------------------------
 
 local function run()
+  local ltn12 = require "ltn12"
 
   local ftp = Connection:new("127.0.0.1:21", {
-    uid = "user",
-    pwd = "xxx",
+    uid = "moteus",
+    pwd = "123456",
   })
 
   function ftp:on_error(err)
     print("<ERROR>", err)
   end
 
-  -- function ftp:on_trace_control(line, send)
-  --   print(send and "> " or "< ", trim(line))
-  --   print("**************************")
-  -- end
+  function ftp:on_trace_control(line, send)
+    print(send and "> " or "< ", trim(line))
+    print("**************************")
+  end
 
   function ftp:on_trace_req(req, code, reply)
     print("+", req.data, " GET ", code, reply)
@@ -529,27 +614,38 @@ local function run()
 
   ftp:open(function(self, err, code, data)
     if err then
-      print(err)
+      print("OPEN", err)
       return self:close()
     end
-    print("OPEN: ", code, data)
 
-    self:list("test1.dat", function(self, err, code, data)
-      print("LIST #1:", err, code, data)
+    -- self:list("test1.dat", function(self, err, code, data)
+    --   print("LIST #1:", err, code, data)
+    -- end)
+    -- 
+    -- self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
+    --   print("RETR #1:", err, code, data)
+    -- end)
+    -- 
+    -- self:list("test1.dat", function(self, err, code, data)
+    --   print("LIST #2:", err, code, data)
+    -- end)
+    -- 
+    -- self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
+    --   print("RETR #2:", err, code, data)
+    --   self:close()
+    -- end)
+
+    local src = ltn12.source.file(io.open("ftp.lua", "rb"))
+    self:stor("ftp.lua", {source = src}, function(self, err, code, data)
+      print("STOR ", err, code, data)
     end)
 
-    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
-      print("RETR #1:", err, code, data)
-    end)
-
-    self:list("test1.dat", function(self, err, code, data)
-      print("LIST #2:", err, code, data)
-    end)
-
-    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
-      print("RETR #2:", err, code, data)
+    local snk = ltn12.sink.file(io.open("test1.dat", "w+b"))
+    self:retr("test1.dat", {type = "i", rest = 0, sink = snk}, function(self, err, code, data)
+      print("RETR ", err, code, data)
       self:close()
     end)
+
   end)
 
   uv.run(debug.traceback)
