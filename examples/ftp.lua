@@ -385,23 +385,32 @@ pasv_exec_impl = function (self, cmd)
 
     local ftp = self
 
-    function ctx:error(err)
+    function ctx:data_done(err)
       cli:close()
-      return self:_return(err)
-    end
 
-    function ctx:done(code, reply)
-      if not is_2xx(code) then
-        cli:close()
-        return self:_return(nil, code, reply)
+      -- we already had control done
+      if self._ctr_done then
+        return self:_return(err, self._code, self._result)
       end
 
-      if self._done then
-        return self:_return(nil, code, self._result or reply)
+      -- indicate io done
+      self._io_done, self._io_err = true, err
+    end
+
+    function ctx:control_done(err, code, reply)
+      -- we had data_done
+      if self._io_done then
+        return self:_return(err or self._io_err or nil, code, self._result or reply)
       end
 
-      self._code, self._done = code, true
+      -- indicate control done
+      self._ctr_done, self._code, self._result = true, code, self._result or reply
+
+      -- we get error via control channel
+      if err then self:data_done(err) end
     end
+
+    function ctx:get_cli() return cli end
 
     function ctx:_append(data)
       if not self._result then self._result = {} end
@@ -422,18 +431,15 @@ pasv_exec_impl = function (self, cmd)
 
     cli:start_read(function(cli, err, data)
       if err then
-        cli:close()
-
         if err:name() == "EOF" then
-          return ctx:done(ctx._code, ctx:_data())
+          return ctx:data_done()
         end
-
-        return ctx:_return(err)
+        return ctx:data_done(err)
       end
 
       if ctx.chunk_cb then
-        local ok, err = pcall(ctx.chunk_cb, self, data)
         -- @todo check error
+        local ok, err = pcall(ctx.chunk_cb, self, data)
       else ctx:_append(data) end
     end)
 
@@ -517,61 +523,57 @@ local function pasv_retr(self, fname, ...)
     if opt.rest then self:_command("REST", opt.rest) end
 
     self:_command("RETR", fname, function(self, err, code, data)
-      if err then return ctx:error(err) end
-      if is_1xx(code) then return end
-      ctx:done(code, reply)
+      return ctx:control_done(err, code, data)
     end)
   end)
 end
 
 local function pasv_stor(self, fname, opt, cb)
 
-  local write_cb
-  if type(opt) == "table" then
-    if opt.source then
+  pasv_exec(self, function(self, err, ctx)
 
-      local on_write = function(cli, err)
-        if err then
-          cli:close()
-          return ocall(cb, self, err)
+    local write_cb, data
+    if type(opt) == "table" then
+      if opt.source then
+
+        local on_write = function(cli, err)
+          if err then return ctx:data_done(err) end
+          return write_cb(self, cli)
         end
-        return write_cb(self, cli)
-      end
 
-      write_cb = function(self, cli)
-        local chunk = opt.source()
-        if chunk then return cli:write(chunk, on_write) end
-        return cli:close()
-      end
+        write_cb = function(self, cli)
+          local chunk = opt.source()
+          if chunk then return cli:write(chunk, on_write) end
+          return ctx:data_done()
+        end
 
+      else
+        write_cb = assert(opt.writer)
+      end
     else
-      write_cb = assert(opt.writer)
+      assert(type(opt) == "string")
+      local data data, opt = opt, {}
+      write_cb = function(self, cli)
+        cli:write(data, function(cli, err)
+          ctx:data_done(err)
+        end)
+      end
     end
+
+    if err then return ocall(cb, err) end
+
+    local cli = ctx:get_cli()
+    ctx.cb = cb
 
     -- @todo check result of command
     if opt.type then self:_command("TYPE", opt.type) end
 
-  else
-    assert(type(opt) == "string")
-    write_cb = function(self, cli)
-      cli:write(opt, function(cli, err)
-        cli:close()
-        if err then return ocall(cb, self, err) end
-      end)
-    end
-  end
-
-  self:pasv(function(self, err, cli)
-    if err then return ocall(cb, err) end
-
-    
     self:_command("STOR", "test1.ttt", 
-    -- command
-    function(self, err, code, data)
-      cli:close()
-      if err then return ocall(cb, err) end
-      return ocall(cb, err, code, data)
-    end,
+      -- command
+      function(self, err, code, data)
+        return ctx:control_done(err, code, data)
+      end,
+  
     -- write
     function(self, code, reply)
       write_cb(self, cli)
@@ -636,7 +638,7 @@ local function run()
     -- end)
 
     local src = ltn12.source.file(io.open("ftp.lua", "rb"))
-    self:stor("ftp.lua", {source = src}, function(self, err, code, data)
+    self:stor("ftp.lua", {type = "i", source = src}, function(self, err, code, data)
       print("STOR ", err, code, data)
     end)
 
