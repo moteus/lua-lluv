@@ -738,7 +738,7 @@ local function pasv_stor(self, fname, opt, cb)
     -- @todo check result of command
     if opt.type then self:_command("TYPE", opt.type) end
 
-    self:_command("STOR", "test1.ttt", 
+    self:_command("STOR", fname, 
       -- command
       function(self, err, code, data)
         return ctx:control_done(err, code, data)
@@ -900,7 +900,6 @@ local function run()
 
     self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
       print("RETR #2:", err, code, data)
-      self:close()
     end)
 
     local src = ltn12.source.file(io.open("ftp.lua", "rb"))
