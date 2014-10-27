@@ -2,6 +2,21 @@
 -- This code is in development state and may be (and will) changed
 ------------------------------------------------------------------
 
+-- Usage:
+
+-- local ftp = Ftp.new("127.0.0.1:21",{
+--   uid = "moteus",
+--   pwd = "123456",
+-- })
+-- 
+-- ftp:open(function(self, err)
+--   assert(not err, tostring(err))
+--   self:mkdir("sub") -- ignore error
+--   self:store("sub/test.txt", "Some data", function(self, err)
+--     assert(not err, tostring(err))
+--   end)
+-- end)
+
 local uv = require "lluv"
 local ut = require "lluv.utils"
 local va = require "vararg"
@@ -564,6 +579,18 @@ local function pwd(self, cb)
   self._command(self, "PWD", trim_code(cb))
 end
 
+local function mdtm(self, arg, cb)
+  assert(arg)
+  assert(cb)
+  self._command(self, "MDTM", arg, trim_code(cb))
+end
+
+local function mkd(self, arg, cb)
+  assert(arg)
+  assert(cb)
+  self._command(self, "MKD", arg, trim_code(cb))
+end
+
 local function hash(self, arg, cb)
   assert(arg)
   assert(cb)
@@ -585,6 +612,12 @@ local function rmd(self, arg, cb)
   assert(cb)
   assert(arg)
   self._command(self, "RMD", arg, ret_true(cb))
+end
+
+local function dele(self, arg, cb)
+  assert(cb)
+  assert(arg)
+  self._command(self, "DELE", arg, ret_true(cb))
 end
 
 local function size(self, arg, cb)
@@ -734,10 +767,15 @@ Connection.auth   = auth
 Connection.chdir  = cwd
 Connection.cwd    = cwd
 Connection.pwd    = pwd
+Connection.mdtm   = mdtm
 Connection.hash   = hash
 Connection.rename = rename
 Connection.rmdir  = rmd
 Connection.rmd    = rmd
+Connection.remove = dele
+Connection.dele   = dele
+Connection.mkd    = mkd
+Connection.mkdir  = mkd
 Connection.size   = size
 Connection.stat   = stat
 Connection.list   = pasv_list
@@ -774,6 +812,12 @@ local function run()
       print("OPEN FAIL: ", err)
       return self:close()
     end
+
+    self:mdtm("test1.dat", print)
+
+    self:mkdir("sub1", print)
+
+    self:rmdir("sub1", print)
 
     self:help(function(self, err, list)
       if err then return print("HELP #1:", err) end
@@ -821,7 +865,7 @@ local function run()
       end
       print("LIST #1: done")
     end)
-    
+
     self:list("test12.dat", function(self, err, list)
       if err then return print("LIST #2:", err) end
       for k, v in ipairs(list) do
@@ -849,21 +893,21 @@ local function run()
     self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
       print("RETR #1:", err, code, data)
     end)
-    
+
     self:list("test1.dat", function(self, err, code, data)
       print("LIST #2:", err, code, data)
     end)
-    
+
     self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
       print("RETR #2:", err, code, data)
       self:close()
     end)
-    
+
     local src = ltn12.source.file(io.open("ftp.lua", "rb"))
     self:stor("ftp.lua", {type = "i", source = src}, function(self, err, code, data)
       print("STOR ", err, code, data)
     end)
-    
+
     local snk = ltn12.sink.file(io.open("test1.dat", "w+b"))
     self:retr("test1.dat", {type = "i", rest = 0, sink = snk}, function(self, err, code, data)
       print("RETR ", err, code, data)
