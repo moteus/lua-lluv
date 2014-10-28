@@ -350,7 +350,7 @@ end
 local function self_test(server, key)
   key = key or "test_key"
 
-  Connection:new(server):open(function(self, err)
+  Connection.new(server):open(function(self, err)
     assert(not err, tostring(err))
 
     function self:on_error(err)
@@ -482,5 +482,6 @@ local function self_test(server, key)
 end
 
 return {
-  Connection = function(...) return Connection:new(...) end
+  Connection = Connection;
+  self_test  = self_test;
 }

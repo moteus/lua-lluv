@@ -403,49 +403,7 @@ end
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
-do -- Implement FTP commands
-
-local function on_greet(self, code, data, cb)
-  if code == 220 and self._user then
-    return self:auth(self._user, self._pass, cb)
-  end
-  return ocall(cb, self, code, data)
-end
-
-local function open(self, cb)
-  return self:_connect(function(self, err, code, greet)
-    if err then return ocall(cb, self, err) end
-    on_greet(self, code, data, cb)
-  end)
-end
-
-local function pasv(self, cb)
-  self:_command("PASV", function(self, err, code, reply)
-
-    if err then return ocall(cb, self, err) end
-
-    if not is_2xx(code) then
-      return ocall(cb, self, ErrorState(code, reply))
-    end
-
-    local pattern = "(%d+)%D(%d+)%D(%d+)%D(%d+)%D(%d+)%D(%d+)"
-    local _, _, a, b, c, d, p1, p2 = va.map(tonumber, string.find(reply, pattern))
-    if not a then
-      self:close()
-      return ocall(cb, self, Error(EPROTO, data))
-    end
-
-    local ip, port = string.format("%d.%d.%d.%d", a, b, c, d), p1*256 + p2
-    uv.tcp():connect(ip, port, function(cli, err)
-      if err then
-        cli:close()
-        return ocall(cb, self, err)
-      end
-      return ocall(cb, self, nil, cli)
-    end)
-
-  end)
-end
+do -- Implement FTP pasv command
 
 local pasv_command_impl, pasv_exec_impl
 
@@ -465,7 +423,7 @@ local function pasv_dispatch_impl(self)
 end
 
 pasv_command_impl = function(self, cmd, arg, cb, chunk_cb)
-  return pasv(self, function(self, err, cli)
+  return self:pasv(function(self, err, cli)
     if err then
       if cli then cli:close() end
       return ocall(cb, self, err)
@@ -514,8 +472,8 @@ pasv_command_impl = function(self, cmd, arg, cb, chunk_cb)
   end)
 end
 
-pasv_exec_impl = function (self, cmd)
-  return pasv(self, function(self, err, cli)
+pasv_exec_impl = function(self, cmd)
+  return self:pasv(function(self, err, cli)
     if err then
       if cli then cli:close() end
       return cmd(self, err)
@@ -604,7 +562,7 @@ local function pasv_command_(self, cmd, arg, cb, chunk_cb)
   return pasv_dispatch_impl(self)
 end
 
-local function pasv_command(self, cmd, ...)
+function Connection:pasv_command(cmd, ...)
   if type(...) == "function" then
     pasv_command_(self, cmd, nil, ...)
   else
@@ -612,7 +570,7 @@ local function pasv_command(self, cmd, ...)
   end
 end
 
-local function pasv_exec(self, cmd)
+function Connection:pasv_exec(cmd)
   local args = va(cmd)
 
   self._pasv_pending:push(args)
@@ -620,9 +578,101 @@ local function pasv_exec(self, cmd)
   return pasv_dispatch_impl(self)
 end
 
+function Connection:pasv(cb)
+  assert(cb)
+
+  self:_command("PASV", function(self, err, code, reply)
+
+    if err then return ocall(cb, self, err) end
+
+    if not is_2xx(code) then
+      return ocall(cb, self, ErrorState(code, reply))
+    end
+
+    local pattern = "(%d+)%D(%d+)%D(%d+)%D(%d+)%D(%d+)%D(%d+)"
+    local _, _, a, b, c, d, p1, p2 = va.map(tonumber, string.find(reply, pattern))
+    if not a then
+      self:close()
+      return ocall(cb, self, Error(EPROTO, data))
+    end
+
+    local ip, port = string.format("%d.%d.%d.%d", a, b, c, d), p1*256 + p2
+    uv.tcp():connect(ip, port, function(cli, err)
+      if err then
+        cli:close()
+        return ocall(cb, self, err)
+      end
+      return ocall(cb, self, nil, cli)
+    end)
+
+  end)
+end
+
+end
 -------------------------------------------------------------------
 
-local function auth(self, uid, pwd, cb)
+-------------------------------------------------------------------
+do -- Implement FTP open
+
+function Connection:on_greet(code, data, cb)
+  if code == 220 and self._user then
+    return self:auth(self._user, self._pass, cb)
+  end
+  return ocall(cb, self, code, data)
+end
+
+function Connection:open(cb)
+  return self:_connect(function(self, err, code, greet)
+    if err then return ocall(cb, self, err) end
+    self:on_greet(code, data, cb)
+  end)
+end
+
+function Connection:close()
+  return self._disconnect()
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
+do -- Implement FTP commands
+
+local trim_code = function(cb)
+  return function(self, err, code, data)
+    if not err then return cb(self, nil, data) end
+    return cb(self, err, code, data)
+  end
+end
+
+local ret_true = function(cb)
+  return function(self, err, code, data)
+    if err then return cb(self, err, code, data) end
+    return cb(self, nil, true)
+  end
+end
+
+local file_not_found = function (err)
+  return err:no() == Error.ESTATE and err:code() == 550
+end
+
+local list_cb = function(cb)
+  return function(self, err, code, data)
+    if err then
+      if file_not_found(err) then return cb(self, nil, {}, err) end
+      return cb(self, err)
+    end
+    cb(self, nil, ut.split(table.concat(data), EOL, true))
+  end
+end
+
+-- This is Low Level commands
+
+function Connection:command(...)
+  return self:_command(...)
+end
+
+function Connection:auth(uid, pwd, cb)
   self:_command("USER", uid, function(self, err, code, reply)
     if err then return ocall(cb, self, err) end
     if not is_3xx(code) then return ocall(cb, self, nil, code, reply) end
@@ -630,7 +680,7 @@ local function auth(self, uid, pwd, cb)
   end)
 end
 
-local function help(self, arg, cb)
+function Connection:help(arg, cb)
   if not cb then arg, cb = nil, arg end
   assert(cb)
   self._command(self, "HELP", arg, function(self, err, code, data)
@@ -657,98 +707,67 @@ local function help(self, arg, cb)
   end)
 end
 
-local function noop(self, cb)
+function Connection:noop(cb)
   self._command(self, "NOOP", cb)
 end
 
-local trim_code = function(cb)
-  return function(self, err, code, data)
-    if not err then return cb(self, nil, data) end
-    return cb(self, err, code, data)
-  end
-end
-
-local ret_true = function(cb)
-  return function(self, err, code, data)
-    if err then return cb(self, err, code, data) end
-    return cb(self, nil, true)
-  end
-end
-
-local function cwd(self, arg, cb)
+function Connection:cwd(arg, cb)
   assert(arg)
-  assert(cb)
-  self._command(self, "CWD", arg, ret_true(cb))
+  self._command(self, "CWD", arg, cb and ret_true(cb))
 end
 
-local function pwd(self, cb)
+function Connection:pwd(cb)
   assert(cb)
   self._command(self, "PWD", trim_code(cb))
 end
 
-local function mdtm(self, arg, cb)
+function Connection:mdtm(arg, cb)
   assert(arg)
   assert(cb)
   self._command(self, "MDTM", arg, trim_code(cb))
 end
 
-local function mkd(self, arg, cb)
+function Connection:mkd(arg, cb)
   assert(arg)
-  assert(cb)
-  self._command(self, "MKD", arg, trim_code(cb))
+  self._command(self, "MKD", arg, cb and trim_code(cb))
 end
 
-local function hash(self, arg, cb)
+function Connection:hash(arg, cb)
   assert(arg)
   assert(cb)
   self._command(self, "HASH", arg, cb)
 end
 
-local function rename(self, fr, to, cb)
+function Connection:rename(fr, to, cb)
   assert(fr)
   assert(to)
   self._command(self, "RNFR", fr, function(self, err, code, data)
     if err then return cb(self, err, code, data) end
     assert(code == 350)
-    self._command(self, "RNTO", to, cb)
+    self._command(self, "RNTO", to, cb and ret_true(cb))
   end)
 end
 
-local function rmd(self, arg, cb)
-  assert(cb)
+function Connection:rmd(arg, cb)
   assert(arg)
-  self._command(self, "RMD", arg, ret_true(cb))
+  self._command(self, "RMD", arg, cb and ret_true(cb))
 end
 
-local function dele(self, arg, cb)
+function Connection:dele(arg, cb)
   assert(arg)
   self._command(self, "DELE", arg, cb and ret_true(cb))
 end
 
-local function size(self, arg, cb)
-  assert(cb)
+function Connection:size(arg, cb)
   assert(arg)
+  assert(cb)
   self._command(self, "SIZE", arg, function(self, err, code, data)
     if err then return cb(self, err) end
     return cb(self, nil, tonumber(data) or data)
   end)
 end
 
-local function file_not_found(err)
-  return err:no() == Error.ESTATE and err:code() == 550
-end
-
-local list_cb = function(cb)
-  return function(self, err, code, data)
-    if err then
-      if file_not_found(err) then return cb(self, nil, {}, err) end
-      return cb(self, err)
-    end
-    cb(self, nil, ut.split(table.concat(data), EOL, true))
-  end
-end
-
-local function stat(self, arg, cb)
+function Connection:stat(arg, cb)
   if not cb then arg, cb = nil, arg end
   assert(cb)
   self._command(self, "STAT", arg, function(self, err, code, list)
@@ -762,27 +781,27 @@ local function stat(self, arg, cb)
   end)
 end
 
-local function pasv_list(self, arg, cb)
+function Connection:list(arg, cb)
   if not cb then arg, cb = nil, arg end
   assert(cb)
-  return pasv_command(self, "LIST", arg, list_cb(cb))
+  return self:pasv_command("LIST", arg, list_cb(cb))
 end
 
-local function pasv_nlst(self, arg, cb)
+function Connection:nlst(arg, cb)
   if not cb then arg, cb = nil, arg end
   assert(cb)
-  return pasv_command(self, "NLST", arg, list_cb(cb))
+  return self:pasv_command("NLST", arg, list_cb(cb))
 end
 
-local function pasv_retr(self, fname, ...)
+function Connection:retr(fname, ...)
   assert(type(fname) == "string")
 
   local opt, cb = ...
   if type(opt) ~= "table" then
-    return pasv_command(self, "RETR", fname, ...)
+    return self:pasv_command("RETR", fname, ...)
   end
 
-  return pasv_exec(self, function(self, err, ctx)
+  return self:pasv_exec(function(self, err, ctx)
     if err then return ocall(cb, self, err) end
     ctx.cb = cb
     if opt.sink then
@@ -804,8 +823,8 @@ local function pasv_retr(self, fname, ...)
   end)
 end
 
-local function pasv_stor(self, fname, opt, cb)
-  pasv_exec(self, function(self, err, ctx)
+function Connection:stor(fname, opt, cb)
+  self:pasv_exec(function(self, err, ctx)
 
     local write_cb, data
     if type(opt) == "table" then
@@ -855,38 +874,6 @@ local function pasv_stor(self, fname, opt, cb)
     end)
   end)
 end
-
--- This is Low Level commands
-Connection.command       = Connection._command
-Connection.pasv          = pasv
-Connection.pasv_command  = pasv_command
-Connection.pasv_exec     = pasv_exec
-
--- Open connection to ftp
-Connection.open   = open
-
--- Specific ftp commands
-Connection.noop   = noop
-Connection.help   = help
-Connection.auth   = auth
-Connection.chdir  = cwd
-Connection.cwd    = cwd
-Connection.pwd    = pwd
-Connection.mdtm   = mdtm
-Connection.hash   = hash
-Connection.rename = rename
-Connection.rmdir  = rmd
-Connection.rmd    = rmd
-Connection.remove = dele
-Connection.dele   = dele
-Connection.mkd    = mkd
-Connection.mkdir  = mkd
-Connection.size   = size
-Connection.stat   = stat
-Connection.list   = pasv_list
-Connection.nlst   = pasv_nlst
-Connection.retr   = pasv_retr
-Connection.stor   = pasv_stor
 
 end
 -------------------------------------------------------------------
