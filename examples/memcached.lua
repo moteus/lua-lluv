@@ -49,10 +49,11 @@ local usplit      = ut.usplit
 local split_first = ut.split_first
 
 local Error = ut.Errors{
-  { EPROTO       = "Protocol error"            },
-  { ERROR        = "Unsupported command name"  },
-  { CLIENT_ERROR = "Invalid command arguments" },
-  { SERVER_ERROR = "Server error"              },
+  { EPROTO           = "Protocol error"                 },
+  { ERROR            = "Unsupported command name"       },
+  { CLIENT_ERROR     = "Invalid command arguments"      },
+  { SERVER_ERROR     = "Server error"                   },
+  { ECONN            = "Problem with server connection" },
 }
 
 local function cb_args(...)
@@ -110,8 +111,10 @@ Connection.__index = Connection
 function Connection:new(server)
   local o = setmetatable({}, self)
 
-  local host, port = usplit(server, ":")
-  o._host  = host or "127.0.0.1"
+  server = server or "127.0.0.1"
+
+  local host, port = split_first(server, ":")
+  o._host  = host
   o._port  = port or "11211"
   o._buff  = ut.Buffer(EOL) -- pending data
   o._queue = ut.Queue()     -- pending requests
@@ -139,7 +142,7 @@ function Connection:open(cb)
 
     cli:start_read(function(cli, err, data)
       if err then
-        self:close()
+        self:close(err)
         return ocall(self.on_error, self, err)
       end
       return self:_read(data)
@@ -149,13 +152,24 @@ function Connection:open(cb)
   end)
 end
 
-function Connection:close()
+function Connection:close(err)
   if not self:connected() then return end
   self._cnn:close()
   self._cnn = nil
+  self._reset_queue(err)
 end
 
 function Connection:on_error(err) end
+
+function Connection:_reset_queue(err)
+  if not self._queue.peek() then return end
+  err = err or Error(Error.ECONN)
+  while true do
+    local req = self._queue.pop()
+    if not req then break end
+    ocall(req.cb, self, err)
+  end
+end
 
 local WAIT = {}
 
