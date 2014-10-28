@@ -60,10 +60,14 @@ local function is_err(n) return is_4xx(n) or is_5xx(n) end
 local Error = ut.Errors{
   { EPROTO = "Protocol error" },
   { ESTATE = "Can not perform commant in this state" },
-  { ECBACK = "Error while callink callback function" },
+  { ECBACK = "Error while calling callback function" },
+  { EREADY = "Ftp client not ready" },
+  { ECONN  = "Problem with server connection" },
 }
 local EPROTO = Error.EPROTO
 local ECBACK = Error.ECBACK
+local EREADY = Error.EREADY
+local ECONN  = Error.ECONN
 
 -------------------------------------------------------------------
 local ErrorState do
@@ -105,10 +109,6 @@ end
 end
 -------------------------------------------------------------------
 
-print(ErrorState(200, "OK"))
-
-do return end
-
 local WAIT = {}
 
 -------------------------------------------------------------------
@@ -147,16 +147,10 @@ function ResponseParser:next(buf) while true do
     if (sep == " ") or (sep == "") then -- end of response
       self:append(msg)
 
-      local resp = tonumber(resp)
-      local data = self._data
+      local resp, data = tonumber(resp), self._data
       self:reset()
 
-      if is_err(resp) then
-        if type(data) == "table" then data = table.concat(data, "\n") end
-        return nil, ErrorState(resp, data)
-      end
-
-      return va(resp, data)
+      return resp, data
     end
     if sep ~= "-" then return nil, Error(EPROTO, line) end
   end
@@ -188,65 +182,135 @@ end
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
+local TcpConnection = class() do
+
+function TcpConnection:__init(host, port)
+  self._host  = assert(host)
+  self._port  = assert(port)
+  self._sock  = uv.tcp()
+  self._ready = false
+  return self
+end
+
+function TcpConnection:_disconnect(err)
+  self._sock:close()
+  self._sock = uv.tcp()
+  if self._ready then ocall(self.on_disconnect, self, err) end
+  self._ready = false
+  return self
+end
+
+function TcpConnection:connect()
+  local ok, err = self._sock:connect(self._host, self._port, function(cli, err)
+    if err then self:_disconnect(err) end
+    ocall(self.on_connect, self, err)
+    if err then return end
+
+    self._ready = true
+
+    cli:start_read(function(cli, err, data)
+      if err then return self:_disconnect(err) end
+      return ocall(self.on_data, self, data)
+    end)
+
+  end)
+  return self
+end
+
+function TcpConnection:disconnect(err)
+  return self:_disconnect(err)
+end
+
+function TcpConnection:reconnect()
+  return self
+    :disconnect()
+    :connect()
+end
+
+function TcpConnection:ready()
+  return not not self._ready
+end
+
+function TcpConnection:write(data, cb)
+  self._sock:write(data, function(self, err)
+    if err then self._disconnect(err) end
+    ocall(cb, self, err)
+  end)
+end
+
+function TcpConnection:close()
+  if not self._sock then return end
+  self._sock:close()
+  self._defer, self._sock = nil
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
 local Connection = class() do
-Connection.__index = Connection
 
 function Connection:__init(server, opt)
-  local host, port = usplit(server, ":")
-  self._host  = host or "127.0.0.1"
+  local host, port = split_first(server or "127.0.0.1", ":")
+  self._host  = host
   self._port  = port or "21"
   self._user  = opt.uid
   self._pass  = opt.pwd
-  
+  self._cnn   = TcpConnection.new(self._host, self._port)
+  self._auth  = false
+
   self._buff         = ut.Buffer.new(EOL) -- pending data
   self._queue        = ut.Queue.new()     -- pending requests
   self._pasv_pending = ut.Queue.new()     -- passive requests
 
+  local this = self
+
+  function self._cnn:on_connect(err)
+    assert(this._queue        :empty())
+    assert(this._pasv_pending :empty())
+
+    local cb = this._open_cb
+    this._open_cb = nil
+ 
+    if not err then
+      this._queue:push{parser = ResponseParser:new(), cb = cb}
+    end
+
+  end
+
+  function self._cnn:on_data(data)
+    this:_read(data)
+  end
+
+  function self._cnn:on_disconnect(err)
+    this:_reset_queue(err)
+    this._buff:reset()
+  end
+
   return self
 end
 
-function Connection:connected()
-  return not not self._cnn
+function Connection:ready()
+  return self._cnn:ready()
 end
 
-function Connection:_open(cb)
-  if self:connected() then return ocall(cb, self) end
+function Connection:_connect(cb)
+  if self:ready() then return ocall(cb, self) end
 
-  return uv.tcp():connect(self._host, self._port, function(cli, err)
-    if err then
-      cli:close()
-      return ocall(cb, self, err)
-    end
-
-    cli.data = self
-    self._cnn = cli
-    self._buff:reset()
-    self._queue:reset()
-    self._pasv_pending:reset()
-
-    self._queue:push{parser = ResponseParser:new(), cb = cb}
-
-    cli:start_read(function(cli, err, data)
-      if err then
-        self:close()
-        return ocall(self.on_error, self, err)
-      end
-      return self:_read(data)
-    end)
-
-  end)
+  self._open_cb = cb
+  self._cnn:connect()
+  return self
 end
 
-function Connection:close()
-  if not self:connected() then return end
-  self._cnn:close()
-  self._cnn = nil
+function Connection:_disconnect()
+  self._cnn:disconnect()
 end
 
 function Connection:_read(data)
   local req = self._queue:peek()
   if not req then -- unexpected reply
-    self:close()
+    -- @fixme server can send message before close connection (e.g. timeout)
+    self:_disconnect()
     return ocall(self.on_error, self, Error(EPROTO, data))
   end
 
@@ -256,23 +320,31 @@ function Connection:_read(data)
 
   while req do
     local parser = req.parser
-    local ok, err = parser:next(self._buff)
-    if ok == WAIT then return end
+    local resp, msg = parser:next(self._buff)
 
-    if ok then
-      if self.on_trace_req then
-        self:on_trace_req(req, ok())
+    if resp == WAIT then return end
+
+    if resp then
+      ocall(self.on_trace_req, self, req, resp, data)
+      if is_1xx(resp) then
+        ocall(req.cb_1xx, self, resp, msg)
+      else
+        assert(req == self._queue:pop())
+        if is_err(resp) then
+          if type(msg) == "table" then msg = table.concat(msg, "\n") end
+          ocall(req.cb, self, ErrorState(resp, msg))
+        else
+          ocall(req.cb, self, nil, resp, msg)
+        end
       end
-      if is_1xx((ok())) then
-        return ocall(req.cb_1xx, self, ok())
-      end
+    else
+      -- parser in invalid state. Protocol error?
+      local err = Error(EPROTO, data)
+      self:_disconnect(err)
+      return ocall(self.on_error, self, err)
     end
 
-    assert(req == self._queue:pop())
-
-    if ok then ocall(req.cb, self, nil, ok())
-    else ocall(req.cb, self, err) end
-
+    
     req = self._queue:peek()
   end
 end
@@ -295,6 +367,38 @@ function Connection:_command(...)
   return self:_send(cmd, cb, cb_1xx)
 end
 
+function Connection:_reset_queue(err)
+  err = err or Error(Error.ECONN)
+
+  if not self._queue:empty() then
+    while true do
+      local req = self._queue:pop()
+      if not req then break end
+      ocall(req.cb, self, err)
+    end
+  end
+
+  if not self._pasv_pending:empty() then
+    while true do
+      local arg = self._pasv_pending:pop()
+      if not arg then break end
+      local cmd, arg, cb, chunk_cb = arg()
+      if type(cmd) == "function" then
+        cmd(self, err)
+      else
+        ocall(cb, self, err)
+      end
+    end
+  end
+
+end
+
+function Connection:destroy()
+  if not self._cnn then  end
+  self._cnn:close()
+  self._cnn = nil
+end
+
 end
 -------------------------------------------------------------------
 
@@ -309,11 +413,8 @@ local function on_greet(self, code, data, cb)
 end
 
 local function open(self, cb)
-  return self:_open(function(self, err, code, greet)
-    if err then
-      if cb then return cb(self, err) end
-      return self:close()
-    end
+  return self:_connect(function(self, err, code, greet)
+    if err then return ocall(cb, self, err) end
     on_greet(self, code, data, cb)
   end)
 end
@@ -606,7 +707,6 @@ end
 local function rename(self, fr, to, cb)
   assert(fr)
   assert(to)
-  assert(cb)
   self._command(self, "RNFR", fr, function(self, err, code, data)
     if err then return cb(self, err, code, data) end
     assert(code == 350)
@@ -621,9 +721,8 @@ local function rmd(self, arg, cb)
 end
 
 local function dele(self, arg, cb)
-  assert(cb)
   assert(arg)
-  self._command(self, "DELE", arg, ret_true(cb))
+  self._command(self, "DELE", arg, cb and ret_true(cb))
 end
 
 local function size(self, arg, cb)
@@ -792,22 +891,22 @@ Connection.stor   = pasv_stor
 end
 -------------------------------------------------------------------
 
-local function run()
+local function self_test(server, user, pass)
   local ltn12 = require "ltn12"
 
-  local ftp = Connection:new("127.0.0.1:21", {
-    uid = "moteus",
-    pwd = "123456",
+  local ftp = Connection.new(server, {
+    uid = user,
+    pwd = pass,
   })
 
   function ftp:on_error(err)
     print("<ERROR>", err)
   end
 
-  function ftp:on_trace_control(line, send)
-    print(send and "> " or "< ", trim(line))
-    print("**************************")
-  end
+  -- function ftp:on_trace_control(line, send)
+  --   print(send and "> " or "< ", trim(line))
+  --   print("**************************")
+  -- end
 
   -- function ftp:on_trace_req(req, code, reply)
   --   print("+", req.data, " GET ", code, reply)
@@ -816,115 +915,204 @@ local function run()
   ftp:open(function(self, err, code, data)
     if err then
       print("OPEN FAIL: ", err)
-      return self:close()
+      return self:destroy()
     end
 
-    self:mdtm("test1.dat", print)
-
-    self:mkdir("sub1", print)
-
-    self:rmdir("sub1", print)
-
-    self:help(function(self, err, list)
-      if err then return print("HELP #1:", err) end
-      if type(list) == "table" then -- server return list of commands
-        for k, v in ipairs(list) do
-          print(k, v)
-        end
-      else
-        -- server return just message e.g. `214 For help, please visit ...`
-        print(list)
+    local T
+    local cur_test = 0
+    local function next_test()
+      if cur_test > 0 then
+        print("Test #" .. cur_test .. " - pass")
       end
-      print("HELP #1: done")
-    end)
+      cur_test = cur_test + 1
+      ocall(T[cur_test])
+    end
 
-    self:help("RETR", print)
+    local fname  = "testx.dat"
+    local fname2 = "testxx.dat"
+    
+    local DATA  = "01234567890123456789"
+    T = {
+      function()
+        self:stor(fname, DATA, function(self, err)
+          assert(not err, tostring(err))
+          self:mdtm(fname, function(self, err, data)
+            assert(not err, tostring(err))
+            assert(#data == 14, data)
+            assert(data:find("^%d+"), data)
+            self:retr(fname, function(self, err, code, data)
+              assert(not err, tostring(err))
+              assert(type(code) == "number", code)
+              assert(type(data) == "table", data)
+              data = table.concat(data)
+              assert(data == DATA, data)
+              next_test()
+            end)
+          end)
+        end)
+      end;
 
-    self:stat("test1.dat", function(self, err, list)
-      if err then return print("STAT #1:", err) end
-      for k, v in ipairs(list) do
-        print(k, v)
-      end
-      print("STAT #1: done")
-    end)
+      function()
+        self:stor(fname, DATA, function(self, err)
+          assert(not err, tostring(err))
+          self:retr(fname, {rest = 4}, function(self, err, code, data)
+            assert(not err, tostring(err))
+            assert(type(code) == "number", code)
+            assert(type(data) == "table", data)
+            data = table.concat(data)
+            assert(data == DATA:sub(5), data)
+            next_test()
+          end)
+        end)
+      end;
 
-    self:stat(function(self, err, list)
-      if err then return print("STAT #2:", err) end
-      for k, v in ipairs(list) do
-        print(k, v)
-      end
-      print("STAT #2: done")
-    end)
+      function()
+        self:dele(fname)
 
-    self:rename("test1.dat", "testx.dat", print)
+        self:stor(fname, {source = ltn12.source.string(DATA)}, function(self, err)
+          assert(not err, tostring(err))
+        end)
 
-    self:noop()
+        local t = {}
+        self:retr(fname, {sink = ltn12.sink.table(t)}, function(self, err, code, data)
+          assert(not err, tostring(err))
+          assert(type(data) == "string", data) -- transferred successfully.
+          data = table.concat(t)
+          assert(data == DATA, data)
 
-    self:rename("testx.dat", "test1.dat", print)
+          next_test()
+        end)
+      end;
 
-    self:noop()
+      function()
+        self:stor(fname, DATA, function(self, err)
+          self:dele(fname, function(self, err)
+            assert(not err, tostring(err))
+            self:dele(fname, function(self, err)
+              assert(err)
+              assert(err:name() == "ESTATE", tostring(err))
+              next_test()
+            end)
+          end)
+        end)
+      end;
 
-    self:list("test1.dat", function(self, err, list)
-      if err then return print("LIST #1:", err) end
-      for k, v in ipairs(list) do
-        print(k, v)
-      end
-      print("LIST #1: done")
-    end)
+      function()
+        self:dele(fname, function(self, err)
+          self:list(fname, function(self, err, list)
+            assert(not err, tostring(err))
+            assert(type(list) == "table")
+            assert(#list == 0)
+            next_test()
+          end)
+        end)
+      end;
 
-    self:list("test12.dat", function(self, err, list)
-      if err then return print("LIST #2:", err) end
-      for k, v in ipairs(list) do
-        print(k, v)
-      end
-      print("LIST #2: done")
-    end)
+      function()
+        self:stor(fname, DATA, function(self, err)
+          assert(not err, tostring(err))
+          self:list(fname, function(self, err, list)
+            assert(not err, tostring(err))
+            assert(type(list) == "table")
+            assert(#list == 1)
+            next_test()
+          end)
+        end)
+      end;
 
-    self:list(function(self, err, list)
-      if err then return print("LIST #3:", err) end
-      for k, v in ipairs(list) do
-        print(k, v)
-      end
-      print("LIST #3: done")
-    end)
+      function()
+        self:dele(fname, function(self, err)
+          self:stat(fname, function(self, err, list)
+            assert(not err, tostring(err))
+            assert(type(list) == "table")
+            assert(#list == 0)
+            next_test()
+          end)
+        end)
+      end;
 
-    self:list("/sub", function(self, err, list)
-      if err then return print("LIST #4:", err) end
-      for k, v in ipairs(list) do
-        print(k, v)
-      end
-      print("LIST #4: done")
-    end)
+      function()
+        self:stor(fname, DATA, function(self, err)
+          assert(not err, tostring(err))
+          self:stat(fname, function(self, err, list)
+            assert(not err, tostring(err))
+            assert(type(list) == "table")
+            assert(#list == 1)
+            next_test()
+          end)
+        end)
+      end;
 
-    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
-      print("RETR #1:", err, code, data)
-    end)
+      function()
+        self:stor(fname, DATA, function(self, err)
+          assert(not err, tostring(err))
+          self:dele(fname2)
+          self:rename(fname, fname2, function()
+            self:stat(fname, function(self, err, list)
+              assert(not err, tostring(err))
+              assert(type(list) == "table")
+              assert(#list == 0)
+              self:stat(fname2, function(self, err, list)
+                assert(not err, tostring(err))
+                assert(type(list) == "table")
+                assert(#list == 1)
+                next_test()
+              end)
+            end)
+          end)
+        end)
+      end;
 
-    self:list("test1.dat", function(self, err, code, data)
-      print("LIST #2:", err, code, data)
-    end)
+      function()
+        local l1, l2
 
-    self:retr("test1.dat", {type = "i", rest = 4}, function(self, err, code, data)
-      print("RETR #2:", err, code, data)
-    end)
+        self:list(function(self, err, list)
+          assert(not err, tostring(err))
+          assert(type(list) == "table")
+          assert(#list > 0)
+          l1 = list
+        end)
 
-    local src = ltn12.source.file(io.open("ftp.lua", "rb"))
-    self:stor("ftp.lua", {type = "i", source = src}, function(self, err, code, data)
-      print("STOR ", err, code, data)
-    end)
+        self:noop()
 
-    local snk = ltn12.sink.file(io.open("test1.dat", "w+b"))
-    self:retr("test1.dat", {type = "i", rest = 0, sink = snk}, function(self, err, code, data)
-      print("RETR ", err, code, data)
-      self:close()
-    end)
+        self:list(function(self, err, list)
+          assert(not err, tostring(err))
+          assert(type(list) == "table")
+          assert(#list > 0)
+          l2 = list
+        end)
 
+        self:noop()
+
+        self:list(function(self, err, list)
+          assert(l1)
+          assert(l2)
+          assert(#l1 == #l2)
+          table.sort(l1)
+          table.sort(l2)
+          for k, v in ipairs(l1) do
+            assert(v == l2[k])
+          end;
+          next_test()
+        end)
+
+      end;
+
+      function()
+        self:dele(fname, function()
+          self:dele(fname2, function()
+            self:destroy()
+          end)
+        end)
+      end;
+    }
+    next_test()
   end)
 
   uv.run(debug.traceback)
 end
 
-run()
+self_test("127.0.0.1", "moteus", "123456")
 
 return {
   Connection = function(...) return Connection:new(...) end

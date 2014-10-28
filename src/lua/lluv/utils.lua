@@ -1,4 +1,3 @@
-
 local function split(str, sep, plain)
   local b, res = 1, {}
   while b <= #str do
@@ -325,7 +324,13 @@ end
 -------------------------------------------------------------------
 local DeferQueue = class() do
 
+local va, uv
+
 function DeferQueue:__init()
+
+  va = va or require "vararg"
+  uv = uv or require "lluv"
+
   self._queue = Queue.new()
   self._timer = uv.timer():start(0, 1, function()
     self:_on_time()
@@ -339,15 +344,23 @@ function DeferQueue:_on_time()
   -- so we proceed only currently active
   -- and leave new one to next iteration
   for i = 1, self._queue:size() do
-    local fn = self._queue:pop()
-    if not fn then break end
-    fn()
+    local args = self._queue:pop()
+    if not args then break end
+    args(1, 1)(args(2))
   end
 end
 
-function DeferQueue:call(fn)
-  self._queue.push(fn)
+function DeferQueue:call(...)
+  self._queue.push(va(...))
   if self._queue.size() == 1 then self._timer:again() end
+end
+
+function DeferQueue:close(call)
+  if not self._queue then return end
+
+  if call then self._on_time() end
+  self._timer:close()
+  self._queue, self._timer = nil
 end
 
 end
@@ -441,6 +454,7 @@ return {
   Queue       = Queue;
   List        = List;
   Errors      = MakeErrors;
+  DeferQueue  = DeferQueue;
   class       = class;
   split_first = split_first;
   split       = split;
