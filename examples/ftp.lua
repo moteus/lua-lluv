@@ -23,6 +23,7 @@ local va = require "vararg"
 
 local EOL = "\r\n"
 
+local class       = ut.class
 local usplit      = ut.usplit
 local split_first = ut.split_first
 
@@ -64,50 +65,57 @@ local Error = ut.Errors{
 local EPROTO = Error.EPROTO
 local ECBACK = Error.ECBACK
 
-local function ErrorState(code, reply)
-  local mt = {__index = Error(Error.ESTATE)}
-  local err = setmetatable({}, mt)
+-------------------------------------------------------------------
+local ErrorState do
 
-  function err:code()
-    return code
-  end
+local EState = class(Error.__class) do
 
-  function err:reply()
-    return reply
-  end
-
-  function err:is_1xx() return is_1xx(code) end
-
-  function err:is_2xx() return is_2xx(code) end
-
-  function err:is_3xx() return is_3xx(code) end
-
-  function err:is_4xx() return is_4xx(code) end
-
-  function err:is_5xx() return is_5xx(code) end
-
-  local to_s = err.__tostring
-  function mt:__tostring()
-    local str = to_s(self)
-    return string.format("%s\n%d %s", to_s(self), self:code(), self:reply())
-  end
-
-  return err
+function EState:__init(code, reply)
+  self.__base.__init(self, "ESTATE")
+  self._code  = code
+  self._reply = reply
+  return self
 end
+
+function EState:code()   return self._code         end
+
+function EState:reply()  return self._reply        end
+
+function EState:is_1xx() return is_1xx(self._code) end
+
+function EState:is_2xx() return is_2xx(self._code) end
+
+function EState:is_3xx() return is_3xx(self._code) end
+
+function EState:is_4xx() return is_4xx(self._code) end
+
+function EState:is_5xx() return is_5xx(self._code) end
+
+function EState:__tostring()
+  local str = self.__base.__tostring(self)
+  return string.format("%s\n%d %s", str, self:code(), self:reply())
+end
+
+end
+
+ErrorState = function(...)
+  return EState.new(...)
+end
+
+end
+-------------------------------------------------------------------
+
+print(ErrorState(200, "OK"))
+
+do return end
 
 local WAIT = {}
 
 -------------------------------------------------------------------
-local ResponseParser = {} do
-ResponseParser.__index = ResponseParser
-
-function ResponseParser:new(cmd)
-  local o = setmetatable({}, self)
-  return o
-end
+local ResponseParser = class() do
 
 function ResponseParser:next(buf) while true do
-  local line = buf.next_line()
+  local line = buf:next_line()
   if not line then return WAIT end
 
 -- HELP:
@@ -180,23 +188,21 @@ end
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
-local Connection = {} do
+local Connection = class() do
 Connection.__index = Connection
 
-function Connection:new(server, opt)
-  local o = setmetatable({}, self)
-
+function Connection:__init(server, opt)
   local host, port = usplit(server, ":")
-  o._host  = host or "127.0.0.1"
-  o._port  = port or "21"
-  o._user  = opt.uid
-  o._pass  = opt.pwd
+  self._host  = host or "127.0.0.1"
+  self._port  = port or "21"
+  self._user  = opt.uid
+  self._pass  = opt.pwd
   
-  o._buff    = ut.Buffer(EOL)   -- pending data
-  o._queue   = ut.Queue()       -- pending requests
-  o._pasv_pending = ut.Queue()  -- passive requests
+  self._buff         = ut.Buffer.new(EOL) -- pending data
+  self._queue        = ut.Queue.new()     -- pending requests
+  self._pasv_pending = ut.Queue.new()     -- passive requests
 
-  return o
+  return self
 end
 
 function Connection:connected()
@@ -214,11 +220,11 @@ function Connection:_open(cb)
 
     cli.data = self
     self._cnn = cli
-    self._buff.reset()
-    self._queue.reset()
-    self._pasv_pending.reset()
+    self._buff:reset()
+    self._queue:reset()
+    self._pasv_pending:reset()
 
-    self._queue.push{parser = ResponseParser:new(data), cb = cb}
+    self._queue:push{parser = ResponseParser:new(), cb = cb}
 
     cli:start_read(function(cli, err, data)
       if err then
@@ -238,13 +244,13 @@ function Connection:close()
 end
 
 function Connection:_read(data)
-  local req = self._queue.peek()
+  local req = self._queue:peek()
   if not req then -- unexpected reply
     self:close()
     return ocall(self.on_error, self, Error(EPROTO, data))
   end
 
-  self._buff.append(data)
+  self._buff:append(data)
 
   ocall(self.on_trace_control, self, data, false)
 
@@ -262,19 +268,19 @@ function Connection:_read(data)
       end
     end
 
-    assert(req == self._queue.pop())
+    assert(req == self._queue:pop())
 
     if ok then ocall(req.cb, self, nil, ok())
     else ocall(req.cb, self, err) end
 
-    req = self._queue.peek()
+    req = self._queue:peek()
   end
 end
 
 function Connection:_send(data, cb, cb_1xx)
   ocall(self.on_trace_control, self, data, true)
   self._cnn:write(data)
-  self._queue.push{parser = ResponseParser:new(data), cb = cb, cb_1xx = cb_1xx, data = trim(data)}
+  self._queue:push{parser = ResponseParser:new(data), cb = cb, cb_1xx = cb_1xx, data = trim(data)}
   return self
 end
 
@@ -345,7 +351,7 @@ local pasv_command_impl, pasv_exec_impl
 local function pasv_dispatch_impl(self)
   if self._pasv_busy then return end
 
-  local arg = self._pasv_pending.pop()
+  local arg = self._pasv_pending:pop()
   if not arg then return end
 
   local cmd, arg, cb, chunk_cb = arg()
@@ -492,7 +498,7 @@ local function pasv_command_(self, cmd, arg, cb, chunk_cb)
 
   local args = va(cmd, arg, callback, chunk_cb)
 
-  self._pasv_pending.push(args)
+  self._pasv_pending:push(args)
 
   return pasv_dispatch_impl(self)
 end
@@ -508,7 +514,7 @@ end
 local function pasv_exec(self, cmd)
   local args = va(cmd)
 
-  self._pasv_pending.push(args)
+  self._pasv_pending:push(args)
 
   return pasv_dispatch_impl(self)
 end

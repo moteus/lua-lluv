@@ -44,258 +44,319 @@ local function slit_first_self_test()
   assert(s2 == nil)
 end
 
--------------------------------------------------------------------
-local function Buffer(eol)
-  local EOL = eol or "\n"
+local function class(base)
+  local t = base and setmetatable({}, base) or {}
+  t.__index = t
+  t.__base  = base
 
-  local tail = ""
-
-  local function next_line(data, eol)
-    data = data and (tail .. data) or tail
-
-    local s1, s2 = split_first(data, eol or EOL, true)
-    if s2 then
-      tail = s2
-      return s1
+  function t.new(...)
+    local o = setmetatable({}, t)
+    if o.__init then
+      if t == ... then -- we call as Class:new()
+        return o:__init(select(2, ...))
+      else             -- we call as Class.new()
+        return o:__init(...)
+      end
     end
-    tail = data
+    return o
   end
 
-  local function next_n(data, n)
-    data = data and (tail .. data) or tail
-    if n > #data then
-      tail = data
-      return nil
-    end
-
-    local res = string.sub(data, 1, n)
-    tail = string.sub(data, n+1)
-    return res
-  end
-
-  local function reset()
-    tail = ""
-  end
-
-  local function self_test()
-    local eol = EOL
-
-      -- test next_xxx
-    assert("aaa" == next_line("aaa" .. eol .. "bbb"))
-    assert("bbb" == tail, tail)
-
-    assert("bbbccc" == next_line("ccc" .. eol .. "ddd" .. eol))
-    assert("ddd"..eol == tail, tail)
-
-    assert("ddd" == next_line(eol))
-    assert(eol == tail, "'" .. tail .."'")
-
-    assert("" == next_line(""))
-    assert("" == tail, "'" .. tail .."'")
-
-    assert(nil == next_line(""))
-    assert("" == tail, "'" .. tail .."'")
-
-    assert(nil == next_line("aaa"))
-    assert("aaa" == tail, "'" .. tail .."'")
-
-    assert("aaa" == next_n("123456", 3))
-    assert("123456" == tail, "'" .. tail .."'")
-
-    assert(nil == next_n("", 8))
-    assert("123456" == tail, "'" .. tail .."'")
-
-    assert("123"== next_n("", 3))
-    assert("456" == tail, "'" .. tail .."'")
-
-    assert("456" == next_n(nil, 3))
-    assert("" == tail, "'" .. tail .."'")
-
-    reset()
-
-    assert(nil == next_line("aaa|bbb"))
-    assert("aaa|bbb" == tail, tail)
-
-    assert("aaa" == next_line(nil, "|"))
-    assert("bbb" == tail, tail)
-
-    reset()
-  end
-
-  local function append(data)
-    tail = tail .. data
-  end
-
-  return {
-    next_line = next_line;
-    next_n    = next_n;
-    reset     = reset;
-    append    = append;
-    self_test = self_test;
-  }
+  return t
 end
--------------------------------------------------------------------
 
--------------------------------------------------------------------
-local function List()
-
-  local t, self
-
-  local function reset()
-    t = {first = 0, last = -1}
-    return self
+local function class_self_test()
+  local A = class()
+  function A:__init(a, b)
+    assert(a == 1)
+    assert(b == 2)
   end
 
-  local function push_front(v)
-    assert(v ~= nil)
-    local first = t.first - 1
-    t.first, t[first] = first, v
-    return self
+  A:new(1, 2)
+  A.new(1, 2)
+
+  local B = class(A)
+
+  function B:__init(a,b,c)
+    assert(self.__base == A)
+    A.__init(B, a, b)
+    assert(c == 3)
   end
 
-  local function push_back(v)
-    assert(v ~= nil)
-    local last = t.last + 1
-    t.last, t[last] = last, v
-    return self
-  end
-
-  local function peek_front()
-    return t[t.first]
-  end
-
-  local function peek_back()
-    return t[t.last]
-  end
-
-  local function pop_front()
-    local first = t.first
-    if first > t.last then return end
-
-    local value = t[first]
-    t.first, t[first] = first + 1
-
-    return value
-  end
-
-  local function pop_back()
-    local last = t.last
-    if t.first > last then return end
-
-    local value = t[last]
-    t.last, t[last] = last - 1
-
-    return value
-  end
-
-  local function size()
-    return t.last - t.first + 1
-  end
-
-  local function empty()
-    return t.first > t.last
-  end
-
-  local function self_test()
-    local q = reset()
-
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-
-    assert(q.push_back(1) == q)
-    assert(q.empty() == false)
-    assert(q.size()  == 1)
-
-    assert(q.peek_back() == 1)
-    assert(q.empty() == false)
-    assert(q.size()  == 1)
-
-    assert(q.peek_front() == 1)
-    assert(q.empty() == false)
-    assert(q.size()  == 1)
-
-    assert(q.pop_back() == 1)
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-
-    assert(q.push_front(1) == q)
-    assert(q.empty() == false)
-    assert(q.size()  == 1)
-
-    assert(q.pop_front() == 1)
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-
-    assert(q.pop_back() == nil)
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-
-    assert(q.pop_front() == nil)
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-
-    assert(false == pcall(q.push_back))
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-
-    assert(false == pcall(q.push_front))
-    assert(q.empty() == true)
-    assert(q.size()  == 0)
-    
-    q.push_back(1).push_back(2)
-    assert(q.pop_back() == 2)
-    assert(q.pop_back() == 1)
-
-    q.push_back(1).push_back(2)
-    assert(q.pop_front() == 1)
-    assert(q.pop_front() == 2)
-
-  end
-
-  self = {
-    push_front = push_front,
-    push_back  = push_back,
-    peek_front = peek_front,
-    peek_back  = peek_back,
-    pop_front  = pop_front,
-    pop_back   = pop_back,
-    size       = size,
-    empty      = empty,
-    reset      = reset,
-
-    self_test  = self_test,
-  }
-
-  return self.reset()
+  B:new(1, 2, 3)
+  B.new(1, 2, 3)
 end
--------------------------------------------------------------------
 
 -------------------------------------------------------------------
-local function Queue()
-  local q = List()
+local Buffer = class() do
 
-  local function reset()        q.reset()      return self end
-  local function push(v)        q.push_back(v) return self end
-  local function pop()   return q.pop_front()              end
-  local function peek()  return q.peek_front()             end
-  local function size()  return q.size()                   end
-
-  self = {
-    reset = reset,
-    push  = push,
-    pop   = pop,
-    peek  = peek,
-    size  = size,
-  }
-
+function Buffer:__init(eol)
+  self._eol = eol or "\n"
+  self._tail = ""
   return self
+end
+
+function Buffer:next_line(data, eol)
+  data = data and (self._tail .. data) or self._tail
+
+  local s1, s2 = split_first(data, eol or self._eol, true)
+  if s2 then
+    self._tail = s2
+    return s1
+  end
+  self._tail = data
+end
+
+function Buffer:next_n(data, n)
+  data = data and (self._tail .. data) or self._tail
+  if n > #data then
+    self._tail = data
+    return nil
+  end
+
+  local res = string.sub(data, 1, n)
+  self._tail = string.sub(data, n+1)
+  return res
+end
+
+function Buffer:reset()
+  self._tail = ""
+end
+
+function Buffer:append(data)
+  self._tail = self._tail .. data
+end
+
+function Buffer:eol()
+  return self._eol
+end
+
+function Buffer.self_test(EOL)
+  local b = Buffer:new(EOL)
+  local eol = b:eol()
+
+    -- test next_xxx
+  assert("aaa" == b:next_line("aaa" .. eol .. "bbb"))
+  assert("bbb" == b._tail, b._tail)
+
+  assert("bbbccc" == b:next_line("ccc" .. eol .. "ddd" .. eol))
+  assert("ddd"..eol == b._tail, b._tail)
+
+  assert("ddd" == b:next_line(eol))
+  assert(eol == b._tail, "'" .. b._tail .."'")
+
+  assert("" == b:next_line(""))
+  assert("" == b._tail, "'" .. b._tail .."'")
+
+  assert(nil == b:next_line(""))
+  assert("" == b._tail, "'" .. b._tail .."'")
+
+  assert(nil == b:next_line("aaa"))
+  assert("aaa" == b._tail, "'" .. b._tail .."'")
+
+  assert("aaa" == b:next_n("123456", 3))
+  assert("123456" == b._tail, "'" .. b._tail .."'")
+
+  assert(nil == b:next_n("", 8))
+  assert("123456" == b._tail, "'" .. b._tail .."'")
+
+  assert("123"== b:next_n("", 3))
+  assert("456" == b._tail, "'" .. b._tail .."'")
+
+  assert("456" == b:next_n(nil, 3))
+  assert("" == b._tail, "'" .. b._tail .."'")
+
+  b:reset()
+
+  assert(nil == b:next_line("aaa|bbb"))
+  assert("aaa|bbb" == b._tail, b._tail)
+
+  assert("aaa" == b:next_line(nil, "|"))
+  assert("bbb" == b._tail, b._tail)
+
+  b:reset()
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
+local List = class() do
+
+function List:reset()
+  self._first = 0
+  self._last  = -1
+  self._t     = {}
+  return self
+end
+
+List.__init = List.reset
+
+function List:push_front(v)
+  assert(v ~= nil)
+  local first = self._first - 1
+  self._first, self._t[first] = first, v
+  return self
+end
+
+function List:push_back(v)
+  assert(v ~= nil)
+  local last = self._last + 1
+  self._last, self._t[last] = last, v
+  return self
+end
+
+function List:peek_front()
+  return self._t[self._first]
+end
+
+function List:peek_back()
+  return self._t[self._last]
+end
+
+function List:pop_front()
+  local first = self._first
+  if first > self._last then return end
+
+  local value = self._t[first]
+  self._first, self._t[first] = first + 1
+
+  return value
+end
+
+function List:pop_back()
+  local last = self._last
+  if self._first > last then return end
+
+  local value = self._t[last]
+  self._last, self._t[last] = last - 1
+
+  return value
+end
+
+function List:size()
+  return self._last - self._first + 1
+end
+
+function List:empty()
+  return self._first > self._last
+end
+
+function List.self_test()
+  local q = List:new()
+
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  assert(q:push_back(1) == q)
+  assert(q:empty() == false)
+  assert(q:size()  == 1)
+
+  assert(q:peek_back() == 1)
+  assert(q:empty() == false)
+  assert(q:size()  == 1)
+
+  assert(q:peek_front() == 1)
+  assert(q:empty() == false)
+  assert(q:size()  == 1)
+
+  assert(q:pop_back() == 1)
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  assert(q:push_front(1) == q)
+  assert(q:empty() == false)
+  assert(q:size()  == 1)
+
+  assert(q:pop_front() == 1)
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  assert(q:pop_back() == nil)
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  assert(q:pop_front() == nil)
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  assert(false == pcall(q.push_back, q))
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  assert(false == pcall(q.push_front, q))
+  assert(q:empty() == true)
+  assert(q:size()  == 0)
+
+  q:push_back(1):push_back(2)
+  assert(q:pop_back() == 2)
+  assert(q:pop_back() == 1)
+
+  q:push_back(1):push_back(2)
+  assert(q:pop_front() == 1)
+  assert(q:pop_front() == 2)
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
+local Queue = class() do
+
+function Queue:__init()
+  self._q = List.new()
+  return self
+end
+
+function Queue:reset()        self._q:reset()      return self end
+
+function Queue:push(v)        self._q:push_back(v) return self end
+
+function Queue:pop()   return self._q:pop_front()              end
+
+function Queue:peek()  return self._q:peek_front()             end
+
+function Queue:size()  return self._q:size()                   end
+
+function Queue:empty() return self._q:empty()                  end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
+local DeferQueue = class() do
+
+function DeferQueue:__init()
+  self._queue = Queue.new()
+  self._timer = uv.timer():start(0, 1, function()
+    self:_on_time()
+    if o._queue:empty() then self._timer:stop() else self._timer:again() end
+  end):stop()
+  return self
+end
+
+function DeferQueue:_on_time()
+  -- callback could register new function
+  -- so we proceed only currently active
+  -- and leave new one to next iteration
+  for i = 1, self._queue:size() do
+    local fn = self._queue:pop()
+    if not fn then break end
+    fn()
+  end
+end
+
+function DeferQueue:call(fn)
+  self._queue.push(fn)
+  if self._queue.size() == 1 then self._timer:again() end
+end
+
 end
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
 local MakeErrors = function(errors)
   assert(type(errors) == "table")
-  
+
   local numbers  = {} -- errno => name
   local names    = {} -- name  => errno
   local messages = {}
@@ -317,17 +378,15 @@ local MakeErrors = function(errors)
     messages[name] = msg
   end
 
-  local Error = {} do
-  Error.__index = Error
+  local Error = class() do
 
-  function Error:new(no, ext)
+  function Error:__init(no, ext)
     assert(numbers[no] or names[no], "unknown error: " ..  tostring(no))
 
-    local o = setmetatable({}, self)
-    o._no = names[no] or no
-    o._ext = ext
+    self._no = names[no] or no
+    self._ext = ext
 
-    return o
+    return self
   end
 
   function Error:name()
@@ -356,10 +415,12 @@ local MakeErrors = function(errors)
 
   end
 
-  local o = setmetatable({}, {__call = function(self, ...)
+  local o = setmetatable({
+    __class = Error
+  }, {__call = function(self, ...)
     return Error:new(...)
   end})
-  
+
   for name, no in pairs(names) do
     o[name] = no
   end
@@ -369,9 +430,10 @@ end
 -------------------------------------------------------------------
 
 local function self_test()
-  Buffer().self_test()
-  List().self_test()
+  Buffer.self_test()
+  List.self_test()
   slit_first_self_test()
+  class_self_test()
 end
 
 return {
@@ -379,6 +441,7 @@ return {
   Queue       = Queue;
   List        = List;
   Errors      = MakeErrors;
+  class       = class;
   split_first = split_first;
   split       = split;
   usplit      = usplit;

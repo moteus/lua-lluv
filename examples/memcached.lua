@@ -45,6 +45,7 @@ local STORE_RESP = {
   NOT_EXISTS    = true;
 }
 
+local class       = ut.class
 local usplit      = ut.usplit
 local split_first = ut.split_first
 
@@ -105,21 +106,18 @@ local function make_inc(cmd, key, value, noreply)
 end
 
 -------------------------------------------------------------------
-local Connection = {} do
-Connection.__index = Connection
+local Connection = class() do
 
-function Connection:new(server)
-  local o = setmetatable({}, self)
-
+function Connection:__init(server)
   server = server or "127.0.0.1"
 
   local host, port = split_first(server, ":")
-  o._host  = host
-  o._port  = port or "11211"
-  o._buff  = ut.Buffer(EOL) -- pending data
-  o._queue = ut.Queue()     -- pending requests
+  self._host  = host
+  self._port  = port or "11211"
+  self._buff  = ut.Buffer.new(EOL) -- pending data
+  self._queue = ut.Queue.new()     -- pending requests
 
-  return o
+  return self
 end
 
 function Connection:connected()
@@ -137,8 +135,8 @@ function Connection:open(cb)
 
     cli.data = self
     self._cnn = cli
-    self._buff.reset()
-    self._queue.reset()
+    self._buff:reset()
+    self._queue:reset()
 
     cli:start_read(function(cli, err, data)
       if err then
@@ -156,16 +154,16 @@ function Connection:close(err)
   if not self:connected() then return end
   self._cnn:close()
   self._cnn = nil
-  self._reset_queue(err)
+  self:_reset_queue(err)
 end
 
 function Connection:on_error(err) end
 
 function Connection:_reset_queue(err)
-  if not self._queue.peek() then return end
+  if not self._queue:peek() then return end
   err = err or Error(Error.ECONN)
   while true do
-    local req = self._queue.pop()
+    local req = self._queue:pop()
     if not req then break end
     ocall(req.cb, self, err)
   end
@@ -174,13 +172,13 @@ end
 local WAIT = {}
 
 function Connection:_read(data)
-  local req = self._queue.peek()
+  local req = self._queue:peek()
   if not req then -- unexpected reply
     self:close()
     return ocall(self.on_error, self, Error("EPROTO", data))
   end
 
-  self._buff.append(data)
+  self._buff:append(data)
 
   while req do
     if req.type == REQ_STORE then
@@ -193,14 +191,14 @@ function Connection:_read(data)
       assert(false, "unknown request type :" .. tostring(req.type))
     end
 
-    req = self._queue.peek()
+    req = self._queue:peek()
   end
 end
 
 function Connection:_on_store(req)
-  local line = self._buff.next_line()
+  local line = self._buff:next_line()
   if not line then return WAIT end
-  assert(self._queue.pop() == req)
+  assert(self._queue:pop() == req)
 
   if STORE_RESP[line] then
     return ocall(req.cb, self, nil, line)
@@ -217,11 +215,11 @@ end
 
 function Connection:_on_retr(req)
   if not req.len then -- we wait next value
-    local line = self._buff.next_line()
+    local line = self._buff:next_line()
     if not line then return WAIT end
 
     if line == "END" then -- no more data
-      assert(self._queue.pop() == req)
+      assert(self._queue:pop() == req)
 
       if req.multi then   return ocall(req.cb, self, nil, req.res) end
       if not req.res then return ocall(req.cb, self, nil, nil) end
@@ -235,7 +233,7 @@ function Connection:_on_retr(req)
       req.flags = tonumber(flags) or 0
       req.cas   = cas ~= "" and cas or nil
     elseif SERVER_ERRORS[res] then
-      assert(self._queue.pop() == req)
+      assert(self._queue:pop() == req)
       return ocall(req.cb, self, Error(res, value))
     else
       self:close()
@@ -245,7 +243,7 @@ function Connection:_on_retr(req)
 
   assert(req.len)
 
-  local data = self._buff.next_n(nil, req.len)
+  local data = self._buff:next_n(nil, req.len)
   if not data then return WAIT end
   
   if not req.res then req.res = {} end
@@ -261,7 +259,7 @@ function Connection:_send(data, type, cb)
   else
     req = {type = type, cb=cb}
   end
-  self._queue.push(req)
+  self._queue:push(req)
   return self
 end
 
