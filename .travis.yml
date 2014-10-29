@@ -8,6 +8,9 @@ env:
     # - LUA=lua5.2
     # - LUA=luajit
 
+services:
+  - memcached
+
 branches:
   only:
     - master
@@ -19,6 +22,7 @@ before_install:
   - sudo luarocks install lunitx
   - sudo luarocks install lua-path
   - sudo luarocks install luafilesystem
+  - sudo luarocks install vararg --from=https://rocks.moonscript.org/dev
   # - sudo pip install cpp-coveralls
 
 install:
@@ -28,6 +32,7 @@ script:
   - cd test
   - lua test-active.lua
   - lua -e"require'lluv.utils'.self_test()"
+  - lua -e"require'lluv.memcached'.self_test()"
   - lunit.sh test-fs.lua
 
 # after_success:
