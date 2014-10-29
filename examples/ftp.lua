@@ -4,7 +4,7 @@
 
 -- Usage:
 
--- local ftp = Ftp.new("127.0.0.1:21",{
+-- local ftp = Ftp.Connection.new("127.0.0.1:21",{
 --   uid = "moteus",
 --   pwd = "123456",
 -- })
@@ -12,7 +12,7 @@
 -- ftp:open(function(self, err)
 --   assert(not err, tostring(err))
 --   self:mkdir("sub") -- ignore error
---   self:store("sub/test.txt", "Some data", function(self, err)
+--   self:stor("sub/test.txt", "Some data", function(self, err)
 --     assert(not err, tostring(err))
 --   end)
 -- end)
@@ -1099,8 +1099,7 @@ local function self_test(server, user, pass)
   uv.run(debug.traceback)
 end
 
-self_test("127.0.0.1", "moteus", "123456")
-
 return {
-  Connection = function(...) return Connection:new(...) end
+  Connection = Connection;
+  self_test  = self_test;
 }

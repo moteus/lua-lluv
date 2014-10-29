@@ -1,6 +1,6 @@
 --
 --[[-- usage
-local umc = mc.Connection("127.0.0.1:11211")
+local umc = mc.Connection.new("127.0.0.1:11211")
 
 umc:open(function(err)
   if err then return print(err) end
@@ -252,7 +252,9 @@ function Connection:_on_retr(req)
 end
 
 function Connection:_send(data, type, cb)
-  self._cnn:write(data)
+  self._cnn:write(data, function(cli, err)
+    if err then self:close(err) end
+  end)
   local req
   if type == REQ_RETR_MULTI then
     req = {type = REQ_RETR, cb=cb, multi = true}
@@ -473,7 +475,10 @@ local function self_test(server, key)
         assert(ret == "EXISTS", tostring(ret))
       end)
 
-      self:get(key, function() self:close() end)
+      self:get(key, function()
+        print("Done!")
+        self:close()
+      end)
     end)
   end)
 
