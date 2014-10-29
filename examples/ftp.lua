@@ -254,8 +254,8 @@ function Connection:__init(server, opt)
   local host, port = split_first(server or "127.0.0.1", ":")
   self._host  = host
   self._port  = port or "21"
-  self._user  = opt.uid
-  self._pass  = opt.pwd
+  self._user  = opt.uid or "anonymous"
+  self._pass  = opt.pwd or "anonymous@"
   self._cnn   = TcpConnection.new(self._host, self._port)
   self._auth  = false
 
@@ -775,8 +775,8 @@ function Connection:stat(arg, cb)
       if file_not_found(err) then return cb(self, nil, {}, err) end
       return cb(self, err)
     end
-    if #list > 1 then table.remove(list, 1) end
-    if #list > 1 then table.remove(list, #list) end
+    if #list > 0 then table.remove(list, 1) end
+    if #list > 0 then table.remove(list, #list) end
     cb(self, err, list)
   end)
 end
@@ -890,14 +890,14 @@ local function self_test(server, user, pass)
     print("<ERROR>", err)
   end
 
-  -- function ftp:on_trace_control(line, send)
-  --   print(send and "> " or "< ", trim(line))
-  --   print("**************************")
-  -- end
+  function ftp:on_trace_control(line, send)
+    print(send and "> " or "< ", trim(line))
+    print("**************************")
+  end
 
-  -- function ftp:on_trace_req(req, code, reply)
-  --   print("+", req.data, " GET ", code, reply)
-  -- end
+  function ftp:on_trace_req(req, code, reply)
+    print("+", req.data, " GET ", code, reply)
+  end
 
   ftp:open(function(self, err, code, data)
     if err then
@@ -942,12 +942,12 @@ local function self_test(server, user, pass)
       function()
         self:stor(fname, DATA, function(self, err)
           assert(not err, tostring(err))
-          self:retr(fname, {rest = 4}, function(self, err, code, data)
+          self:retr(fname, {type = "i", rest = 4}, function(self, err, code, data)
             assert(not err, tostring(err))
             assert(type(code) == "number", code)
             assert(type(data) == "table", data)
             data = table.concat(data)
-            assert(data == DATA:sub(5), data)
+            assert(data == DATA:sub(5), "`" .. data .. "`=`" .. DATA:sub(5) .. "`")
             next_test()
           end)
         end)
@@ -963,9 +963,9 @@ local function self_test(server, user, pass)
         local t = {}
         self:retr(fname, {sink = ltn12.sink.table(t)}, function(self, err, code, data)
           assert(not err, tostring(err))
-          assert(type(data) == "string", data) -- transferred successfully.
+          assert((type(data) == "string") or (type(data) == "table"), tostring(data))
           data = table.concat(t)
-          assert(data == DATA, data)
+          assert(data == DATA, "`" .. data .. "`=`" .. DATA .. "`")
 
           next_test()
         end)

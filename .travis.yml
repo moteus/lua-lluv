@@ -19,10 +19,12 @@ before_install:
   # - sudo apt-get update
   - bash .travis/setup_lua.sh
   - bash .travis/setup_uv.sh
+  - bash .travis/setup_ftp.sh
   - sudo luarocks install lunitx
   - sudo luarocks install lua-path
   - sudo luarocks install luafilesystem
   - sudo luarocks install vararg --from=https://rocks.moonscript.org/dev
+  - sudo luarocks install luasocket
   # - sudo pip install cpp-coveralls
 
 install:
@@ -34,6 +36,8 @@ script:
   - lua -e"require'lluv.utils'.self_test()"
   - lua -e"require'lluv.memcached'.self_test()"
   - lunit.sh test-fs.lua
+  - cd ../examples
+  - lua -e"require'ftp'.self_test('127.0.0.1', 'moteus', '123456')"
 
 # after_success:
 #   - coveralls -b .. -r .. --dump c.report.json
