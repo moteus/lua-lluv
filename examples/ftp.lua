@@ -502,21 +502,27 @@ pasv_exec_impl = function(self, cmd)
 
       -- we already had control done
       if self._ctr_done then
-        return self:_return(err, self._code, self._result)
+        return self:_return(err, self._code, self._io_result or self._ctr_data or self._ctr_reply)
+      end
+
+      if err and err:name() ~= "EOF" then
+        -- we get io error so we ignore any code in control
+        -- and we do not set io_done to prevent call callback from control
+        return self:_return(err)
       end
 
       -- indicate io done
       self._io_done, self._io_err = true, err
     end
 
-    function ctx:control_done(err, code, reply)
+    function ctx:control_done(err, code, reply, data)
       -- we had data_done
       if self._io_done then
-        return self:_return(err or self._io_err or nil, code, self._result or reply)
+        return self:_return(err or self._io_err or nil, code, self._io_result or data or reply)
       end
 
       -- indicate control done
-      self._ctr_done, self._code, self._result = true, code, self._result or reply
+      self._ctr_done, self._code, self._ctr_reply, self._ctr_data = true, code, reply, data
 
       -- we get error via control channel
       if err then self:data_done(err) end
@@ -525,12 +531,8 @@ pasv_exec_impl = function(self, cmd)
     function ctx:get_cli() return cli end
 
     function ctx:_append(data)
-      if not self._result then self._result = {} end
-      self._result[#self._result + 1] = data
-    end
-
-    function ctx:_data()
-      return self._result or true
+      if not self._io_result then self._io_result = {} end
+      self._io_result[#self._io_result + 1] = data
     end
 
     function ctx:_return(...)
