@@ -49,6 +49,16 @@ local function is_xxx(n)
   end
 end
 
+local to_s = function(...)
+  if type(...) == "table" then return table.concat(...) end
+  return (...)
+end
+
+local to_t = function(data)
+  if type(data) == "string" then return {data} end
+  return data
+end
+
 local is_1xx = is_xxx(1)
 local is_2xx = is_xxx(2)
 local is_3xx = is_xxx(3)
@@ -139,42 +149,43 @@ function ResponseParser:next(buf) while true do
     self._resp = resp
   end
 
-  local msg 
-  if not resp then msg = line
-  else msg = line:sub(5) end
+  if not resp then
+    self:append(line, "_data")
+  else
+    self:append(line:sub(5), "_reply")
+  end
 
   if resp then
     if (sep == " ") or (sep == "") then -- end of response
-      self:append(msg)
-
-      local resp, data = tonumber(resp), self._data
+      local resp, reply, data = tonumber(resp), self._reply, self._data
       self:reset()
 
-      return resp, data
+      return resp, reply, data
     end
+
     if sep ~= "-" then return nil, Error(EPROTO, line) end
   end
 
-  self:append(msg)
 end end
 
 function ResponseParser:reset()
   -- @todo check if preview state is done
-  self._data = nil
-  self._resp = nil
+  self._reply = nil
+  self._data  = nil
+  self._resp  = nil
 end
 
-function ResponseParser:append(msg)
+function ResponseParser:append(msg, field)
   if msg == "" then return end
 
-  if self._data then
-    if type(self._data) == "string" then
-      self._data = {self._data, msg}
+  if self[field] then
+    if type(self[field]) == "string" then
+      self[field] = {self[field], msg}
     else
-      self._data[#self._data + 1] = msg
+      self[field][#self[field] + 1] = msg
     end
   else
-    self._data = msg
+    self[field] = msg
   end
 end
 
@@ -320,21 +331,22 @@ function Connection:_read(data)
 
   while req do
     local parser = req.parser
-    local resp, msg = parser:next(self._buff)
+    local resp, reply, data = parser:next(self._buff)
 
     if resp == WAIT then return end
 
     if resp then
-      ocall(self.on_trace_req, self, req, resp, data)
+      if self.on_trace_req then
+        self:on_trace_req(req, resp, to_s(reply, "\n"), to_s(data, "\n"))
+      end
       if is_1xx(resp) then
-        ocall(req.cb_1xx, self, resp, msg)
+        ocall(req.cb_1xx, self, resp, reply, data)
       else
         assert(req == self._queue:pop())
         if is_err(resp) then
-          if type(msg) == "table" then msg = table.concat(msg, "\n") end
-          ocall(req.cb, self, ErrorState(resp, msg))
+          ocall(req.cb, self, ErrorState(resp, to_s(reply, "\n")))
         else
-          ocall(req.cb, self, nil, resp, msg)
+          ocall(req.cb, self, nil, resp, reply, data)
         end
       end
     else
@@ -344,7 +356,6 @@ function Connection:_read(data)
       return ocall(self.on_error, self, err)
     end
 
-    
     req = self._queue:peek()
   end
 end
@@ -408,6 +419,9 @@ do -- Implement FTP pasv command
 local pasv_command_impl, pasv_exec_impl
 
 local function pasv_dispatch_impl(self)
+  -- passive mode require send one extra req/rep and new connection
+  -- so I think overhead to enqueue/dequeue is not too much.
+
   if self._pasv_busy then return end
 
   local arg = self._pasv_pending:pop()
@@ -442,7 +456,7 @@ pasv_command_impl = function(self, cmd, arg, cb, chunk_cb)
           done = true
           return
         end
-
+        -- we do not set done so we prevent call from control flow
         return ocall(cb, self, err)
       end
 
@@ -546,9 +560,6 @@ pasv_exec_impl = function(self, cmd)
 end
 
 local function pasv_command_(self, cmd, arg, cb, chunk_cb)
-  -- passive mode require create send one extra req/rep and new connection
-  -- so I think overhead to enqueue/dequeue is not too much.
-
   local callback = function(...)
     self._pasv_busy = false
     pasv_dispatch_impl(self)
@@ -629,7 +640,7 @@ function Connection:open(cb)
 end
 
 function Connection:close()
-  return self._disconnect()
+  return self:_disconnect()
 end
 
 end
@@ -683,7 +694,7 @@ end
 function Connection:help(arg, cb)
   if not cb then arg, cb = nil, arg end
   assert(cb)
-  self._command(self, "HELP", arg, function(self, err, code, data)
+  self._command(self, "HELP", arg, function(self, err, code, reply, data)
     if err then
       if arg then
         -- check if command not supported
@@ -693,17 +704,14 @@ function Connection:help(arg, cb)
       end
       return cb(self, err)
     end
+
+    if not data then return cb(self, nil, nil, code, reply) end
     if type(data) == "table" then
-      if #data > 1 then table.remove(data, 1) end
-      if #data > 1 then table.remove(data, #data) end
-      if not arg then -- return list of commands
-        local t = {}
-        data = ut.split(trim(table.concat(data, " ")), "%s+")
-      else
-        if #data == 1 then data = data[1] end
-      end
+      data = table.concat(data, " ")
     end
-    cb(self, nil, data)
+    data = ut.split(data, " ")
+
+    cb(self, nil, data, code, reply)
   end)
 end
 
@@ -770,14 +778,12 @@ end
 function Connection:stat(arg, cb)
   if not cb then arg, cb = nil, arg end
   assert(cb)
-  self._command(self, "STAT", arg, function(self, err, code, list)
+  self._command(self, "STAT", arg, function(self, err, code, reply, list)
     if err then
       if file_not_found(err) then return cb(self, nil, {}, err) end
       return cb(self, err)
     end
-    if #list > 0 then table.remove(list, 1) end
-    if #list > 0 then table.remove(list, #list) end
-    cb(self, err, list)
+    cb(self, err, to_t(list) or {})
   end)
 end
 
@@ -890,13 +896,20 @@ local function self_test(server, user, pass)
     print("<ERROR>", err)
   end
 
-  function ftp:on_trace_control(line, send)
-    print(send and "> " or "< ", trim(line))
+  function ftp:on_trace_control(data, send)
+    print(send and "SEND:" or "RECV:")
+    print(data)
     print("**************************")
   end
 
-  function ftp:on_trace_req(req, code, reply)
-    print("+", req.data, " GET ", code, reply)
+  function ftp:on_trace_req(req, code, reply, data)
+    print("+", req.data, " GET ", code)
+    print(reply)
+    if data then
+      print("--------------------------")
+      print(data)
+    end
+    print("++++++++++++++++++++++++++")
   end
 
   ftp:open(function(self, err, code, data)
@@ -917,7 +930,7 @@ local function self_test(server, user, pass)
 
     local fname  = "testx.dat"
     local fname2 = "testxx.dat"
-    
+
     local DATA  = "01234567890123456789"
     T = {
       function()
