@@ -150,7 +150,7 @@ function ResponseParser:next(buf) while true do
   end
 
   if not resp then
-    self:append(line, "_data")
+    self:append(trim(line), "_data")
   else
     self:append(line:sub(5), "_reply")
   end
@@ -722,9 +722,6 @@ function Connection:feat(cb)
   assert(cb)
   self._command(self, "FEAT", function(self, err, code, reply, data)
     if err then return cb(self, err) end
-
-    data = to_t(data) or {}
-    for k, v in pairs(data) do data[k] = trim(v) end
 
     cb(self, nil, to_t(data) or {}, code, reply)
   end)
