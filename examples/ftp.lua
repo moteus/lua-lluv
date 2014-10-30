@@ -707,13 +707,26 @@ function Connection:help(arg, cb)
       return cb(self, err)
     end
 
-    if not data then return cb(self, nil, nil, code, reply) end
-    if type(data) == "table" then
-      data = table.concat(data, " ")
+    if data then
+      if type(data) == "table" then
+        data = table.concat(data, " ")
+      end
+      data = ut.split(data, " ")
     end
-    data = ut.split(data, " ")
 
-    cb(self, nil, data, code, reply)
+    cb(self, nil, data or {}, code, reply)
+  end)
+end
+
+function Connection:feat(cb)
+  assert(cb)
+  self._command(self, "FEAT", function(self, err, code, reply, data)
+    if err then return cb(self, err) end
+
+    data = to_t(data) or {}
+    for k, v in pairs(data) do data[k] = trim(v) end
+
+    cb(self, nil, to_t(data) or {}, code, reply)
   end)
 end
 
