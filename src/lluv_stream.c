@@ -366,7 +366,57 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
+static int lluv_stream_writet(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  int err; lluv_req_t *req;
+  int i, n = lua_rawlen(L, 2);
+  uv_buf_t *buf;
+  
+  assert(lua_type(L, 2) == LUA_TTABLE);
+
+  luaL_argcheck(L, n > 0, 2, "Empty array not supported");
+  
+  buf = (uv_buf_t*)lluv_alloca(sizeof(uv_buf_t) * n);
+  if(!buf){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, ENOMEM, NULL); 
+  }
+
+  if(lua_gettop(L) == 2)
+    lua_settop(L, 3);
+  else
+    lluv_check_args_with_cb(L, 3);
+
+  /* We clone array to save strings from gc */
+  /* user can write
+   * `t = {"HELLO"} sock:write(t) t[1] = nil`
+   */
+  lua_createtable(L, n, 0);
+
+  for(i = 0; i < n; ++i){
+    size_t len; const char *str;
+    lua_rawgeti(L, 2, i + 1);
+    str = luaL_checklstring(L, -1, &len);
+    lua_rawseti(L, -2, i + 1);
+    buf[i] = uv_buf_init((char*)str, len);
+  }
+  lua_replace(L, 2);
+
+  req = lluv_req_new(L, UV_WRITE, handle);
+  lluv_req_ref(L, req); /* table */
+
+  err = uv_write(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), buf, n, lluv_on_stream_write_cb);
+  if(err < 0){
+    lluv_req_free(L, req);
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
 static int lluv_stream_write(lua_State *L){
+  if(lua_type(L, 2) == LUA_TTABLE) return lluv_stream_writet(L); else{
+
   lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   size_t len; const char *str = luaL_checklstring(L, 2, &len);
   int err; lluv_req_t *req;
@@ -388,7 +438,8 @@ static int lluv_stream_write(lua_State *L){
 
   lua_settop(L, 1);
   return 1;
-}
+}}
+
 
 static int lluv_stream_write2(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);

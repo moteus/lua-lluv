@@ -15,6 +15,18 @@
 #include <lua.h>
 #include "l52util.h"
 
+#ifdef _WIN32
+#  include <malloc.h>
+#else
+#  include <alloca.h>
+#endif
+
+#ifdef _MSC_VER
+#  define lluv_alloca _malloca
+#else
+#  define lluv_alloca alloca
+#endif
+
 #define LLUV_LUA_REGISTRY        lua_upvalueindex(1)
 #define LLUV_LOOP_INDEX          lua_upvalueindex(2)
 #define LLUV_ERROR_HANDLER_INDEX lua_upvalueindex(3)
