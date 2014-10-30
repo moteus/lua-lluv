@@ -320,9 +320,11 @@ end
 function Connection:_read(data)
   local req = self._queue:peek()
   if not req then -- unexpected reply
-    -- @fixme server can send message before close connection (e.g. timeout)
-    self:_disconnect()
-    return ocall(self.on_error, self, Error(EPROTO, data))
+    req = {parser = ResponseParser:new(),
+      cb     = function() self:_disconnect() end,
+      cb_1xx = function() self:_disconnect() end,
+    }
+    self._queue:push(req)
   end
 
   self._buff:append(data)

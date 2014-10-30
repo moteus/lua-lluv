@@ -75,6 +75,7 @@ build = {
       incdirs   = { "$(UV_INCDIR)" },
       libdirs   = { "$(UV_LIBDIR)" }
     },
+    ["lluv.ftp"      ] = "src/lua/lluv/ftp.lua",
     ["lluv.utils"    ] = "src/lua/lluv/utils.lua",
     ["lluv.memcached"] = "src/lua/lluv/memcached.lua",
   }
