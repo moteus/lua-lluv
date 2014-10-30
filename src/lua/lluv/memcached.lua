@@ -83,7 +83,8 @@ local function make_store(cmd, key, data, exptime, flags, noreply, cas)
 
   if noreply then buf[#buf + 1] = "noreply" end
 
-  return table.concat(buf, " ") .. EOL ..  data .. EOL
+  -- avoid concat `data` because it could be very big
+  return {table.concat(buf, " ") .. EOL,  data, EOL}
 end
 
 local function make_retr(cmd, key)
