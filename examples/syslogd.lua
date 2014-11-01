@@ -69,9 +69,6 @@ local function syslog_msg(msg)
   return "rfc5424", pri, ver, ts, host, app, procid, msgid, sdata, msg
 end
 
-print(syslog_msg"<15> Oct 31 12:23:30 SERVER Too many bytes.")
-print(syslog_msg"<15> SERVER Too many bytes.")
-
 uv.udp()
   :bind("127.0.0.1", "514")
   :start_recv(function(srv, err, data)
