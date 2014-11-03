@@ -325,7 +325,7 @@ end
 local Buffer = class() do
 
 function Buffer:__init(eol)
-  self._eol = assert(eol)
+  self._eol = eol or "\n"
   self._lst = List.new()
   return self
 end
