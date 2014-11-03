@@ -322,6 +322,124 @@ end
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
+local Buffer = class() do
+
+function Buffer:__init(eol)
+  self._eol = assert(eol)
+  self._lst = ut.List.new()
+  return self
+end
+
+function Buffer:reset()
+  self._lst:reset()
+  return self
+end
+
+function Buffer:eol()
+  return self._eol
+end
+
+function Buffer:append(data)
+  self._lst:push_back(data)
+  return self
+end
+
+function Buffer:next_line(data, eol)
+  eol = eol or self._eol or "\n"
+  if data then self:append(data) end
+  local lst = self._lst
+
+  local t = {}
+  while true do
+    local data = lst:pop_front()
+
+    if not data then -- no EOL in buffer
+      if #t > 0 then lst:push_front(table.concat(t)) end
+      return
+    end
+
+    local line, tail = split_first(data, eol, true)
+    t[#t + 1] = line
+    if tail then -- we found EOL
+      lst:push_front(tail)
+      return table.concat(t)
+    end
+  end
+end
+
+function Buffer:next_n(data, n)
+  if data then self:append(data) end
+  if n == 0 then
+    if self._lst:empty() then return end
+    return ""
+  end
+
+  local lst = self._lst
+  local size, t = 0, {}
+
+  while true do
+    local chunk = lst:pop_front()
+
+    if not chunk then -- buffer too small
+      if #t > 0 then lst:push_front(table.concat(t)) end
+      return
+    end
+
+    if (size + #chunk) >= n then
+      assert(n > size)
+      local pos = n - size
+      local data = string.sub(chunk, 1, pos)
+      if pos < #chunk then
+        lst:push_front(string.sub(chunk, pos + 1))
+      end
+
+      t[#t + 1] = data
+      return table.concat(t)
+    end
+
+    t[#t + 1] = chunk
+    size = size + #chunk
+  end
+end
+
+function Buffer.self_test(EOL)
+  local b = Buffer:new(EOL)
+  local eol = b:eol()
+
+  -- test next_xxx
+  assert("aaa" == b:next_line("aaa" .. eol .. "bbb"))
+
+  assert("bbbccc" == b:next_line("ccc" .. eol .. "ddd" .. eol))
+
+  assert("ddd" == b:next_line(eol))
+
+  assert("" == b:next_line(""))
+
+  assert(nil == b:next_line(""))
+
+  assert(nil == b:next_line("aaa"))
+
+  assert("aaa" == b:next_n("123456", 3))
+
+  assert(nil == b:next_n("", 8))
+
+  assert("123"== b:next_n("", 3))
+
+  assert("456" == b:next_n(nil, 3))
+
+  b:reset()
+
+  assert(nil == b:next_line("aaa|bbb"))
+
+  assert("aaa" == b:next_line(nil, "|"))
+
+  b:reset()
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
 local DeferQueue = class() do
 
 local va, uv
