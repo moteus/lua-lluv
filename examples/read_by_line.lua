@@ -5,15 +5,16 @@ local ut = require "lluv.utils"
 
 local host, port = "127.0.0.1", 5555
 
-local buffer = ut.Buffer("\r\n")
+local buffer = ut.Buffer.new("\r\n")
 
 local function read_data(cli, err, data)
   if err then return cli:close() end
 
-  local line = buffer.next_line(data)
-  while line do
+  buffer:append(data)
+  while true do
+    local line = buffer:next_line()
+    if not line then break end
     print(line)
-    line = buffer.next_line()
   end
 end
 
