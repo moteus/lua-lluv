@@ -133,6 +133,13 @@ local struct = require "struct"
 ----------------------------------------------------------------------------
 local PgSrv = ut.class() do
 
+PgSrv.TYPES = {
+  int2 = { id = 21; len =  2; binary = false};
+  int4 = { id = 23; len =  4; binary = false};
+  int8 = { id = 20; len =  8; binary = false};
+  text = { id = 25; len = -1; binary = false};
+}
+
 function PgSrv:__init(cli)
   self._cli = assert(cli)
   return self
@@ -199,13 +206,14 @@ function PgSrv:recv_query()
   return data
 end
 
-local function FieldName(name)
+local function FieldName(name, type, size)
   local tableid      = 0
   local columnid     = 0
-  local datatypeid   = 23
-  local datatypesize = 4
+
+  local datatypeid   = type.id
+  local datatypesize = (type.len == -1) and size or type.len
   local typemodifier = -1
-  local format_code  = 0 -- 0=text 1=binary
+  local format_code  = type.binary and 1 or 0 -- 0=text 1=binary
 
   return name .. "\000" .. struct.pack(">i4i2i4i2i4i2", 
     tableid, columnid, datatypeid, 
@@ -213,34 +221,54 @@ local function FieldName(name)
   )
 end
 
-function PgSrv:send_query_result(Names, Rows)
-  local fields = {}
-  for _, name in ipairs(Names) do
-    fields[#fields+1] = FieldName(name)
-  end
-
-  local ok, err = self:send_msg('T', struct.pack(">i2c0", #Names, table.concat(fields)))
-  if not ok then return nil, err end
-
-  for _, row in ipairs(Rows) do
-    local cols = {}
-    for _, v in ipairs(row) do
-      v = tostring(v)
-      cols[#cols + 1] = struct.pack(">i4", #v) .. v
+function PgSrv:send_query_result(Data)
+  if Data and Data.header then
+    local fields = {}
+    for _, name in ipairs(Data.header) do
+      fields[#fields+1] = FieldName( (unpack or table.unpack)(name) )
     end
 
-    ok, err = self:send_msg('D', struct.pack(">i2c0", #Names, table.concat(cols)))
+    local ok, err = self:send_msg('T', struct.pack(">i2c0", #Data.header, table.concat(fields)))
     if not ok then return nil, err end
+
+    for _, row in ipairs(Data) do
+      local cols = {}
+      for _, v in ipairs(row) do
+        v = tostring(v)
+        cols[#cols + 1] = struct.pack(">i4", #v) .. v
+      end
+
+      ok, err = self:send_msg('D', struct.pack(">i2c0", #Data.header, table.concat(cols)))
+      if not ok then return nil, err end
+    end
   end
-  return true
+  return self:send_query_complite(Data and #Data or 0)
 end
 
-function PgSrv:send_query_complite()
-  return self:send_msg("C", "SELECT 2\0")
+function PgSrv:send_query_complite(n)
+  return self:send_msg("C", "SELECT " .. tostring(n) .. "\0")
 end
 
 end
 ----------------------------------------------------------------------------
+
+local StaticResult = {
+  ["select oid, typbasetype from pg_type where typname = 'lo'"] = {};
+  ["select pg_client_encoding()"] = {
+    header = {
+      {"pg_client_encoding", PgSrv.TYPES.text, 20};
+    };
+    {"WIN1251"};
+  };
+  ["*"] = {
+    header = {
+      {'Field1', PgSrv.TYPES.int4}, {'Field2', PgSrv.TYPES.int4}, {'Field3', PgSrv.TYPES.text, 20}
+    };
+    {1, 2, "Hello"    },
+    {3, 4, ", "       },
+    {5, 6, "world !!!"},
+  };
+}
 
 CreateCoServer("127.0.0.1", 9876, function(cli)
   local pg = PgSrv.new(cli)
@@ -261,18 +289,13 @@ CreateCoServer("127.0.0.1", 9876, function(cli)
   print("AUTH OK ", pg:send_auth_ok())
   print("**************************")
 
-  local Names = {'Field1', 'Field2'}
-  local Rows  = {
-    {1, 2},
-    {3, 4},
-  }
-
   -- test query
   while true do
     print("READY  ", pg:send_ready_for_query())
-    print("QUERY  ", pg:recv_query())
-    print("RESULT ", pg:send_query_result(Names, Rows))
-    print("DONE   ", pg:send_query_complite())
+    local qry, err = pg:recv_query()
+    print("QUERY  ", qry, err)
+    local result = StaticResult[qry] or  StaticResult["*"]
+    print("RESULT ", pg:send_query_result(result))
     print("**************************")
   end
 
