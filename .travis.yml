@@ -5,8 +5,8 @@ env:
     - LUAROCKS=2.2.0
   matrix:
     - LUA=lua5.1
-    # - LUA=lua5.2
-    # - LUA=luajit
+    - LUA=lua5.2
+    - LUA=luajit
 
 services:
   - memcached

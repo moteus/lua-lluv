@@ -1,5 +1,4 @@
 -- FTP Client
--- This code is in development state and may be (and will) changed
 ------------------------------------------------------------------
 
 -- Usage:
