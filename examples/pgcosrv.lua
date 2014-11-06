@@ -161,7 +161,13 @@ function PgSrv:recv_greet()
   assert(len >= 8, len)
   data, err = self:recv(len - 8)
   if not data then return nil, err end
-  return ver, data
+  local t = ut.split(data, "\0", true)
+  local res = {}
+  local i = 1 while i < #t do
+    res[t[i]] = t[i + 1]
+    i = i + 2
+  end
+  return ver, res
 end
 
 function PgSrv:recv_msg()
@@ -188,7 +194,7 @@ function PgSrv:recv_auth_response()
   local typ, data = self:recv_msg()
   if not typ then return nil, data end
   assert(typ == 'p', typ)
-  return data
+  return (ut.split_first(data, "\0", true))
 end
 
 function PgSrv:send_auth_ok()
@@ -203,7 +209,7 @@ function PgSrv:recv_query()
   local typ, data = self:recv_msg()
   if not typ then return nil, data end
   assert(typ == 'Q', typ)
-  return data
+  return (ut.split_first(data, "\0", true))
 end
 
 local function FieldName(name, type, size)
@@ -221,14 +227,14 @@ local function FieldName(name, type, size)
   )
 end
 
-function PgSrv:send_query_result(Data)
-  if Data and Data.header then
+function PgSrv:send_query_result(Header, Data)
+  if Header then
     local fields = {}
-    for _, name in ipairs(Data.header) do
+    for _, name in ipairs(Header) do
       fields[#fields+1] = FieldName( (unpack or table.unpack)(name) )
     end
 
-    local ok, err = self:send_msg('T', struct.pack(">i2c0", #Data.header, table.concat(fields)))
+    local ok, err = self:send_msg('T', struct.pack(">i2c0", #Header, table.concat(fields)))
     if not ok then return nil, err end
 
     for _, row in ipairs(Data) do
@@ -238,11 +244,61 @@ function PgSrv:send_query_result(Data)
         cols[#cols + 1] = struct.pack(">i4", #v) .. v
       end
 
-      ok, err = self:send_msg('D', struct.pack(">i2c0", #Data.header, table.concat(cols)))
+      ok, err = self:send_msg('D', struct.pack(">i2c0", #Header, table.concat(cols)))
       if not ok then return nil, err end
     end
   end
   return self:send_query_complite(Data and #Data or 0)
+end
+
+function PgSrv:send_error(err)
+--[[
+S 
+Severity: the field contents are ERROR, FATAL, or PANIC (in an error message), or WARNING, NOTICE, DEBUG, INFO, or LOG (in a notice message), or a localized translation of one of these. Always present.
+
+C
+Code: the SQLSTATE code for the error (see Appendix A). Not localizable. Always present.
+
+M
+Message: the primary human-readable error message. This should be accurate but terse (typically one line). Always present.
+
+D
+Detail: an optional secondary error message carrying more detail about the problem. Might run to multiple lines.
+
+H
+Hint: an optional suggestion what to do about the problem. This is intended to differ from Detail in that it offers advice (potentially inappropriate) rather than hard facts. Might run to multiple lines.
+
+P
+Position: the field value is a decimal ASCII integer, indicating an error cursor position as an index into the original query string. The first character has index 1, and positions are measured in characters not bytes.
+
+p
+Internal position: this is defined the same as the P field, but it is used when the cursor position refers to an internally generated command rather than the one submitted by the client. The q field will always appear when this field appears.
+
+q
+Internal query: the text of a failed internally-generated command. This could be, for example, a SQL query issued by a PL/pgSQL function.
+
+W
+Where: an indication of the context in which the error occurred. Presently this includes a call stack traceback of active procedural language functions and internally-generated queries. The trace is one entry per line, most recent first.
+
+F
+File: the file name of the source-code location where the error was reported.
+
+L
+Line: the line number of the source-code location where the error was reported.
+
+R
+Routine: the name of the source-code routine reporting the error.
+]]
+
+  local res, size = {}, 0
+  for t, v in pairs(err) do
+    res[#res + 1] = t .. v .. '\0'
+    size = size + #res[#res]
+  end
+  res[#res + 1] = '\0'
+  size = size + 1
+
+  return self:send_msg('E', table.concat(res))
 end
 
 function PgSrv:send_query_complite(n)
@@ -252,54 +308,145 @@ end
 end
 ----------------------------------------------------------------------------
 
-local StaticResult = {
-  ["select oid, typbasetype from pg_type where typname = 'lo'"] = {};
-  ["select pg_client_encoding()"] = {
-    header = {
-      {"pg_client_encoding", PgSrv.TYPES.text, 20};
-    };
-    {"WIN1251"};
-  };
-  ["*"] = {
-    header = {
-      {'Field1', PgSrv.TYPES.int4}, {'Field2', PgSrv.TYPES.int4}, {'Field3', PgSrv.TYPES.text, 20}
-    };
-    {1, 2, "Hello"    },
-    {3, 4, ", "       },
-    {5, 6, "world !!!"},
-  };
-}
+----------------------------------------------------------------------------
+local function PgCoServer(host, port, cb)
+  CreateCoServer(host, port, function(cli)
+    local pg      = PgSrv.new(cli)
+    local session = cb(true)
 
-CreateCoServer("127.0.0.1", 9876, function(cli)
-  local pg = PgSrv.new(cli)
+    local ver, data = assert(pg:recv_greet())
+    if ver == 80877103 then -- SSL?
+      print("SSL Request")
+      pg:send("N")
+      ver, data = pg:recv_greet()
+      if not ver then return session:error(data) end
+    end
 
-  local ver, data = assert(pg:recv_greet())
-  if ver == 80877103 then -- SSL?
-    assert(data == "")
-    print("SSL Request")
-    pg:send("N")
-    ver, data = assert(pg:recv_greet())
+    ok, err = session:greet(ver, data)
+    if not ok then
+      if ok == false then pg:send_error(err) end
+      return
+    end
+
+    local ok, err
+
+    ok, err = pg:send_auth_request()
+    if not ok then return session:error(err) end
+
+    ok, err = pg:recv_auth_response()
+    if not ok then return session:error(err) end
+    ok, err = session:auth(ok)
+    if not ok then
+      if ok == false then pg:send_error(err) end
+      return
+    end
+
+    ok, err = pg:send_auth_ok()
+    if not ok then return session:error(err) end
+
+    -- test query
+    while true do
+      ok, err = pg:send_ready_for_query()
+      if not ok then return session:error(err) end
+
+      local qry, err = pg:recv_query()
+      if not qry then return session:error(err) end
+
+      local status, header, data = session:query(qry)
+      if status == nil then return end
+      if status == false then
+        ok, err = pg:send_error(header)
+      else
+        ok, err = pg:send_query_result(header, data)
+      end
+      if not ok then return session:error(err) end
+    end
+  end, function(err) cb(nil, err) end)
+end
+----------------------------------------------------------------------------
+
+----------------------------------------------------------------------------
+local PgStaticSession = ut.class() do
+
+function PgStaticSession:__init(pwd, qry)
+  self._pwd = assert(pwd)
+
+  local t = {}
+  for k, v in pairs(qry) do
+    t[k], t[k..';'] = v, v
   end
+  self._qry = t
 
-  print("GREET", ver, ut.usplit(data, "\0", true))
+  return self
+end
 
-  print("**************************")
-  print("AUTH REQ", pg:send_auth_request() )
-  print("AUTH RES", pg:recv_auth_response())
-  print("AUTH OK ", pg:send_auth_ok())
-  print("**************************")
+function PgStaticSession:greet(version, greet)
+  self._version = version
+  self._greet   = greet
+  print("Greet:", version)
+  for k,v in pairs(greet) do print("", k, "=>", v) end
+  return self
+end
 
-  -- test query
-  while true do
-    print("READY  ", pg:send_ready_for_query())
-    local qry, err = pg:recv_query()
-    print("QUERY  ", qry, err)
-    local result = StaticResult[qry] or  StaticResult["*"]
-    print("RESULT ", pg:send_query_result(result))
-    print("**************************")
+function PgStaticSession:auth(pwd)
+  if pwd ~= self._pwd then
+    print("Auth fail")
+
+    return false, {
+      S = 'ERROR';
+      C = '28P01';
+      M = 'Invalid user name or password';
+    }
   end
+  print("Auth:", self._greet.user, "/", pwd)
+  return self
+end
 
-  print("server done")
-end, print)
+function PgStaticSession:query(qry)
+  print("Query:", qry)
+  local result = self._qry[qry] or self._qry["*"]
+  if result then
+    return true, result.header, result
+  end
+  return false, {
+    S = 'ERROR';
+    C = '42601';
+    M = 'Syntax error';
+  }
+end
 
-uv.run(debug.traceback)
+function PgStaticSession:error(err)
+  print("ERROR:", err)
+end
+
+end
+----------------------------------------------------------------------------
+
+local function main()
+  local StaticResult = {
+    ["select oid, typbasetype from pg_type where typname = 'lo'"] = {};
+    ["select pg_client_encoding()"] = {
+      header = {
+        {"pg_client_encoding", PgSrv.TYPES.text, 20};
+      };
+      {"WIN1251"};
+    };
+    ["*"] = {
+      header = {
+        {'Field1', PgSrv.TYPES.int4}, {'Field2', PgSrv.TYPES.int4}, {'Field3', PgSrv.TYPES.text, 20}
+      };
+      {1, 2, "Hello"    },
+      {3, 4, ", "       },
+      {5, 6, "world !!!"},
+    };
+  }
+
+  PgCoServer("127.0.0.1", 9876, function(ok, err)
+    if not ok then print("Error:", err) end
+    return PgStaticSession.new("123456", StaticResult)
+  end)
+
+  uv.run(debug.traceback)
+end
+
+main()
