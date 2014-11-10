@@ -42,7 +42,7 @@ static lluv_handle_t* lluv_check_signal(lua_State *L, int idx, lluv_flags_t flag
 
 static void lluv_on_signal_start(uv_signal_t *arg, int signum){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 

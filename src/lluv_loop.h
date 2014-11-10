@@ -45,10 +45,13 @@ LLUV_INTERNAL lluv_loop_t* lluv_ensure_loop_at(lua_State *L, int idx);
 
 LLUV_INTERNAL lluv_loop_t* lluv_loop_byptr(uv_loop_t *h);
 
+LLUV_INTERNAL lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h);
+
 LLUV_INTERNAL void lluv_loop_pushself(lua_State *L, lluv_loop_t *loop);
 
 #define LLUV_CHECK_LOOP_CB_INVARIANT(L) \
-  assert("Some one use invalid callback handler" && (lua_gettop(L) == LLUV_CALLBACK_TOP_SIZE));
+  assert("Some one use invalid callback handler" && (lua_gettop(L) == LLUV_CALLBACK_TOP_SIZE)); \
+  assert("Invalid LLUV registry" && (lua_type(L, LLUV_LUA_REGISTRY) == LUA_TTABLE));
 
 
 #endif

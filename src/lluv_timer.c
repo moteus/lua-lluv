@@ -85,7 +85,12 @@ static int lluv_timer_stop(lua_State *L){
 
 static int lluv_timer_again(lua_State *L){
   lluv_handle_t *handle = lluv_check_timer(L, 1, LLUV_FLAG_OPEN);
-  int err = uv_timer_again(LLUV_H(handle, uv_timer_t));
+  int err;
+  if(lua_isnumber(L, 2)){
+    uint64_t repeat = lutil_optint64(L, 2, 0);
+    uv_timer_set_repeat(LLUV_H(handle, uv_timer_t), repeat);
+  }
+  err = uv_timer_again(LLUV_H(handle, uv_timer_t));
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }

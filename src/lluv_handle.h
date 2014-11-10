@@ -34,6 +34,8 @@ typedef struct lluv_handle_tag{
 //! @todo make debug verions with check cast with checking uv_handle_type
 #define LLUV_H(H, T) ((T*)&H->handle)
 
+#define LLUV_HCALLBACK_L(H) (lluv_loop_by_handle(&H->handle)->L)
+
 LLUV_INTERNAL void lluv_handle_initlib(lua_State *L, int nup, int safe);
 
 LLUV_INTERNAL int lluv_handle_index(lua_State *L);

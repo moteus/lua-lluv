@@ -83,6 +83,11 @@ LLUV_INTERNAL lluv_loop_t* lluv_loop_byptr(uv_loop_t *h){
   return loop;
 }
 
+LLUV_INTERNAL lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
+  lluv_handle_t *handle = lluv_handle_byptr(h);
+  return lluv_loop_byptr(handle->handle.loop);
+}
+
 LLUV_INTERNAL void lluv_loop_pushself(lua_State *L, lluv_loop_t *loop){
   lua_rawgetp(L, LLUV_LUA_REGISTRY, loop->handle);
   assert(loop == lua_touserdata(L, -1));
@@ -198,12 +203,16 @@ static int lluv_loop_run_impl(lua_State *L){
   lluv_loop_t* loop = lluv_check_loop(L, LLUV_LOOP_INDEX, 0);
   uv_run_mode  mode = (uv_run_mode)luaL_checkinteger(L, 1);
   int err;
+  lua_State *prev_state = loop->L;
 
   lua_pop(L, 1);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
+  loop->L = L;
   err = uv_run(loop->handle, mode);
+  loop->L = prev_state;
+
   if(err < 0){
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
   }

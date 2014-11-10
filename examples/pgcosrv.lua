@@ -383,7 +383,7 @@ end
 function PgStaticSession:greet(version, greet)
   self._version = version
   self._greet   = greet
-  print("Greet:", version)
+  print("Greet:", math.floor(version/2^16) .. "." .. math.mod(version,2^16))
   for k,v in pairs(greet) do print("", k, "=>", v) end
   return self
 end

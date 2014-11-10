@@ -101,11 +101,6 @@ LLUV_INTERNAL void lluv_push_status(lua_State *L, int status){
     lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
 }
 
-static lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
-  lluv_handle_t *handle = lluv_handle_byptr(h);
-  return lluv_loop_byptr(handle->handle.loop);
-}
-
 LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf){
 //  *buf = uv_buf_init(malloc(suggested_size), suggested_size);
   lluv_handle_t *handle = lluv_handle_byptr(h);
@@ -121,7 +116,6 @@ LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, u
 }
 
 LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
-//  if(buf->base)free(buf->base);
   if(buf->base){
     lluv_handle_t *handle = lluv_handle_byptr(h);
     lluv_loop_t     *loop = lluv_loop_by_handle(h);
@@ -232,6 +226,9 @@ LLUV_INTERNAL void lluv_value_dump(lua_State* L, int i, const char* prefix) {
     prefix = tab;
   }
   switch (lua_type(L, i)) {
+    case LUA_TNONE:
+      printf("%s%d: %s\n",     prefix, i, tname);
+      break;
     case LUA_TNIL:
       printf("%s%d: %s\n",     prefix, i, tname);
       break;

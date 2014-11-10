@@ -151,7 +151,7 @@ static int lluv_udp_send(lua_State *L){
 
 static void lluv_on_udp_recv_cb(uv_udp_t *arg, ssize_t nread, const uv_buf_t* buf, const struct sockaddr* addr, unsigned flags){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 

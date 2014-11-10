@@ -23,7 +23,7 @@ static const char *LLUV_PROCESS = LLUV_PROCESS_NAME;
 
 static void lluv_on_process_exit(uv_process_t* arg, int64_t exit_status, int term_signal){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 

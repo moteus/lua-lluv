@@ -10,6 +10,7 @@
 
 #include "lluv.h"
 #include "lluv_fs.h"
+#include "lluv_loop.h"
 #include "lluv_error.h"
 #include "lluv_loop.h"
 #include "lluv_handle.h"
@@ -30,6 +31,8 @@ typedef struct lluv_fs_request_tag{
   int cb;
   int file_ref;
 }lluv_fs_request_t;
+
+#define LLUV_FCALLBACK_L(H) (lluv_loop_byptr(H->req.loop)->L)
 
 static lluv_fs_request_t *lluv_fs_request_new(lua_State *L){
   lluv_fs_request_t *req = lluv_alloc_t(L, lluv_fs_request_t);
@@ -202,7 +205,7 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
 
 static void lluv_on_fs(uv_fs_t *arg){
   lluv_fs_request_t *req = arg->data;
-  lua_State *L = req->L;
+  lua_State *L = LLUV_FCALLBACK_L(req);
   int argc;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);

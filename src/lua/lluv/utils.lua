@@ -340,13 +340,15 @@ function Buffer:eol()
 end
 
 function Buffer:append(data)
-  self._lst:push_back(data)
+  if #data > 0 then
+    self._lst:push_back(data)
+  end
   return self
 end
 
-function Buffer:next_line(data, eol)
-  eol = eol or self._eol or "\n"
-  if data then self:append(data) end
+function Buffer:read_line(eol)
+  eol = eol or self._eol
+
   local lst = self._lst
 
   local t = {}
@@ -367,8 +369,23 @@ function Buffer:next_line(data, eol)
   end
 end
 
-function Buffer:next_n(data, n)
-  if data then self:append(data) end
+function Buffer:read_all()
+  local t = {}
+  local lst = self._lst
+  while not lst:empty() do
+    t[#t + 1] = self._lst:pop_front()
+  end
+  return table.concat(t)
+end
+
+function Buffer:read_some()
+  if self._lst:empty() then return end
+  return self._lst:pop_front()
+end
+
+function Buffer:read_n(n)
+  n = math.floor(n)
+
   if n == 0 then
     if self._lst:empty() then return end
     return ""
@@ -400,6 +417,31 @@ function Buffer:next_n(data, n)
     t[#t + 1] = chunk
     size = size + #chunk
   end
+end
+
+function Buffer:read(pat, ...)
+  if not pat then return self:read_some() end
+
+  if pat == "*l" then return self:read_line(...) end
+
+  if pat == "*a" then return self:read_all() end
+
+  return self:read_n(pat)
+end
+
+function Buffer:empty()
+  return self._lst:empty()
+end
+
+function Buffer:next_line(data, eol)
+  eol = eol or self._eol or "\n"
+  if data then self:append(data) end
+  return self:read_line(eol, true)
+end
+
+function Buffer:next_n(data, n)
+  if data then self:append(data) end
+  return self:read_n(n)
 end
 
 function Buffer.self_test(EOL)

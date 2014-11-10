@@ -42,7 +42,7 @@ static lluv_handle_t* lluv_check_fs_event(lua_State *L, int idx, lluv_flags_t fl
 
 static void lluv_on_fs_event_start(uv_fs_event_t *arg, const char* filename, int events, int status){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 

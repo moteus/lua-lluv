@@ -42,7 +42,7 @@ static lluv_handle_t* lluv_check_fs_poll(lua_State *L, int idx, lluv_flags_t fla
 
 static void lluv_on_fs_poll_start(uv_fs_poll_t *arg, int status, const uv_stat_t* prev, const uv_stat_t* curr){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 

@@ -43,7 +43,7 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_stream(lua_State *L, int idx, lluv_flags
 LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
   lluv_req_t    *req    = lluv_req_byptr(arg);
   lluv_handle_t *handle = req->handle;
-  lua_State     *L      = handle->L;
+  lua_State     *L      = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
@@ -106,7 +106,7 @@ static int lluv_stream_shutdown(lua_State *L){
 
 static void lluv_on_stream_connection_cb(uv_stream_t* arg, int status){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
@@ -243,7 +243,7 @@ static int lluv_stream_accept(lua_State *L){
 
 static void lluv_on_stream_read_cb(uv_stream_t* arg, ssize_t nread, const uv_buf_t* buf){
   lluv_handle_t *handle = lluv_handle_byptr((uv_handle_t*)arg);
-  lua_State *L = handle->L;
+  lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
@@ -340,7 +340,7 @@ static int lluv_stream_try_write(lua_State *L){
 static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
   lluv_req_t    *req    = lluv_req_byptr((uv_req_t*)arg);
   lluv_handle_t *handle = req->handle;
-  lua_State     *L      = handle->L;
+  lua_State     *L      = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
