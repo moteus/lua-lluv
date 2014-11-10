@@ -11,7 +11,6 @@ local function CoGetAddrInfo(host, port)
     protocol = "tcp";
   }, function(_, err, res)
     if terminated then return end
-    terminated = true
 
     if err then coroutine.resume(co, nil, err)
     else coroutine.resume(co, res) end
