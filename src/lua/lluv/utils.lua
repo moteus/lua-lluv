@@ -324,8 +324,11 @@ end
 -------------------------------------------------------------------
 local Buffer = class() do
 
-function Buffer:__init(eol)
-  self._eol = eol or "\n"
+-- currently full supports only EOL like `\r*\n`
+
+function Buffer:__init(eol, eol_is_rex)
+  self._eol       = eol or "\n"
+  self._eol_plain = not eol_is_rex
   self._lst = List.new()
   return self
 end
@@ -336,7 +339,13 @@ function Buffer:reset()
 end
 
 function Buffer:eol()
-  return self._eol
+  return self._eol, self._eol_plain
+end
+
+function Buffer:set_eol(eol, eol_is_rex)
+  self._eol       = assert(eol)
+  self._eol_plain = not eol_is_rex
+  return self
 end
 
 function Buffer:append(data)
@@ -346,8 +355,11 @@ function Buffer:append(data)
   return self
 end
 
-function Buffer:read_line(eol)
-  eol = eol or self._eol
+function Buffer:read_line(eol, eol_is_rex)
+  local plain
+
+  if eol then plain = not eol_is_rex
+  else eol, plain = self._eol, self._eol_plain end
 
   local lst = self._lst
 
@@ -360,7 +372,12 @@ function Buffer:read_line(eol)
       return
     end
 
-    local line, tail = split_first(data, eol, true)
+    if t[#t] and t[#t]:find("\r$") then
+      data = table.remove(t) .. data
+    end
+
+    local line, tail = split_first(data, eol, plain)
+
     t[#t + 1] = line
     if tail then -- we found EOL
       lst:push_front(tail)
@@ -476,6 +493,21 @@ function Buffer.self_test(EOL)
   assert("aaa" == b:next_line(nil, "|"))
 
   b:reset()
+
+  b:set_eol("\r*\n", true)
+   :append("aaa\r\r\n\r\nbbb\nccc")
+  assert("aaa" == b:read_line())
+  assert("" == b:read_line())
+  assert("bbb" == b:read_line())
+  assert(nil == b:read_line())
+  assert("ccc" == b:read_line("$", true))
+  
+  b:append("aaa\r\r")
+  b:append("\r\r")
+  assert(nil == b:read_line())
+  b:append("\nbbb\n")
+  assert("aaa" == b:read_line())
+  assert("bbb" == b:read_line())
 end
 
 end

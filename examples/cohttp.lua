@@ -30,16 +30,16 @@ local EOF = uv.error(uv.ERROR_UV, uv.EOF)
 function CoSock:__init(s)
   self._co    = assert(coroutine.running())
 
-  self._buf   = assert(ut.Buffer.new())
+  self._buf   = assert(ut.Buffer.new("\r*\n", true))
 
-  self._timer = assert(uv.timer():start(1000,function(tm)
+  self._timer = assert(uv.timer():start(1000, function(tm)
     tm:stop()
     self:_resume(nil, "timeout")
   end):stop())
 
-  self._on_write = function(cli, err)
-    self:_resume(not err, err)
-  end
+  self._on_write = function(cli, err) self:_resume(not err, err) end
+
+  self._on_close = self._on_write
 
   if s then
     self._sock = s
@@ -89,15 +89,18 @@ function CoSock:_start_read()
   end)
 end
 
-function CoSock:receive(pat)
+function CoSock:receive(pat, prefix)
   self:_start()
   self._wait_read = true
+
+  pat = pat or "*l"
 
   while true do
     local msg = self._buf:read(pat)
     if msg then
       self._wait_read = false
       self:_stop()
+      if prefix then msg = prefix .. msg end
       return msg
     end
 
@@ -162,9 +165,9 @@ end
 
 function CoSock:close()
   if self._sock then
-    self._sock:close(self._on_write)
+    self._sock:close(self._on_close)
     self._sock = nil
-    return self._yield()
+    return self:_yield()
   end
   return true
 end
@@ -179,15 +182,18 @@ end
 end
 ----------------------------------------------------------------------------
 
-coroutine.wrap(function()
-  local http  = require"socket.http"
-  local ltn12 = require"ltn12"
+local http  = require"socket.http"
+local ltn12 = require"ltn12"
 
+coroutine.wrap(function()
   print("HTTP Request: ", http.request{
     url    = "http://google.ru";
     create = CoSock.new;
   })
-
 end)()
+
+print("HTTP Request: ", http.request{
+  url    = "http://google.ru";
+})
 
 uv.run()
