@@ -19,48 +19,22 @@
 -- cnn:each("select * from test", print)
 --
 
-local uv = require "lluv"
-local ut = require "lluv.utils"
-
-----------------------------------------------------------------------------
-local CoSock = ut.class() do
-
-function CoSock:__init(buffer)
-  self._buf = assert(buffer)
-  return self
-end
-
-function CoSock:recv_line(eol)
-  while true do
-    local msg = self._buf:next_line(nil, eol)
-    if msg then return msg end
-    local ok, err = coroutine.yield()
-    if not ok then return nil, err end
-  end
-end
-
-function CoSock:recv_n(n)
-  while true do
-    local msg =self._buf:next_n(nil, n)
-    if msg then return msg end
-    local ok, err = coroutine.yield()
-    if not ok then return nil, err end
-  end
-end
-
-function CoSock:send(data)
-  return coroutine.yield(data)
-end
-
-end
-----------------------------------------------------------------------------
+local socket = require "cosocket"
+local uv     = require "lluv"
+local ut     = require "lluv.utils"
+local try    = require "try"
+local struct = require "struct"
 
 ----------------------------------------------------------------------------
 local function CreateServer(ip, port, cb)
+
   local function on_connect(srv, err)
     if err then return cb(nil, err) end
-    return cb(srv:accept())
+    local cli, err = srv:accept()
+    if not cli then cb(nil, err) end
+    return cb(cli)
   end
+
   uv.tcp()
     :bind(ip, port)
     :listen(on_connect)
@@ -68,69 +42,7 @@ end
 ----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------
-local function CreateCoServer(ip, port, cb, cb_err)
-  CreateServer(ip, port, function(cli, err)
-
-    local server = coroutine.create(function(buffer, err)
-      local cli
-      if buffer then cli = CoSock.new(buffer) end
-      return cb(cli, err)
-    end)
-
-    local on_resume_data, server_resume
-
-    if cb_err then
-      server_resume = function(...)
-        local ok, data = coroutine.resume(server, ...)
-        if not ok then
-          cb_err(data)
-        elseif data then
-          on_resume_data(data)
-        end
-        return ok, data
-      end
-    else
-      server_resume = function(...)
-        local ok, data = coroutine.resume(server, ...)
-        if ok and data then on_resume_data(data) end
-        return ok, data
-      end
-    end
-
-    on_resume_data = function(data)
-      cli:write(data, function(cli, err)
-        server_resume(not err, err)
-      end)
-    end
-
-    if err then return server_resume(nil, err) end
-
-    local buffer = ut.Buffer.new("\r\n")
-
-    local ok, cerr = server_resume(buffer)
-    if not ok then return cli:close() end
-
-    cli:start_read(function(cli, err, data)
-      if data then buffer:append(data) end
-
-      if err then
-        cli:close()
-        return server_resume(nil, err)
-      end
-
-      if not server_resume(true) then return cli:close() end
-
-    end)
-  end)
-end
-----------------------------------------------------------------------------
-
---------------------------------------
--- Implement PostgreSQL Session
---------------------------------------
-local struct = require "struct"
-
-----------------------------------------------------------------------------
+-- Implement PostgreSQL Server
 local PgSrv = ut.class() do
 
 PgSrv.TYPES = {
@@ -150,7 +62,7 @@ function PgSrv:send(data)
 end
 
 function PgSrv:recv(n)
-  return self._cli:recv_n(n)
+  return self._cli:receive(n)
 end
 
 function PgSrv:recv_greet()
@@ -305,67 +217,85 @@ function PgSrv:send_query_complite(n)
   return self:send_msg("C", "SELECT " .. tostring(n) .. "\0")
 end
 
+function PgSrv:close()
+  self._cli:close()
+  return true
+end
+
 end
 ----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------
-local function PgCoServer(host, port, cb)
-  CreateCoServer(host, port, function(cli)
-    local pg      = PgSrv.new(cli)
-    local session = cb(true)
+local PgSrvInstance do
 
-    local ver, data = assert(pg:recv_greet())
-    if ver == 80877103 then -- SSL?
-      print("SSL Request")
-      pg:send("N")
-      ver, data = pg:recv_greet()
-      if not ver then return session:error(data) end
+local PgSrvInstance_ = try.protect(function(pg, session)
+
+  local check = try.new(function() pg:close() end)
+
+  local ver, data = check(pg:recv_greet())
+  if ver == 80877103 then -- SSL?
+    print("SSL Request")
+    pg:send("N")
+    ver, data = check(pg:recv_greet())
+  end
+
+  local ok, err = session:greet(ver, data)
+  if not ok then
+    if ok == false then pg:send_error(err) end
+    return check(ok, err)
+  end
+
+  check(pg:send_auth_request())
+
+  local pass = check(pg:recv_auth_response())
+
+  ok, err = session:auth(pass)
+  if not ok then
+    if ok == false then pg:send_error(err) end
+    return check(ok, err)
+  end
+
+  check(pg:send_auth_ok())
+
+  -- test query
+  while true do
+    check(pg:send_ready_for_query())
+
+    local qry = check(pg:recv_query())
+
+    local status, header, data = session:query(qry)
+    if status == nil then return check(nil, "closed") end
+    if status == false then
+      ok, err = pg:send_error(header)
+    else
+      ok, err = pg:send_query_result(header, data)
     end
+    check(ok, err)
+  end
+end)
 
-    ok, err = session:greet(ver, data)
-    if not ok then
-      if ok == false then pg:send_error(err) end
-      return
-    end
+PgSrvInstance = function(usok, cb)
+  local cli = socket.tcp(usok)
+  local pg  = PgSrv.new(cli)
 
-    local ok, err
+  local session = cb(true)
+  if not session then
+    pg:close()
+    return
+  end
 
-    ok, err = pg:send_auth_request()
-    if not ok then return session:error(err) end
+  local ok, err = PgSrvInstance_(pg, session)
+  if err then
+    if (type(err) == "table") and err.M then err = err.M end
+    session:error(err)
+  end
+end
 
-    ok, err = pg:recv_auth_response()
-    if not ok then return session:error(err) end
-    ok, err = session:auth(ok)
-    if not ok then
-      if ok == false then pg:send_error(err) end
-      return
-    end
-
-    ok, err = pg:send_auth_ok()
-    if not ok then return session:error(err) end
-
-    -- test query
-    while true do
-      ok, err = pg:send_ready_for_query()
-      if not ok then return session:error(err) end
-
-      local qry, err = pg:recv_query()
-      if not qry then return session:error(err) end
-
-      local status, header, data = session:query(qry)
-      if status == nil then return end
-      if status == false then
-        ok, err = pg:send_error(header)
-      else
-        ok, err = pg:send_query_result(header, data)
-      end
-      if not ok then return session:error(err) end
-    end
-  end, function(err) cb(nil, err) end)
 end
 ----------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------
+-- Implement PostgreSQL Session
 local PgStaticSession = ut.class() do
 
 function PgStaticSession:__init(pwd, qry)
@@ -422,7 +352,7 @@ end
 end
 ----------------------------------------------------------------------------
 
-local function main()
+local function main(host, port)
   local StaticResult = {
     ["select oid, typbasetype from pg_type where typname = 'lo'"] = {};
     ["select pg_client_encoding()"] = {
@@ -441,12 +371,17 @@ local function main()
     };
   }
 
-  PgCoServer("127.0.0.1", 9876, function(ok, err)
-    if not ok then print("Error:", err) end
+  local function server(ok, err)
+    if not ok then return print("Error:", err) end
     return PgStaticSession.new("123456", StaticResult)
+  end
+
+  CreateServer(host, port, function(cli, err)
+    if not cli then return server(nil, err) end
+    coroutine.wrap(PgSrvInstance)(cli, server)
   end)
 
   uv.run(debug.traceback)
 end
 
-main()
+main("127.0.0.1", 9876)
