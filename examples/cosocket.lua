@@ -90,11 +90,37 @@ function CoSock:_start_read()
 end
 
 function CoSock:receive(pat, prefix)
+  if not self._sock then return nil, "closed" end
+
   self:_start()
   self._wait_read = true
 
   pat = pat or "*l"
   if pat == "*r" then pat = nil end
+
+  if pat == "*a" then while true do
+    local ok, err = self:_yield()
+
+    if not ok then
+      self._wait_read = false
+
+      if err == 'timeout' then
+        return nil, err, self._buf:read_all()
+      end
+
+      if err == 'closed' then
+        return self._buf:read_all()
+      end
+
+      return nil, err
+    end
+
+  end end
+
+  if prefix and type(pat) == 'number' then
+    pat = pat - #prefix
+    if pat <= 0 then return prefix end
+  end
 
   while true do
     local msg = self._buf:read(pat)
@@ -109,6 +135,9 @@ function CoSock:receive(pat, prefix)
     if not ok then
       self._wait_read = false
       self:_stop()
+      if type(pat) == 'number' then
+        return nil, err, self._buf:read()
+      end
       return nil, err
     end
 
@@ -116,10 +145,16 @@ function CoSock:receive(pat, prefix)
 end
 
 function CoSock:send(data)
+  if not self._sock then return nil, "closed" end
+
   self:_start()
   self._sock:write(data, self._on_write)
   local ok, err = self:_yield()
   self:_stop()
+  if not ok then
+    self:close()
+    return nil, "closed"
+  end
   return ok, err
 end
 
@@ -130,11 +165,15 @@ function CoSock:connect(host, port)
 
   if not res then return nil, err end
 
+  local terminated = false
+
   local ok, err
   for _, addr in ipairs(res) do
     self:_start()
 
     self._sock:connect(addr.address, addr.port, function(cli, err)
+      if terminated then return end
+
       if err then
         self._sock:close()
         self._sock = uv.tcp()
@@ -144,6 +183,7 @@ function CoSock:connect(host, port)
     end)
 
     ok, err = self:_yield()
+
     self:_stop()
 
     if ok then break end
@@ -151,6 +191,7 @@ function CoSock:connect(host, port)
     self._sock:close()
     self._sock = uv.tcp()
   end
+  terminated = true
 
   if not ok then return nil, err end
   self:_start_read()
@@ -182,9 +223,57 @@ function CoSock:__gc()
   end
 end
 
+function CoSock:setoption()
+  return nil, "NYI"
+end
+
 end
 ----------------------------------------------------------------------------
 
+local function connect(host, port)
+  local sok = CoSock.new()
+  local ok, err = sok:connect(host, port)
+  if not ok then
+    sok:close()
+    return nil, err
+  end
+  return sok
+end
+
+local SLEEP_TIMERS = {}
+
+local function sleep(s)
+  for co, timer in pairs(SLEEP_TIMERS) do
+    if coroutine.status(co) == "dead" then
+      timer:close()
+      SLEEP_TIMERS[co] = nil
+    end
+  end
+
+  if s <= 0 then return end
+
+  local co = assert(coroutine.running())
+
+  local timer = SLEEP_TIMERS[co]
+  if not timer then
+    local resume = function(...) return coroutine.resume(co, ...) end
+
+    timer = uv.timer():start(10000, function(self)
+      self:stop()
+      resume()
+    end):stop()
+
+    SLEEP_TIMERS[co] = timer
+  end
+
+  timer:again(math.floor(s * 1000))
+  coroutine.yield()
+end
+
 return {
-  tcp = CoSock.new
+  tcp     = CoSock.new;
+  connect = connect;
+  gettime = function() return math.floor(uv.now()/1000) end;
+  sleep   = sleep;
+  
 }
