@@ -361,18 +361,23 @@ function Buffer:read_line(eol, eol_is_rex)
   if eol then plain = not eol_is_rex
   else eol, plain = self._eol, self._eol_plain end
 
+  -- first char in EOL shoul be terminal (e.g. '\r\n' or ' *\n')
+  -- This is invalid EOL: '[\r\n]' '%s*\n'
+  local first_char = eol:sub(1,1) .. "$"
+
   local lst = self._lst
 
-  local t = {}
+  local t = {""}
   while true do
     local data = lst:pop_front()
 
     if not data then -- no EOL in buffer
-      if #t > 0 then lst:push_front(table.concat(t)) end
+      if #t > 1 then lst:push_front(table.concat(t)) end
       return
     end
 
-    if t[#t] and t[#t]:find("\r$") then
+    -- begin of EOL in preview chunk
+    if string.find(t[#t], first_char) then
       data = table.remove(t) .. data
     end
 
@@ -501,13 +506,23 @@ function Buffer.self_test(EOL)
   assert("bbb" == b:read_line())
   assert(nil == b:read_line())
   assert("ccc" == b:read_line("$", true))
-  
+
   b:append("aaa\r\r")
   b:append("\r\r")
   assert(nil == b:read_line())
   b:append("\nbbb\n")
   assert("aaa" == b:read_line())
   assert("bbb" == b:read_line())
+
+  b:reset()
+  b:set_eol("\n\0")
+
+  b:append("aaa")
+  assert(nil == b:read_line())
+  b:append("\n")
+  assert(nil == b:read_line())
+  b:append("\0")
+  assert("aaa" == b:read_line())
 end
 
 end
