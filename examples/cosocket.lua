@@ -41,6 +41,14 @@ function CoSock:__init(s)
 
   self._on_close = self._on_write
 
+  self._wait = {
+    read  = false;
+    write = false;
+    conn  = false;
+  }
+
+  self._err = "closed"
+
   if s then
     self._sock = s
     self:_start_read()
@@ -51,58 +59,97 @@ function CoSock:__init(s)
   return self
 end
 
+local function _check_resume(status, ...)
+  if not status then return error(..., 3) end
+  return ...
+end
+
 function CoSock:_resume(...)
-  coroutine.resume(self._co, ...)
-  return
+  return _check_resume(coroutine.resume(self._co, ...))
 end
 
 function CoSock:_yield(...)
   return coroutine.yield(...)
 end
 
-function CoSock:_start()
-  if self._timeout then
-    self._timer:again(self._timeout * 1000)
+function CoSock:_unset_wait()
+  for k in pairs(self._wait) do self._wait[k] = false end
+end
+
+function CoSock:_waiting(op)
+  if op then
+    assert(nil ~= self._wait[op])
+    return not not self._wait[op]
+  end
+
+  for k, v in pairs(self._wait) do
+    if v then return true end
   end
 end
 
-function CoSock:_stop()
-  self._timer:stop()
+function CoSock:_start(op)
+  if self._timeout then
+    self._timer:again(self._timeout * 1000)
+  end
+
+  self:_unset_wait()
+
+  assert(self._wait[op] == false, op)
+  self._wait[op] = true
+end
+
+function CoSock:_stop(op)
+  if self._timer then
+    self._timer:stop()
+  end
+  self:_unset_wait()
+end
+
+function CoSock:_on_io_error(err)
+  if err == EOF then err = "closed" end
+
+  self._err = err
+
+  self._sock:close(function()
+    if self:_waiting() then
+      self:_resume(nil, err)
+    end
+  end)
+  self._timer:close()
+  self._sock, self._timer = nil
 end
 
 function CoSock:_start_read()
   self._sock:start_read(function(cli, err, data)
-
-    if err then
-      self._sock = nil
-      if err == EOF then err = "closed" end
-      cli:close(function() self:_resume(nil, err) end)
-      return
-    end
+    if err then return self:_on_io_error(err) end
 
     if data then self._buf:append(data) end
 
-    if self._wait_read then
-      return self:_resume(true)
-    end
-
+    if self:_waiting("read") then return self:_resume(true) end
   end)
+  return self
 end
 
 function CoSock:receive(pat, prefix)
   if not self._sock then return nil, "closed" end
 
-  self:_start()
-  self._wait_read = true
+  if prefix and type(pat) == 'number' then
+    pat = pat - #prefix
+    if pat <= 0 then return prefix end
+  end
 
   pat = pat or "*l"
   if pat == "*r" then pat = nil end
+
+  self:_start("read")
+
+  assert(self:_waiting("read"))
 
   if pat == "*a" then while true do
     local ok, err = self:_yield()
 
     if not ok then
-      self._wait_read = false
+      self:_stop("read")
 
       if err == 'timeout' then
         return nil, err, self._buf:read_all()
@@ -117,74 +164,64 @@ function CoSock:receive(pat, prefix)
 
   end end
 
-  if prefix and type(pat) == 'number' then
-    pat = pat - #prefix
-    if pat <= 0 then return prefix end
-  end
-
   while true do
     local msg = self._buf:read(pat)
     if msg then
-      self._wait_read = false
-      self:_stop()
+      self:_stop("read")
       if prefix then msg = prefix .. msg end
       return msg
     end
 
     local ok, err = self:_yield()
     if not ok then
-      self._wait_read = false
-      self:_stop()
-      if type(pat) == 'number' then
+      self:_stop("read")
+        if type(pat) == 'number' then
         return nil, err, self._buf:read()
       end
       return nil, err
     end
-
   end
 end
 
 function CoSock:send(data)
   if not self._sock then return nil, "closed" end
 
-  self:_start()
-  self._sock:write(data, self._on_write)
+  local terminated
+  self:_start("write")
+  self._sock:write(data, function(cli, err)
+    if terminated then return end
+    if err then return self:_on_io_error(err) end
+    return self:_resume(true)
+  end)
   local ok, err = self:_yield()
-  self:_stop()
+  terminated = true
+  self:_stop("write")
+
   if not ok then
-    self:close()
     return nil, "closed"
   end
   return ok, err
 end
 
 function CoSock:connect(host, port)
-  self:_start()
+  self:_start("conn")
   local res, err = CoGetAddrInfo(host, port)
-  self:_stop()
+  self:_stop("conn")
 
   if not res then return nil, err end
 
-  local terminated = false
+  local terminated, ok, err
+  for i = 1, #res do
+    self:_start("conn")
 
-  local ok, err
-  for _, addr in ipairs(res) do
-    self:_start()
-
-    self._sock:connect(addr.address, addr.port, function(cli, err)
+    self._sock:connect(res[i].address, res[i].port, function(cli, err)
       if terminated then return end
-
-      if err then
-        self._sock:close()
-        self._sock = uv.tcp()
-        return self:_resume(nil, err)
-      end
-      return self:_resume(true)
+      return self:_resume(not err, err)
     end)
 
     ok, err = self:_yield()
 
-    self:_stop()
+    self:_stop("conn")
 
     if ok then break end
 
@@ -194,9 +231,8 @@ function CoSock:connect(host, port)
   terminated = true
 
   if not ok then return nil, err end
-  self:_start_read()
 
-  return self
+  return self:_start_read()
 end
 
 function CoSock:settimeout(sec)
@@ -206,22 +242,13 @@ function CoSock:settimeout(sec)
 end
 
 function CoSock:close()
-  if self._sock then
-    self._sock:close(self._on_close)
-    self._timer:close()
-    self._sock, self._timer = nil
-    return self:_yield()
-  end
+  if self._sock  then self._sock:close()  end
+  if self._timer then self._timer:close() end
+  self._sock, self._timer = nil
   return true
 end
 
-function CoSock:__gc()
-  if self._sock then
-    self._sock:close()
-    self._timer:close()
-    self._sock, self._timer = nil
-  end
-end
+CoSock.__gc = CoSock.close
 
 function CoSock:setoption()
   return nil, "NYI"
