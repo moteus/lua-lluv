@@ -1,3 +1,12 @@
+----------------------------------------------------------------------------
+-- Implementation of LuaSocket interface.
+--
+-- Known wont fix problem:
+--  - send does not return number of sended bytes
+--  - send may not detects closed socket
+--  - send do not wait until large data will be sended
+----------------------------------------------------------------------------
+
 local uv = require "lluv"
 local ut = require "lluv.utils"
 
@@ -333,5 +342,4 @@ return {
   bind    = bind;
   gettime = function() return math.floor(uv.now()/1000) end;
   sleep   = sleep;
-  
 }
