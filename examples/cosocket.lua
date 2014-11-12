@@ -131,7 +131,7 @@ function CoSock:_start_read()
 end
 
 function CoSock:receive(pat, prefix)
-  if not self._sock then return nil, "closed" end
+  if not self._sock then return nil, self._err end
 
   if prefix and type(pat) == 'number' then
     pat = pat - #prefix
@@ -175,16 +175,13 @@ function CoSock:receive(pat, prefix)
     local ok, err = self:_yield()
     if not ok then
       self:_stop("read")
-        if type(pat) == 'number' then
-        return nil, err, self._buf:read()
-      end
-      return nil, err
+      return nil, err, self._buf:read_all()
     end
   end
 end
 
 function CoSock:send(data)
-  if not self._sock then return nil, "closed" end
+  if not self._sock then return nil, self._err end
 
   local terminated
   self:_start("write")
@@ -241,6 +238,18 @@ function CoSock:settimeout(sec)
   return self
 end
 
+function CoSock:bind(host, port)
+  if not self._sock then return nil, self._err end
+
+  local ok, err = self._sock:bind(host, port)
+  if not ok then
+    self._sock:close()
+    self._sock = uv.tcp()
+    return nil, err
+  end
+  return self
+end
+
 function CoSock:close()
   if self._sock  then self._sock:close()  end
   if self._timer then self._timer:close() end
@@ -254,12 +263,33 @@ function CoSock:setoption()
   return nil, "NYI"
 end
 
+function CoSock:getsockname()
+  if not self._sock then return nil, self._err end
+
+  return self._sock:getsockname()
+end
+
+function CoSock:getfd()
+  if not self._sock then return -1 end
+  return self._sock:fileno()
+end
+
 end
 ----------------------------------------------------------------------------
 
 local function connect(host, port)
   local sok = CoSock.new()
   local ok, err = sok:connect(host, port)
+  if not ok then
+    sok:close()
+    return nil, err
+  end
+  return sok
+end
+
+local function bind(host, port)
+  local sok = CoSock.new()
+  local ok, err = sok:bind(host, port)
   if not ok then
     sok:close()
     return nil, err
@@ -300,6 +330,7 @@ end
 return {
   tcp     = CoSock.new;
   connect = connect;
+  bind    = bind;
   gettime = function() return math.floor(uv.now()/1000) end;
   sleep   = sleep;
   
