@@ -15,7 +15,19 @@
 #include "lauxlib.h"
 #include <stdint.h>
 
-#if LUA_VERSION_NUM >= 502 /* lua 5.2 */
+#if LUA_VERSION_NUM >= 503 /* Lua 5.3 */
+
+#ifndef luaL_checkint
+#define luaL_checkint luaL_checkinteger
+#endif
+
+#ifndef luaL_optint
+#define luaL_optint luaL_optinteger
+#endif
+
+#endif
+
+#if LUA_VERSION_NUM >= 502 /* Lua 5.2 */
 
 /* lua_rawgetp */
 /* lua_rawsetp */
@@ -36,7 +48,7 @@ void luaL_register (lua_State *L, const char *libname, const luaL_Reg *l);
 #define lua_equal(L,idx1,idx2) lua_compare(L,(idx1),(idx2),LUA_OPEQ)
 #endif
 
-#else                      /* lua 5.1 */
+#else                      /* Lua 5.1 */
 
 /* functions form lua 5.2 */
 
