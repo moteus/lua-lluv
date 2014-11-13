@@ -10,6 +10,15 @@
 local uv = require "lluv"
 local ut = require "lluv.utils"
 
+local function _check_resume(status, ...)
+  if not status then return error(..., 3) end
+  return ...
+end
+
+local function co_resume(...)
+  return _check_resume(coroutine.resume(...))
+end
+
 local function CoGetAddrInfo(host, port)
   local co = assert(coroutine.running())
   local terminated = false
@@ -21,8 +30,8 @@ local function CoGetAddrInfo(host, port)
   }, function(_, err, res)
     if terminated then return end
 
-    if err then coroutine.resume(co, nil, err)
-    else coroutine.resume(co, res) end
+    if err then co_resume(co, nil, err)
+    else co_resume(co, res) end
   end)
 
   local ok, err = coroutine.yield()
@@ -68,13 +77,8 @@ function CoSock:__init(s)
   return self
 end
 
-local function _check_resume(status, ...)
-  if not status then return error(..., 3) end
-  return ...
-end
-
 function CoSock:_resume(...)
-  return _check_resume(coroutine.resume(self._co, ...))
+  return co_resume(self._co, ...)
 end
 
 function CoSock:_yield(...)
@@ -322,11 +326,9 @@ local function sleep(s)
 
   local timer = SLEEP_TIMERS[co]
   if not timer then
-    local resume = function(...) return coroutine.resume(co, ...) end
-
     timer = uv.timer():start(10000, function(self)
       self:stop()
-      resume()
+      co_resume(co)
     end):stop()
 
     SLEEP_TIMERS[co] = timer
