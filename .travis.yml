@@ -23,10 +23,7 @@ before_install:
   - bash .travis/setup_ftp.sh
   - sudo luarocks install https://raw.github.com/moteus/lunit/moteus-skip/rockspecs/lunitx-scm.mot.skip-0.rockspec --deps-mode=none
   - sudo luarocks install lua-path --deps-mode=none
-  - git clone https://github.com/moteus/luafilesystem.git luafilesystem
-  - cd ./luafilesystem
-  - sudo luarocks make rockspecs/luafilesystem-cvs-3.rockspec
-  - cd ..
+  - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
   - sudo luarocks install vararg --from=https://rocks.moonscript.org/dev
   - sudo luarocks install luasocket
   # - sudo pip install cpp-coveralls
