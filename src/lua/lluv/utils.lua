@@ -240,6 +240,25 @@ function List:empty()
   return self._first > self._last
 end
 
+function List:find(fn, pos)
+  pos = pos or 1
+  if type(fn) == "function" then
+    for i = self._first + pos - 1, self._last do
+      local n = i - self._first + 1
+      if fn(self._t[i]) then
+        return n, self._t[i]
+      end
+    end
+  else
+    for i = self._first + pos - 1, self._last do
+      local n = i - self._first + 1
+      if fn == self._t[i] then
+        return n, self._t[i]
+      end
+    end
+  end
+end
+
 function List.self_test()
   local q = List:new()
 
@@ -293,6 +312,17 @@ function List.self_test()
   q:push_back(1):push_back(2)
   assert(q:pop_front() == 1)
   assert(q:pop_front() == 2)
+
+  q:reset()
+  assert(nil == q:find(1))
+  q:push_back(1):push_back(2):push_front(3)
+  assert(1 == q:find(3))
+  assert(2 == q:find(1))
+  assert(3 == q:find(2))
+  assert(nil == q:find(4))
+  assert(2 == q:find(1, 2))
+  assert(nil == q:find(1, 3))
+
 end
 
 end
@@ -324,7 +354,7 @@ end
 -------------------------------------------------------------------
 local Buffer = class() do
 
--- currently full supports only EOL like `\r*\n`
+-- eol should ends with specific char.
 
 function Buffer:__init(eol, eol_is_rex)
   self._eol       = eol or "\n"
@@ -361,32 +391,43 @@ function Buffer:read_line(eol, eol_is_rex)
   if eol then plain = not eol_is_rex
   else eol, plain = self._eol, self._eol_plain end
 
-  -- first char in EOL shoul be terminal (e.g. '\r\n' or ' *\n')
-  -- This is invalid EOL: '[\r\n]' '%s*\n'
-  local first_char = eol:sub(1,1) .. "$"
-
   local lst = self._lst
 
-  local t = {""}
-  while true do
-    local data = lst:pop_front()
+  local ch = eol:sub(-1)
+  local check = function(s) return not not string.find(s, ch, nil, true) end
 
-    if not data then -- no EOL in buffer
-      if #t > 1 then lst:push_front(table.concat(t)) end
+  local t = {}
+  while true do
+    local i = self._lst:find(check)
+
+    if not i then
+      if #t > 0 then lst:push_front(table.concat(t)) end
       return
     end
 
-    -- begin of EOL in preview chunk
-    if string.find(t[#t], first_char) then
-      data = table.remove(t) .. data
+    assert(i > 0)
+
+    for i = i, 1, -1 do t[#t + 1] = lst:pop_front() end
+
+    if eol == ch then
+      local line, tail = split_first(t[#t], ch, true)
+      t[#t] = line
+
+      assert(tail)
+      if #tail > 0 then lst:push_front(tail) end
+      return table.concat(t)
     end
 
-    local line, tail = split_first(data, eol, plain)
+    -- we need concat whole string and split
+    -- for eol like `\r\n` this may not work well but for most cases it should work well
+    -- e.g. for LuaSockets pattern `\r*\n` it work with one iteration but still we need
+    -- concat->split because of case such {"aaa\r", "\n"}
 
-    t[#t + 1] = line
+    local line, tail = split_first(table.concat(t), eol, plain)
+
     if tail then -- we found EOL
-      lst:push_front(tail)
-      return table.concat(t)
+      if #tail > 0 then lst:push_front(tail) end
+      return line
     end
   end
 end
@@ -505,8 +546,9 @@ function Buffer.self_test(EOL)
   assert("" == b:read_line())
   assert("bbb" == b:read_line())
   assert(nil == b:read_line())
-  assert("ccc" == b:read_line("$", true))
+  -- assert("ccc" == b:read_line("$", true))
 
+  b:reset()
   b:append("aaa\r\r")
   b:append("\r\r")
   assert(nil == b:read_line())
