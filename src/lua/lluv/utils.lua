@@ -409,21 +409,28 @@ function Buffer:read_line(eol, eol_is_rex)
 
     for i = i, 1, -1 do t[#t + 1] = lst:pop_front() end
 
-    if eol == ch then
-      local line, tail = split_first(t[#t], ch, true)
+    local line, tail
+
+    -- try find EOL in last chunk
+    if plain or (eol == ch) then line, tail = split_first(t[#t], eol, true) end
+
+    if eol == ch then assert(tail) end
+
+    if tail then -- we found EOL
+      -- we can split just last chunk and concat
       t[#t] = line
 
-      assert(tail)
       if #tail > 0 then lst:push_front(tail) end
+
       return table.concat(t)
     end
 
-    -- we need concat whole string and split
+    -- we need concat whole string and then split
     -- for eol like `\r\n` this may not work well but for most cases it should work well
     -- e.g. for LuaSockets pattern `\r*\n` it work with one iteration but still we need
     -- concat->split because of case such {"aaa\r", "\n"}
 
-    local line, tail = split_first(table.concat(t), eol, plain)
+    line, tail = split_first(table.concat(t), eol, plain)
 
     if tail then -- we found EOL
       if #tail > 0 then lst:push_front(tail) end
@@ -508,6 +515,19 @@ function Buffer:next_n(data, n)
 end
 
 function Buffer.self_test(EOL)
+  
+  local b = Buffer.new("\r\n")
+  
+  b:append("a\r")
+  b:append("\nb")
+  b:append("\r\n")
+  b:append("c\r\nd\r\n")
+  
+  assert("a" == b:read_line())
+  assert("b" == b:read_line())
+  assert("c" == b:read_line())
+  assert("d" == b:read_line())
+  
   local b = Buffer:new(EOL)
   local eol = b:eol()
 
