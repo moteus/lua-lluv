@@ -1,4 +1,17 @@
+------------------------------------------------------------------
 --
+--  Author: Alexey Melnichuk <mimir@newmail.ru>
+--
+--  Copyright (C) 2014 Alexey Melnichuk <mimir@newmail.ru>
+--
+--  Licensed according to the included 'LICENSE' document
+--
+--  This file is part of lua-lluv library.
+--
+------------------------------------------------------------------
+-- Memcached Client
+------------------------------------------------------------------
+
 --[[-- usage
 local umc = mc.Connection.new("127.0.0.1:11211")
 

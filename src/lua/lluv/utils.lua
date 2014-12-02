@@ -1,3 +1,15 @@
+------------------------------------------------------------------
+--
+--  Author: Alexey Melnichuk <mimir@newmail.ru>
+--
+--  Copyright (C) 2014 Alexey Melnichuk <mimir@newmail.ru>
+--
+--  Licensed according to the included 'LICENSE' document
+--
+--  This file is part of lua-lluv library.
+--
+------------------------------------------------------------------
+
 local function split(str, sep, plain)
   local b, res = 1, {}
   while b <= #str do
@@ -84,99 +96,6 @@ local function class_self_test()
   B:new(1, 2, 3)
   B.new(1, 2, 3)
 end
-
--------------------------------------------------------------------
-local Buffer = class() do
-
-function Buffer:__init(eol)
-  self._eol = eol or "\n"
-  self._tail = ""
-  return self
-end
-
-function Buffer:next_line(data, eol)
-  data = data and (self._tail .. data) or self._tail
-
-  local s1, s2 = split_first(data, eol or self._eol, true)
-  if s2 then
-    self._tail = s2
-    return s1
-  end
-  self._tail = data
-end
-
-function Buffer:next_n(data, n)
-  data = data and (self._tail .. data) or self._tail
-  if n > #data then
-    self._tail = data
-    return nil
-  end
-
-  local res = string.sub(data, 1, n)
-  self._tail = string.sub(data, n+1)
-  return res
-end
-
-function Buffer:reset()
-  self._tail = ""
-end
-
-function Buffer:append(data)
-  self._tail = self._tail .. data
-end
-
-function Buffer:eol()
-  return self._eol
-end
-
-function Buffer.self_test(EOL)
-  local b = Buffer:new(EOL)
-  local eol = b:eol()
-
-    -- test next_xxx
-  assert("aaa" == b:next_line("aaa" .. eol .. "bbb"))
-  assert("bbb" == b._tail, b._tail)
-
-  assert("bbbccc" == b:next_line("ccc" .. eol .. "ddd" .. eol))
-  assert("ddd"..eol == b._tail, b._tail)
-
-  assert("ddd" == b:next_line(eol))
-  assert(eol == b._tail, "'" .. b._tail .."'")
-
-  assert("" == b:next_line(""))
-  assert("" == b._tail, "'" .. b._tail .."'")
-
-  assert(nil == b:next_line(""))
-  assert("" == b._tail, "'" .. b._tail .."'")
-
-  assert(nil == b:next_line("aaa"))
-  assert("aaa" == b._tail, "'" .. b._tail .."'")
-
-  assert("aaa" == b:next_n("123456", 3))
-  assert("123456" == b._tail, "'" .. b._tail .."'")
-
-  assert(nil == b:next_n("", 8))
-  assert("123456" == b._tail, "'" .. b._tail .."'")
-
-  assert("123"== b:next_n("", 3))
-  assert("456" == b._tail, "'" .. b._tail .."'")
-
-  assert("456" == b:next_n(nil, 3))
-  assert("" == b._tail, "'" .. b._tail .."'")
-
-  b:reset()
-
-  assert(nil == b:next_line("aaa|bbb"))
-  assert("aaa|bbb" == b._tail, b._tail)
-
-  assert("aaa" == b:next_line(nil, "|"))
-  assert("bbb" == b._tail, b._tail)
-
-  b:reset()
-end
-
-end
--------------------------------------------------------------------
 
 -------------------------------------------------------------------
 local List = class() do
