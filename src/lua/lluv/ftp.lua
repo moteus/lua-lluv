@@ -135,7 +135,7 @@ local WAIT = {}
 local ResponseParser = class() do
 
 function ResponseParser:next(buf) while true do
-  local line = buf:next_line()
+  local line = buf:read_line()
   if not line then return WAIT end
 
 -- HELP:

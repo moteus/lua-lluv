@@ -97,7 +97,7 @@ local function make_store(cmd, key, data, exptime, flags, noreply, cas)
   if noreply then buf[#buf + 1] = "noreply" end
 
   -- avoid concat `data` because it could be very big
-  return {table.concat(buf, " ") .. EOL,  data, EOL}
+  return {table.concat(buf, " ") .. EOL, data, EOL}
 end
 
 local function make_retr(cmd, key)
@@ -210,7 +210,7 @@ function Connection:_read(data)
 end
 
 function Connection:_on_store(req)
-  local line = self._buff:next_line()
+  local line = self._buff:read_line()
   if not line then return WAIT end
   assert(self._queue:pop() == req)
 
@@ -229,7 +229,7 @@ end
 
 function Connection:_on_retr(req)
   if not req.len then -- we wait next value
-    local line = self._buff:next_line()
+    local line = self._buff:read_line()
     if not line then return WAIT end
 
     if line == "END" then -- no more data
@@ -257,7 +257,7 @@ function Connection:_on_retr(req)
 
   assert(req.len)
 
-  local data = self._buff:next_n(nil, req.len)
+  local data = self._buff:read_n(req.len)
   if not data then return WAIT end
   
   if not req.res then req.res = {} end
