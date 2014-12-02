@@ -179,7 +179,6 @@ LLUV_INTERNAL int lluv_push_addr(lua_State *L, const struct sockaddr_storage *ad
 LLUV_INTERNAL void lluv_push_stat(lua_State* L, const uv_stat_t* s){
 #define SET_FIELD_INT(F,V)  lutil_pushint64(L, s->V);         lua_setfield(L, -2, F)
 #define SET_FIELD_MODE(F,V) lua_pushboolean(L, V(s->st_mode));lua_setfield(L, -2, F)
-  //! @todo push full time (not only seconds)
 #define SET_FIELD_TIME(F,V) lluv_push_timespec(L, &s->V); lua_setfield(L, -2, F)
 
   lua_newtable(L);
