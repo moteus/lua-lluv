@@ -644,7 +644,7 @@ function test_writeafterclose()
     ]]))
     local sent, err, errsent
     while not err do 
-        sent, err, errsent, time = data:send(str)
+        sent, err, errsent = data:send(str)
     end
     assert(err == "closed", "should have returned 'closed'")
     pass("ok")

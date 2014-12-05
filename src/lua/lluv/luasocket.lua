@@ -198,11 +198,16 @@ function CoSock:send(data)
 
   local terminated
   self:_start("write")
-  self._sock:write(data, function(cli, err)
+  local ok, err = self._sock:write(data, function(cli, err)
     if terminated then return end
     if err then return self:_on_io_error(err) end
     return self:_resume(true)
   end)
+
+  if not ok then
+    self:_on_io_error("closed")
+  end
+
   local ok, err = self:_yield()
   terminated = true
   self:_stop("write")

@@ -440,7 +440,6 @@ static int lluv_stream_write(lua_State *L){
   return 1;
 }}
 
-
 static int lluv_stream_write2(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   lluv_handle_t *src    = lluv_check_stream(L, 2, LLUV_FLAG_OPEN);

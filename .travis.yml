@@ -5,9 +5,9 @@ env:
     - LUAROCKS=2.2.0
   matrix:
     - LUA=lua5.1
-    - LUA=lua5.2
-    - LUA=lua5.3
-    - LUA=luajit
+    # - LUA=lua5.2
+    # - LUA=lua5.3
+    # - LUA=luajit
 
 services:
   - memcached
@@ -20,11 +20,11 @@ before_install:
   # - sudo apt-get update
   - bash .travis/setup_lua.sh
   - bash .travis/setup_uv.sh
-  - bash .travis/setup_ftp.sh
-  - sudo luarocks install https://raw.github.com/moteus/lunit/moteus-skip/rockspecs/lunitx-scm.mot.skip-0.rockspec --deps-mode=none
-  - sudo luarocks install lua-path --deps-mode=none
-  - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
-  - sudo luarocks install vararg --from=https://rocks.moonscript.org/dev
+  # - bash .travis/setup_ftp.sh
+  # - sudo luarocks install https://raw.github.com/moteus/lunit/moteus-skip/rockspecs/lunitx-scm.mot.skip-0.rockspec --deps-mode=none
+  # - sudo luarocks install lua-path --deps-mode=none
+  # - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
+  # - sudo luarocks install vararg --from=https://rocks.moonscript.org/dev
   - sudo luarocks install luasocket
   # - sudo pip install cpp-coveralls
 
@@ -33,15 +33,17 @@ install:
 
 script: 
   - cd test
-  - lua test-active.lua
-  - lua test-multi-write.lua
-  - lua -e"require'lluv.utils'.self_test()"
-  - lua -e"require'lluv.memcached'.self_test()"
-  - lua -e"require'lluv.ftp'.self_test('127.0.0.1', 'moteus', '123456')"
-  - lunit.sh test-fs.lua
+  # - lua test-active.lua
+  # - lua test-multi-write.lua
+  # - lua -e"require'lluv.utils'.self_test()"
+  # - lua -e"require'lluv.memcached'.self_test()"
+  # - lua -e"require'lluv.ftp'.self_test('127.0.0.1', 'moteus', '123456')"
+  # - lunit.sh test-fs.lua
   - cd ./luasocket
   - lua testsrvr.lua > /dev/null &
   - lua corun.lua testclnt.lua
+  - lua ts.lua > /dev/null &
+  - lua tt.lua
 
 # after_success:
 #   - coveralls -b .. -r .. --dump c.report.json
