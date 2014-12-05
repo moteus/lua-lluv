@@ -39,6 +39,9 @@ script:
   - lua -e"require'lluv.memcached'.self_test()"
   - lua -e"require'lluv.ftp'.self_test('127.0.0.1', 'moteus', '123456')"
   - lunit.sh test-fs.lua
+  - cd ./luasocket
+  - lua testsrvr.lua > /dev/null &
+  - lua corun.lua testclnt.lua
 
 # after_success:
 #   - coveralls -b .. -r .. --dump c.report.json

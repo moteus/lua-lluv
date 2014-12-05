@@ -1,5 +1,5 @@
-local socket    = require "cosocket"
 local uv        = require "lluv"
+local socket    = require "lluv.luasocket"
 local sendmail_ = require "sendmail"
 
 local function sendmail(server, ...)

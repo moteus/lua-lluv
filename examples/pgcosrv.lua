@@ -19,9 +19,9 @@
 -- cnn:each("select * from test", print)
 --
 
-local socket = require "cosocket"
 local uv     = require "lluv"
 local ut     = require "lluv.utils"
+local socket = require "lluv.luasocket"
 local try    = require "try"
 local struct = require "struct"
 

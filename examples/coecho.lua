@@ -1,6 +1,6 @@
-local socket = require "cosocket"
 local uv     = require "lluv"
 local ut     = require "lluv.utils"
+local socket = require "lluv.luasocket"
 
 ----------------------------------------------------------------------------
 local function CreateServer(ip, port, cb)

@@ -1,5 +1,5 @@
-local socket = require "cosocket"
 local uv     = require "lluv"
+local socket = require "lluv.luasocket"
 local http   = require "socket.http"
 
 local function http_request(url)
