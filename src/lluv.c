@@ -32,7 +32,29 @@
 #include "lluv_misc.h"
 #include "lluv_dns.h"
 
+#define LLUV_VERSION_MAJOR 0
+#define LLUV_VERSION_MINOR 1
+#define LLUV_VERSION_PATCH 0
+#define LLUV_VERSION_COMMENT "dev"
+
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
+
+static int lluv_push_version(lua_State *L){
+  lua_pushnumber(L, LLUV_VERSION_MAJOR);
+  lua_pushliteral(L, ".");
+  lua_pushnumber(L, LLUV_VERSION_MINOR);
+  lua_pushliteral(L, ".");
+  lua_pushnumber(L, LLUV_VERSION_PATCH);
+#ifdef LLUV_VERSION_COMMENT
+  if(LLUV_VERSION_COMMENT[0]){
+    lua_pushliteral(L, "-"LLUV_VERSION_COMMENT);
+    lua_concat(L, 6);
+  }
+  else
+#endif
+  lua_concat(L, 5);
+  return 1;
+}
 
 static const struct luaL_Reg lluv_functions[] = {
 
@@ -75,6 +97,9 @@ static int luaopen_lluv_impl(lua_State *L, int safe){
   lua_pushvalue(L, -2); lluv_dns_initlib      (L, 1, safe);
 
   lua_remove(L, -2); /* registry */
+
+  lluv_push_version(L);
+  lua_setfield(L, -2, "_VERSION");
 
   return 1;
 }
