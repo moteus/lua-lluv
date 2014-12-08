@@ -53,6 +53,7 @@ LLUV_INTERNAL int lluv_loop_create(lua_State *L, uv_loop_t *h, lluv_flags_t flag
   loop->handle       = h;
   loop->handle->data = loop;
   loop->flags        = flags | LLUV_FLAG_OPEN;
+  loop->level        = 0;
   loop->buffer_size  = LLUV_BUFFER_SIZE;
   lua_pushvalue(L, -1);
   lua_rawsetp(L, LLUV_LUA_REGISTRY, h);
@@ -209,9 +210,11 @@ static int lluv_loop_run_impl(lua_State *L){
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
+  ++loop->level;
   loop->L = L;
   err = uv_run(loop->handle, mode);
   loop->L = prev_state;
+  --loop->level;
 
   if(err < 0){
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);

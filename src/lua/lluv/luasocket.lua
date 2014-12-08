@@ -205,6 +205,7 @@ function CoSock:send(data)
   end)
 
   if not ok then
+    print("Write faild")
     self:_on_io_error("closed")
   end
 

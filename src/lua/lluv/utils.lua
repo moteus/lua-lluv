@@ -515,19 +515,28 @@ local DeferQueue = class() do
 local va, uv
 
 function DeferQueue:__init()
-
   va = va or require "vararg"
   uv = uv or require "lluv"
 
+  self._cb = function()
+    self:_on_tick()
+    if self._queue:empty() then self:_stop() else self:_start() end
+  end
+
   self._queue = Queue.new()
-  self._timer = uv.timer():start(0, 1, function()
-    self:_on_time()
-    if o._queue:empty() then self._timer:stop() else self._timer:again() end
-  end):stop()
+  self._timer = uv.timer():start(0, 1, self._cb):stop()
   return self
 end
 
-function DeferQueue:_on_time()
+function DeferQueue:_start()
+  self._timer:again()
+end
+
+function DeferQueue:_stop()
+  self._timer:stop()
+end
+
+function DeferQueue:_on_tick()
   -- callback could register new function
   -- so we proceed only currently active
   -- and leave new one to next iteration
@@ -539,17 +548,46 @@ function DeferQueue:_on_time()
 end
 
 function DeferQueue:call(...)
-  self._queue.push(va(...))
-  if self._queue.size() == 1 then self._timer:again() end
+  self._queue:push(va(...))
+  if self._queue:size() == 1 then
+    self:_start()
+  end
 end
 
 function DeferQueue:close(call)
   if not self._queue then return end
 
-  if call then self._on_time() end
-  self._timer:close()
-  self._queue, self._timer = nil
+  if call then self._on_tick() end
+
+  self._prepare:close()
+  -- self._timer:close()
+  self._queue, self._timer, self._prepare = nil
 end
+
+function DeferQueue.self_test()
+
+  local dq = DeferQueue.new()
+  assert(dq)
+  assert(uv)
+  assert(va)
+  
+  local f = 0
+  local increment = function() f = f + 1 end
+
+  dq:call(increment)
+  assert(f == 0)
+  assert(0 == uv.run())
+  assert(f == 1)
+
+  dq:call(function()
+    increment()
+    dq:call(increment)
+    assert(f == 2)
+  end)
+  assert(0 == uv.run())
+  assert(f == 3)
+end
+
 
 end
 -------------------------------------------------------------------
@@ -633,6 +671,7 @@ end
 local function self_test()
   Buffer.self_test()
   List.self_test()
+  DeferQueue.self_test()
   slit_first_self_test()
   class_self_test()
 end

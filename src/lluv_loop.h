@@ -23,6 +23,7 @@ typedef struct lluv_loop_tag{
   uv_loop_t   *handle;/* read only */
   lluv_flags_t flags; /* read only */
   lua_State   *L;
+  int8_t       level;
   size_t       buffer_size;
   char         buffer[LLUV_BUFFER_SIZE];
 }lluv_loop_t;

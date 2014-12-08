@@ -36,6 +36,7 @@ local EOL = "\r\n"
 local class       = ut.class
 local usplit      = ut.usplit
 local split_first = ut.split_first
+local defer       = ut.DeferQueue.new()
 
 local function trim(s)
   return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
@@ -88,6 +89,11 @@ local EPROTO = Error.EPROTO
 local ECBACK = Error.ECBACK
 local EREADY = Error.EREADY
 local ECONN  = Error.ECONN
+
+local function write_with_cb(cli, data, cb)
+  local ok, err = cli:write(data, cb)
+  if not ok then defer:call(cb, cli, err) end
+end
 
 -------------------------------------------------------------------
 local ErrorState do
@@ -253,7 +259,7 @@ function TcpConnection:ready()
 end
 
 function TcpConnection:write(data, cb)
-  self._sock:write(data, function(self, err)
+  write_with_cb(self._sock, data, function(self, err)
     if err then self._disconnect(err) end
     ocall(cb, self, err)
   end)
@@ -867,7 +873,9 @@ function Connection:stor(fname, opt, cb)
 
         write_cb = function(self, cli)
           local chunk = opt.source()
-          if chunk then return cli:write(chunk, on_write) end
+          if chunk then
+            return write_with_cb(cli, chunk, on_write)
+          end
           return ctx:data_done()
         end
 
@@ -878,7 +886,7 @@ function Connection:stor(fname, opt, cb)
       assert(type(opt) == "string")
       local data data, opt = opt, {}
       write_cb = function(self, cli)
-        cli:write(data, function(cli, err)
+        write_with_cb(cli, data, function(cli, err)
           ctx:data_done(err)
         end)
       end

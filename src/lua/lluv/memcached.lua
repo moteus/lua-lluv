@@ -61,6 +61,7 @@ local STORE_RESP = {
 local class       = ut.class
 local usplit      = ut.usplit
 local split_first = ut.split_first
+local defer       = ut.DeferQueue.new()
 
 local Error = ut.Errors{
   { EPROTO           = "Protocol error"                 },
@@ -69,6 +70,11 @@ local Error = ut.Errors{
   { SERVER_ERROR     = "Server error"                   },
   { ECONN            = "Problem with server connection" },
 }
+
+local function write_with_cb(cli, data, cb)
+  local ok, err = cli:write(data, cb)
+  if not ok then defer:call(cb, cli, err) end
+end
 
 local function cb_args(...)
   local n = select("#", ...)
@@ -266,9 +272,10 @@ function Connection:_on_retr(req)
 end
 
 function Connection:_send(data, type, cb)
-  self._cnn:write(data, function(cli, err)
+  write_with_cb(self._cnn, data, function(cli, err)
     if err then self:close(err) end
   end)
+
   local req
   if type == REQ_RETR_MULTI then
     req = {type = REQ_RETR, cb=cb, multi = true}
