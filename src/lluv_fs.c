@@ -20,6 +20,12 @@
 #include <assert.h>
 #include <fcntl.h>
 
+#ifndef _WIN32
+
+#include <unistd.h>
+
+#endif
+
 /* callback signatures  callback(loop|file, err|nil, ...)
 ** one exaption is fs_open callback(file|nil, err|nil, path)
 **
