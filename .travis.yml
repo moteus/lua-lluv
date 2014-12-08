@@ -1,17 +1,13 @@
-language: objective-c
+language: c
 
 env:
   global:
     - LUAROCKS=2.2.0
   matrix:
     - LUA=lua5.1
-    # - LUA=lua5.2
-    # - LUA=lua5.3
-    # - LUA=luajit
-
-os:
-  - osx
-  - linux
+    - LUA=lua5.2
+    - LUA=lua5.3
+    - LUA=luajit
 
 services:
   - memcached
