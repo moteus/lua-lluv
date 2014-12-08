@@ -1,4 +1,4 @@
-language: c
+language: objective-c
 
 env:
   global:
@@ -8,6 +8,10 @@ env:
     # - LUA=lua5.2
     # - LUA=lua5.3
     # - LUA=luajit
+
+os:
+  - osx
+  - linux
 
 services:
   - memcached
