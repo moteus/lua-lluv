@@ -1,7 +1,5 @@
 local uv = require "lluv"
 
-uv.signal_ignore(uv.SIGPIPE)
-
 local host = host or "127.0.0.1"
 local port = port or "8384"
 

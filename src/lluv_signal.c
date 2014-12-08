@@ -130,6 +130,60 @@ static const lluv_uv_const_t lluv_signal_constants[] = {
 #ifdef SIGPIPE
   { SIGPIPE, "SIGPIPE" },
 #endif
+#ifdef SIGQUIT
+  { SIGQUIT, "SIGQUIT" },
+#endif
+#ifdef SIGILL
+  { SIGILL, "SIGILL" },
+#endif
+#ifdef SIGABRT
+  { SIGABRT, "SIGABRT" },
+#endif
+#ifdef SIGTRAP
+  { SIGTRAP, "SIGTRAP" },
+#endif
+#ifdef SIGIOT
+  { SIGIOT, "SIGIOT" },
+#endif
+#ifdef SIGEMT
+  { SIGEMT, "SIGEMT" },
+#endif
+#ifdef SIGFPE
+  { SIGFPE, "SIGFPE" },
+#endif
+#ifdef SIGKILL
+  { SIGKILL, "SIGKILL" },
+#endif
+#ifdef SIGBUS
+  { SIGBUS, "SIGBUS" },
+#endif
+#ifdef SIGSEGV
+  { SIGSEGV, "SIGSEGV" },
+#endif
+#ifdef SIGSYS
+  { SIGSYS, "SIGSYS" },
+#endif
+#ifdef SIGALRM
+  { SIGALRM, "SIGALRM" },
+#endif
+#ifdef SIGUSR1
+  { SIGUSR1, "SIGUSR1" },
+#endif
+#ifdef SIGUSR2
+  { SIGUSR2, "SIGUSR2" },
+#endif
+#ifdef SIGCHLD
+  { SIGCHLD, "SIGCHLD" },
+#endif
+#ifdef SIGCLD
+  { SIGCLD, "SIGCLD" },
+#endif
+#ifdef SIGPWR
+  { SIGPWR, "SIGPWR" },
+#endif
+#ifdef SIGXCPU
+  { SIGXCPU, "SIGXCPU" },
+#endif
   { SIGTERM,  "SIGTERM"  },
 
   { 0, NULL }
@@ -153,7 +207,6 @@ static const struct luaL_Reg lluv_functions[][4] = {
   },
 };
 
-
 LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_SIGNAL, lluv_signal_methods, nup))
@@ -162,4 +215,8 @@ LLUV_INTERNAL void lluv_signal_initlib(lua_State *L, int nup, int safe){
 
   luaL_setfuncs(L, lluv_functions[safe], nup);
   lluv_register_constants(L, lluv_signal_constants);
+
+#ifndef _WIN32
+  signal(SIGPIPE, SIG_IGN);
+#endif
 }
