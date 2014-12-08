@@ -344,6 +344,8 @@ local function sleep(s)
   coroutine.yield()
 end
 
+uv.signal_ignore(uv.SIGPIPE)
+
 return {
   tcp     = CoSock.new;
   connect = connect;

@@ -1,7 +1,4 @@
-local uv = require "lluv"
 local socket = require"lluv.luasocket"
-
-uv.signal_ignore(uv.SIGPIPE)
 
 host = host or "127.0.0.1"
 port = port or "8383"
