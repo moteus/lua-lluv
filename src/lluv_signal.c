@@ -15,6 +15,12 @@
 #include "lluv_error.h"
 #include <assert.h>
 
+#ifndef _WIN32
+
+#include <signal.h>
+
+#endif
+
 #define LLUV_SIGNAL_NAME LLUV_PREFIX" Signal"
 static const char *LLUV_SIGNAL = LLUV_SIGNAL_NAME;
 
@@ -83,6 +89,24 @@ static int lluv_signal_stop(lua_State *L){
   return 1;
 }
 
+LLUV_IMPL_SAFE(lluv_signal_ignore){
+#ifndef _WIN32
+  int s = luaL_checkint(L, 1);
+  signal(s, SIG_IGN);
+#endif
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+LLUV_IMPL_SAFE(lluv_signal_default){
+#ifndef _WIN32
+  int s = luaL_checkint(L, 1);
+  signal(s, SIG_DFL);
+#endif
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
 static const struct luaL_Reg lluv_signal_methods[] = {
   { "start",      lluv_signal_start      },
   { "stop",       lluv_signal_stop       },
@@ -103,15 +127,20 @@ static const lluv_uv_const_t lluv_signal_constants[] = {
 #ifdef SIGWINCH
   { SIGWINCH, "SIGWINCH" },
 #endif
+#ifdef SIGPIPE
+  { SIGPIPE, "SIGPIPE" },
+#endif
   { SIGTERM,  "SIGTERM"  },
 
   { 0, NULL }
 };
 
-#define LLUV_FUNCTIONS(F)       \
-  {"signal", lluv_signal_create_##F}, \
+#define LLUV_FUNCTIONS(F)                      \
+  {"signal",         lluv_signal_create_##F }, \
+  {"signal_ignore",  lluv_signal_ignore_##F }, \
+  {"signal_default", lluv_signal_default_##F}, \
 
-static const struct luaL_Reg lluv_functions[][2] = {
+static const struct luaL_Reg lluv_functions[][4] = {
   {
     LLUV_FUNCTIONS(unsafe)
 
