@@ -24,7 +24,19 @@ LLUV_INTERNAL lluv_loop_t* lluv_push_default_loop(lua_State *L){
   lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
   if(lua_isnil(L, -1)){
     lua_pop(L, 1);
+#ifdef LLUV_USE_UV_DEFAULT_LOOP
     lluv_loop_create(L, uv_default_loop(), LLUV_FLAG_DEFAULT_LOOP);
+#else
+    {
+      uv_loop_t *loop = lluv_alloc_t(L, uv_loop_t);
+      int err = uv_loop_init(loop);
+      if(err < 0){
+        lluv_fail(L, LLUV_FLAG_RAISE_ERROR, LLUV_ERR_UV, err, NULL);
+        return 0;
+      }
+      lluv_loop_create(L, loop, 0);
+    }
+#endif
     lua_pushvalue(L, -1);
     lua_rawsetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
   }
