@@ -293,7 +293,7 @@ static int lluv_loop_now(lua_State *L){
   return 1;
 }
 
-void lluv_loop_on_walk(uv_handle_t* handle, void* arg){
+static void lluv_loop_on_walk(uv_handle_t* handle, void* arg){
   lua_State *L = (lua_State*)arg;
 
   lua_settop(L, 2); lua_pushvalue(L, -1);
@@ -301,15 +301,33 @@ void lluv_loop_on_walk(uv_handle_t* handle, void* arg){
   lua_call(L, 1, 0);
 }
 
-static int lluv_loop_walk(lua_State *L){
+static void lluv_loop_on_collect(uv_handle_t* handle, void* arg){
+  lua_State *L = (lua_State*)arg;
+
+  assert(lua_gettop(L) == 2);
+  assert(lua_istable(L, 2));
+
+  lluv_handle_pushself(L, lluv_handle_byptr(handle));
+  lua_rawseti(L, 2, lua_rawlen(L, 2) + 1);
+
+  assert(lua_gettop(L) == 2);
+}
+
+static int lluv_loop_handles(lua_State *L){
   lluv_loop_t* loop = lluv_ensure_loop_at(L, 1);
 
   lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
-  luaL_checktype(L, 2, LUA_TFUNCTION);
 
-  uv_walk(loop->handle, lluv_loop_on_walk, L);
+  if(lua_isfunction(L, 2)){
+    uv_walk(loop->handle, lluv_loop_on_walk, L);
+    return 0;
+  }
 
-  return 0;
+  lua_settop(L, 1);
+  lua_newtable(L);
+  uv_walk(loop->handle, lluv_loop_on_collect, L);
+  assert(lua_gettop(L) == 2);
+  return 1;
 }
 
 static int lluv_push_default_loop_l(lua_State *L){
@@ -318,13 +336,13 @@ static int lluv_push_default_loop_l(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_loop_methods[] = {
-  { "__tostring", lluv_loop_to_s  },
-  { "run",        lluv_loop_run   },
-  { "close",      lluv_loop_close },
-  { "alive",      lluv_loop_alive },
-  { "stop",       lluv_loop_stop  },
-  { "now",        lluv_loop_now   },
-  { "walk",       lluv_loop_walk  },
+  { "__tostring", lluv_loop_to_s     },
+  { "run",        lluv_loop_run      },
+  { "close",      lluv_loop_close    },
+  { "alive",      lluv_loop_alive    },
+  { "stop",       lluv_loop_stop     },
+  { "now",        lluv_loop_now      },
+  { "handles",    lluv_loop_handles  },
 
   { "close_all_handles", lluv_loop_close_all_handles },
 
@@ -344,7 +362,7 @@ static const struct luaL_Reg lluv_loop_functions[] = {
 
   {"run",          lluv_loop_run           },
   {"stop",         lluv_loop_stop          },
-  {"walk",         lluv_loop_walk          },
+  {"handles",      lluv_loop_handles       },
   {"now",          lluv_loop_now           },
   {"default_loop", lluv_push_default_loop_l},
 

@@ -14,7 +14,7 @@
 -- callbacks
 do
 
---- Definition for callback passed to uv.walk.
+--- Definition for callback passed to uv.handles.
 --
 -- @tparam uv_handle handle
 function walk_cb                    () end
@@ -40,8 +40,8 @@ function stop                       () end
 
 --- Iterate over handles.
 --
--- @tparam walk_cb callback
-function walk                       () end
+-- @tparam[opt] walk_cb callback
+function handles                    () end
 
 --- Return the current timestamp in milliseconds.
 --
@@ -433,7 +433,7 @@ function now        () end
 
 ---
 --
-function walk       () end
+function handles    () end
 
 ---
 --
