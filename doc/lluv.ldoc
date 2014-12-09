@@ -221,9 +221,24 @@ function disable_stdio_inheritance  () end
 --- Sends the specified signal to the given PID.
 --
 -- @tparam number pid process id
--- @tparam[opt=uv.SIGTERM] number sugnal
+-- @tparam[opt=uv.SIGTERM] number signal
 -- @return true
 function kill                       () end
+
+end
+
+-- signal submodule
+do
+
+--- Ignore specific signal.
+--
+-- @tparam number signal
+function signal_ignore              () end
+
+--- Set default handler to signal
+--
+-- @tparam number signal
+function signal_default             () end
 
 end
 
@@ -600,7 +615,7 @@ function pid                        () end
 
 --- Sends the specified signal to the given process handle.
 --
--- @tparam[opt=uv.SIGTERM] number sugnal
+-- @tparam[opt=uv.SIGTERM] number signal
 -- @treturn uv_process self
 function kill                       () end
 
