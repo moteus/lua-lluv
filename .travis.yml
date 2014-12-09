@@ -25,7 +25,7 @@ before_install:
   - sudo luarocks install lua-path --deps-mode=none
   - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
   - sudo luarocks install vararg --from=https://rocks.moonscript.org/dev
-  - sudo luarocks install luasocket
+  - sudo luarocks install luasocket scm --from=https://rocks.moonscript.org/dev
   # - sudo pip install cpp-coveralls
 
 install:
