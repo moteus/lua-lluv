@@ -16,12 +16,10 @@ uv.poll_socket(sock:fd()):start(function(handle, err, event)
   end
 
   -- with zmq we must read all avaliable messages
-  while true do
-    local msg, err = sock:recvx(zmq.DONTWAIT)
+  while sock:has_event(zmq.POLLIN) do
+    local msg, err = sock:recvx()
     if not msg then
-      if err:mnemo() ~= "EAGAIN" then
-        print("Recv error : ", err)
-      end
+      print("Recv error : ", err)
       return
     end
     on_new_message(msg)
