@@ -13,6 +13,7 @@
 #include "lluv_loop.h"
 #include "lluv_handle.h"
 #include "lluv_loop.h"
+#include "lluv_req.h"
 #include <memory.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -347,3 +348,40 @@ LLUV_INTERNAL void lluv_push_timespec(lua_State *L, const uv_timespec_t *ts){
   lua_pushinteger(L, ts->tv_nsec);
   lua_setfield(L, -2, "nsec");
 }
+
+LLUV_INTERNAL int lluv_return_req(lua_State *L, lluv_handle_t *handle, lluv_req_t *req, int err){
+  if(err < 0){
+    lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+    lluv_req_free(L, req);
+    if(lua_isnil(L, -1)){
+      lua_pop(L, 1);
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+    }
+
+    lua_pushvalue(L, 1);
+    lluv_error_create(L, LLUV_ERR_UV, err, NULL);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+LLUV_INTERNAL int lluv_return(lua_State *L, lluv_handle_t *handle, int cb, int err){
+  if(err < 0){
+    lua_rawgeti(L, LLUV_LUA_REGISTRY, cb);
+
+    if(lua_isnil(L, -1)){
+      lua_pop(L, 1);
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+    }
+
+    lua_pushvalue(L, 1);
+    lluv_error_create(L, LLUV_ERR_UV, err, NULL);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+

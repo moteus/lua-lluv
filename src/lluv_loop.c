@@ -12,6 +12,7 @@
 #include "lluv_error.h"
 #include "lluv_utils.h"
 #include "lluv_handle.h"
+#include "lluv_list.h"
 #include <assert.h>
 
 
@@ -67,6 +68,8 @@ LLUV_INTERNAL int lluv_loop_create(lua_State *L, uv_loop_t *h, lluv_flags_t flag
   loop->flags        = flags | LLUV_FLAG_OPEN;
   loop->level        = 0;
   loop->buffer_size  = LLUV_BUFFER_SIZE;
+  lluv_list_init(L, &loop->defer);
+
   lua_pushvalue(L, -1);
   lua_rawsetp(L, LLUV_LUA_REGISTRY, h);
   return 1;
@@ -104,6 +107,41 @@ LLUV_INTERNAL lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h){
 LLUV_INTERNAL void lluv_loop_pushself(lua_State *L, lluv_loop_t *loop){
   lua_rawgetp(L, LLUV_LUA_REGISTRY, loop->handle);
   assert(loop == lua_touserdata(L, -1));
+}
+
+static int lluv_defer_call(lua_State *L){
+  int i, n = lua_tointeger(L, lua_upvalueindex(1));
+  luaL_checkstack(L, n, "too many arguments");
+
+  assert(lua_isfunction(L, lua_upvalueindex(2)));
+  assert(!lua_isnone(L, lua_upvalueindex(n + 1)));
+
+  for(i = 2; i <= n+1; ++i)lua_pushvalue(L, lua_upvalueindex(i));
+
+  lua_call(L, n - 1, 0);
+  return 0;
+}
+
+LLUV_INTERNAL void lluv_loop_defer_call(lua_State *L, lluv_loop_t *loop, int nargs){
+  assert(lua_isfunction(L, -1-nargs));
+
+  luaL_checkstack(L, 1, "too many arguments");
+  lua_pushinteger(L, nargs+1);
+  lua_insert(L, -2-nargs);
+
+  lua_pushcclosure(L, lluv_defer_call, nargs + 2);
+  lluv_list_push_back(L, &loop->defer);
+}
+
+LLUV_INTERNAL int lluv_loop_defer_proceed(lua_State *L, lluv_loop_t *loop){
+  size_t s = lluv_list_size(L, &loop->defer);
+  for(; s != 0; --s){
+    int err = lluv_list_pop_front(L, &loop->defer);
+    assert(err == 1);
+    err = lluv_lua_call(L, 0, 0);
+    if(err) return err; 
+  }
+  return 0;
 }
 
 static int lluv_loop_new_impl(lua_State *L, lluv_flags_t flags){
@@ -199,6 +237,7 @@ static int lluv_loop_close(lua_State *L){
   }
 
   loop->handle = NULL;
+  lluv_list_close(L, &loop->defer);
   return 0;
 }
 
@@ -224,7 +263,9 @@ static int lluv_loop_run_impl(lua_State *L){
 
   ++loop->level;
   loop->L = L;
-  err = uv_run(loop->handle, mode);
+  err = lluv_loop_defer_proceed(L, loop);
+  if(!err) err = uv_run(loop->handle, mode);
+  if(!err) err = lluv_loop_defer_proceed(L, loop);
   loop->L = prev_state;
   --loop->level;
 
@@ -305,6 +346,27 @@ static int lluv_loop_now(lua_State *L){
   return 1;
 }
 
+static int lluv_loop_defer(lua_State *L){
+  int n; lluv_loop_t* loop;
+
+  if(!lutil_isudatap(L, 1, LLUV_LOOP)){
+    loop = lluv_default_loop(L);
+    n = 1;
+  }
+  else{
+    loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
+    n = 2;
+  }
+
+  luaL_argcheck (L, lua_isfunction(L, n), n, "function expected");
+
+  n = lua_gettop(L) - n;
+
+  lluv_loop_defer_call(L, loop, n);
+
+  return 0;
+}
+
 static void lluv_loop_on_walk(uv_handle_t* handle, void* arg){
   lua_State *L = (lua_State*)arg;
 
@@ -355,6 +417,7 @@ static const struct luaL_Reg lluv_loop_methods[] = {
   { "stop",       lluv_loop_stop     },
   { "now",        lluv_loop_now      },
   { "handles",    lluv_loop_handles  },
+  { "defer",      lluv_loop_defer    },
 
   { "close_all_handles", lluv_loop_close_all_handles },
 
@@ -377,6 +440,8 @@ static const struct luaL_Reg lluv_loop_functions[] = {
   {"handles",      lluv_loop_handles       },
   {"now",          lluv_loop_now           },
   {"default_loop", lluv_push_default_loop_l},
+
+  {"defer",        lluv_loop_defer         },
 
   {NULL,NULL}
 };

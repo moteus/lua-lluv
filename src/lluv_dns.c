@@ -115,7 +115,7 @@ static void lluv_on_getnameinfo(uv_getnameinfo_t* arg, int status, const char* h
   if(hostname)lua_pushstring(L, hostname); else lua_pushnil(L);
   if(service) lua_pushstring(L, service);  else lua_pushnil(L);
 
-  lluv_lua_call(L, 4, 0);
+  LLUV_LOOP_CALL_CB(L, loop, 4);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -138,7 +138,7 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
   if(status < 0){
     uv_freeaddrinfo(res);
     lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
-    lluv_lua_call(L, 2, 0);
+    LLUV_LOOP_CALL_CB(L, loop, 2);
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
@@ -194,7 +194,7 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
   }
 
   uv_freeaddrinfo(res);
-  lluv_lua_call(L, 3, 0);
+  LLUV_LOOP_CALL_CB(L, loop, 0);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }

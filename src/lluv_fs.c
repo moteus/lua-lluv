@@ -64,7 +64,7 @@ static int lluv_file_create(lua_State *L, lluv_loop_t  *loop, uv_file h, unsigne
 
 static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
   uv_fs_t *req = &lreq->req;
-  lluv_loop_t *loop = req->loop->data;
+  lluv_loop_t *loop = lluv_loop_byptr(req->loop);
 
   switch (req->fs_type) {
     case UV_FS_RENAME:
@@ -212,6 +212,7 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
 static void lluv_on_fs(uv_fs_t *arg){
   lluv_fs_request_t *req = arg->data;
   lua_State *L = LLUV_FCALLBACK_L(req);
+  lluv_loop_t *loop = lluv_loop_byptr(req->req.loop);
   int argc;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -231,7 +232,7 @@ static void lluv_on_fs(uv_fs_t *arg){
   uv_fs_req_cleanup(&req->req);
   lluv_fs_request_free(L, req);
 
-  lluv_lua_call(L, argc, 0);
+  LLUV_LOOP_CALL_CB(L, loop, argc);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }

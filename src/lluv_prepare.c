@@ -52,12 +52,8 @@ static int lluv_prepare_start(lua_State *L){
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_prepare_start(LLUV_H(handle, uv_prepare_t), lluv_on_prepare_start);
-  if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
 static int lluv_prepare_stop(lua_State *L){

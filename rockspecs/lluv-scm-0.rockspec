@@ -70,7 +70,7 @@ build = {
         "src/lluv_check.c",    "src/lluv_poll.c",     "src/lluv_signal.c",
         "src/lluv_fs_event.c", "src/lluv_fs_poll.c",  "src/lluv_req.c",
         "src/lluv_misc.c",     "src/lluv_process.c",  "src/lluv_dns.c",
-        "src/l52util.c",     
+        "src/l52util.c",       "src/lluv_list.c"
       },
       incdirs   = { "$(UV_INCDIR)" },
       libdirs   = { "$(UV_LIBDIR)" }

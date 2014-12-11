@@ -40,7 +40,7 @@ static void lluv_on_process_exit(uv_process_t* arg, int64_t exit_status, int ter
   lutil_pushint64(L, exit_status);
   lutil_pushint64(L, term_signal);
 
-  lluv_lua_call(L, 3, 0);
+  LLUV_HANDLE_CALL_CB(L, handle, 3);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }

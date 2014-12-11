@@ -65,12 +65,8 @@ static int lluv_timer_start(lua_State *L){
   }
 
   err = uv_timer_start(LLUV_H(handle, uv_timer_t), lluv_on_timer_start, timeout, repeat);
-  if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
 static int lluv_timer_stop(lua_State *L){

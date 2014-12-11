@@ -148,6 +148,7 @@ LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
 
 static void lluv_on_handle_close(uv_handle_t *arg){
   lluv_handle_t *handle = lluv_handle_byptr(arg);
+  lluv_loop_t   *loop   = lluv_loop_by_handle(arg);
   lua_State *L = LLUV_HCALLBACK_L(handle);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -160,7 +161,7 @@ static void lluv_on_handle_close(uv_handle_t *arg){
   lluv_handle_cleanup(L, handle);
 
   if(lua_isnil(L, -2)) lua_pop(L, 2);
-  else lluv_lua_call(L, 1, 0);
+  else LLUV_LOOP_CALL_CB(L, loop, 1);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -333,7 +334,7 @@ LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg){
   assert(!lua_isnil(L, -1)); /* is callble */
 
   lluv_handle_pushself(L, handle);
-  lluv_lua_call(L, 1, 0);
+  LLUV_HANDLE_CALL_CB(L, handle, 1);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }

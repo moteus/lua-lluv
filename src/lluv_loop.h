@@ -13,6 +13,7 @@
 
 #include "lluv.h"
 #include "lluv_utils.h"
+#include "lluv_list.h"
 
 // number of values that push loop.run
 #define LLUV_CALLBACK_TOP_SIZE 0
@@ -23,6 +24,7 @@ typedef struct lluv_loop_tag{
   uv_loop_t   *handle;/* read only */
   lluv_flags_t flags; /* read only */
   lua_State   *L;
+  lluv_list_t  defer;
   int8_t       level;
   size_t       buffer_size;
   char         buffer[LLUV_BUFFER_SIZE];
@@ -50,9 +52,24 @@ LLUV_INTERNAL lluv_loop_t* lluv_loop_by_handle(uv_handle_t* h);
 
 LLUV_INTERNAL void lluv_loop_pushself(lua_State *L, lluv_loop_t *loop);
 
+LLUV_INTERNAL void lluv_loop_defer_call(lua_State *L, lluv_loop_t *loop, int nargs);
+
+LLUV_INTERNAL int lluv_loop_defer_proceed(lua_State *L, lluv_loop_t *loop);
+
 #define LLUV_CHECK_LOOP_CB_INVARIANT(L) \
   assert("Some one use invalid callback handler" && (lua_gettop(L) == LLUV_CALLBACK_TOP_SIZE)); \
   assert("Invalid LLUV registry" && (lua_type(L, LLUV_LUA_REGISTRY) == LUA_TTABLE));
 
+#define LLUV_HANDLE_CALL_CB(L, H, A)                                            \
+  {                                                                             \
+    int err = lluv_lua_call((L), (A), 0);                                       \
+    if(!err)lluv_loop_defer_proceed((L), lluv_loop_by_handle(&(H)->handle));    \
+  }                                                                             \
+
+#define LLUV_LOOP_CALL_CB(L, LOOP, A)                                           \
+  {                                                                             \
+    int err = lluv_lua_call((L), (A), 0);                                       \
+    if(!err)lluv_loop_defer_proceed((L), LOOP);                                 \
+  }                                                                             \
 
 #endif

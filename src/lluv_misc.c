@@ -91,7 +91,6 @@ static int lluv_push_phys_addr(lua_State *L, const unsigned char* a){
   return 1;
 }
 
-
 static int lluv_push_if_family(lua_State *L, const struct sockaddr* addr){
   switch (addr->sa_family){
     case AF_INET:{

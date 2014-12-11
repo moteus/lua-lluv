@@ -121,6 +121,20 @@ static int lluv_udp_send(lua_State *L){
   lluv_req_t *req;
 
   if(err < 0){
+    int top = lua_gettop(L);
+    if(top > 4) lua_settop(L, top = 5);
+
+    if(lua_isfunction(L, top)){
+      lua_pushvalue(L, 1); /*self*/
+      /*host:port*/
+      lua_pushvalue(L, 2); lua_pushliteral(L, ":"); lua_pushvalue(L, 3); lua_concat(L, 3);
+      lluv_error_create(L, LLUV_ERR_UV, err, lua_tostring(L, -1));
+      lua_remove(L, -2);
+      lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+      lua_settop(L, 1);
+      return 1;
+    }
+  
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
@@ -136,13 +150,8 @@ static int lluv_udp_send(lua_State *L){
   lluv_req_ref(L, req); /* string */
 
   err = uv_udp_send(LLUV_R(req, udp_send), LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
-  if(err < 0){
-    lluv_req_free(L, req);
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  return lluv_return_req(L, handle, req, err);
 }
 
 //}
@@ -193,7 +202,7 @@ static void lluv_on_udp_recv_cb(uv_udp_t *arg, ssize_t nread, const uv_buf_t* bu
   }
   lua_pushinteger(L, flags);
 
-  lluv_lua_call(L, 4 + lluv_push_addr(L, (const struct sockaddr_storage*)addr), 0);
+  LLUV_HANDLE_CALL_CB(L, handle, 4 + lluv_push_addr(L, (const struct sockaddr_storage*)addr));
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -206,12 +215,8 @@ static int lluv_udp_start_recv(lua_State *L){
   LLUV_READ_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_udp_recv_start(LLUV_H(handle, uv_udp_t), lluv_alloc_buffer_cb, lluv_on_udp_recv_cb);
-  if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  return lluv_return(L, handle, LLUV_READ_CB(handle), err);
 }
 
 static int lluv_udp_stop_recv(lua_State *L){

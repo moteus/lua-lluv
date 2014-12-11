@@ -221,6 +221,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv_list.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_loop.c"
 				>
 			</File>
@@ -320,6 +324,10 @@
 			</File>
 			<File
 				RelativePath="..\src\lluv_idle.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\lluv_list.h"
 				>
 			</File>
 			<File

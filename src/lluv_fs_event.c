@@ -55,7 +55,7 @@ static void lluv_on_fs_event_start(uv_fs_event_t *arg, const char* filename, int
   if(filename)lua_pushstring(L, filename); else lua_pushnil(L);
   lua_pushinteger(L, events);
 
-  lluv_lua_call(L, 4, 0);
+  LLUV_HANDLE_CALL_CB(L, handle, 4);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -80,12 +80,8 @@ static int lluv_fs_event_start(lua_State *L){
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_fs_event_start(LLUV_H(handle, uv_fs_event_t), lluv_on_fs_event_start, path, flags);
-  if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
 static int lluv_fs_event_stop(lua_State *L){

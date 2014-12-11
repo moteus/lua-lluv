@@ -55,7 +55,7 @@ static void lluv_on_fs_poll_start(uv_fs_poll_t *arg, int status, const uv_stat_t
   if(prev)lluv_push_stat(L, prev); else lua_pushnil(L);
   if(curr)lluv_push_stat(L, curr); else lua_pushnil(L);
 
-  lluv_lua_call(L, 4, 0);
+  LLUV_HANDLE_CALL_CB(L, handle, 4);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -74,12 +74,8 @@ static int lluv_fs_poll_start(lua_State *L){
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_fs_poll_start(LLUV_H(handle, uv_fs_poll_t), lluv_on_fs_poll_start, path, interval);
-  if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
-
-  lua_settop(L, 1);
-  return 1;
+  
+  return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
 static int lluv_fs_poll_stop(lua_State *L){

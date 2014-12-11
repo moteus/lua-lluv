@@ -15,6 +15,10 @@
 #include <lua.h>
 #include "l52util.h"
 
+typedef struct lluv_req_tag lluv_req_t;
+
+typedef struct lluv_handle_tag lluv_handle_t;
+
 #ifdef _WIN32
 #  include <malloc.h>
 #else
@@ -88,6 +92,10 @@ LLUV_INTERNAL void lluv_push_status(lua_State *L, int status);
 LLUV_INTERNAL void lluv_push_timeval(lua_State *, const uv_timeval_t *tv);
 
 LLUV_INTERNAL void lluv_push_timespec(lua_State *, const uv_timespec_t *ts);
+
+LLUV_INTERNAL int lluv_return_req(lua_State *L, lluv_handle_t *handle, lluv_req_t *req, int err);
+
+LLUV_INTERNAL int lluv_return(lua_State *L, lluv_handle_t *handle, int cb, int err);
 
 typedef unsigned char lluv_flag_t;
 

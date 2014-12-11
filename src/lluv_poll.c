@@ -74,7 +74,7 @@ static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
   lluv_push_status(L, status);
   lua_pushinteger(L, events);
 
-  lluv_lua_call(L, 3, 0);
+  LLUV_HANDLE_CALL_CB(L, handle, 3);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -98,12 +98,8 @@ static int lluv_poll_start(lua_State *L){
   LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_poll_start(LLUV_H(handle, uv_poll_t), events, lluv_on_poll_start);
-  if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
 static int lluv_poll_stop(lua_State *L){
