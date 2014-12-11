@@ -19,6 +19,8 @@ typedef struct lluv_req_tag lluv_req_t;
 
 typedef struct lluv_handle_tag lluv_handle_t;
 
+typedef struct lluv_loop_tag lluv_loop_t;
+
 #ifdef _WIN32
 #  include <malloc.h>
 #else
@@ -94,6 +96,8 @@ LLUV_INTERNAL void lluv_push_timeval(lua_State *, const uv_timeval_t *tv);
 LLUV_INTERNAL void lluv_push_timespec(lua_State *, const uv_timespec_t *ts);
 
 LLUV_INTERNAL int lluv_return_req(lua_State *L, lluv_handle_t *handle, lluv_req_t *req, int err);
+
+LLUV_INTERNAL int lluv_return_loop_req(lua_State *L, lluv_loop_t *loop, lluv_req_t *req, int err);
 
 LLUV_INTERNAL int lluv_return(lua_State *L, lluv_handle_t *handle, int cb, int err);
 

@@ -9,6 +9,10 @@ env:
     - LUA=lua5.3
     - LUA=luajit
 
+matrix:
+  allow_failures:
+    - env: LUA=lua5.3
+
 services:
   - memcached
 

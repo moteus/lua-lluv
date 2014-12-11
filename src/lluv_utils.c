@@ -367,6 +367,24 @@ LLUV_INTERNAL int lluv_return_req(lua_State *L, lluv_handle_t *handle, lluv_req_
   return 1;
 }
 
+LLUV_INTERNAL int lluv_return_loop_req(lua_State *L, lluv_loop_t *loop, lluv_req_t *req, int err){
+  if(err < 0){
+    lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+    lluv_req_free(L, req);
+    if(lua_isnil(L, -1)){
+      lua_pop(L, 1);
+      return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+    }
+
+    lua_pushvalue(L, 1);
+    lluv_error_create(L, LLUV_ERR_UV, err, NULL);
+    lluv_loop_defer_call(L, loop, 2);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
 LLUV_INTERNAL int lluv_return(lua_State *L, lluv_handle_t *handle, int cb, int err){
   if(err < 0){
     lua_rawgeti(L, LLUV_LUA_REGISTRY, cb);

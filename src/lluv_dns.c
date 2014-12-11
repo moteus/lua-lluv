@@ -194,7 +194,7 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
   }
 
   uv_freeaddrinfo(res);
-  LLUV_LOOP_CALL_CB(L, loop, 0);
+  LLUV_LOOP_CALL_CB(L, loop, 3);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -268,21 +268,17 @@ LLUV_IMPL_SAFE(lluv_getaddrinfo){
       hints.ai_flags = lluv_opt_flags_ui(L, -1, 0, FLAGS);
       lua_pop(L, 1);
     }
-    
-
 
     lluv_check_args_with_cb(L, argc + 4);
     req = lluv_req_new(L, UV_GETADDRINFO, NULL);
 
     err = uv_getaddrinfo(loop->handle, LLUV_R(req, getaddrinfo), lluv_on_getaddrinfo, node, service, &hints);
-    if(err < 0){
-      lluv_req_free(L, req);
-      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
-    }
+    
+    lua_settop(L, 0);
+    lluv_loop_pushself(L, loop);
+
+    return lluv_return_loop_req(L, loop, req, err);
   }
-  lua_settop(L, 0);
-  lluv_loop_pushself(L, loop);
-  return 1;
 }
 
 LLUV_IMPL_SAFE(lluv_getnameinfo){
@@ -311,6 +307,7 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
 
     err = lluv_check_addr(L, argc + 1, &sa);
     if(err < 0){
+      //! @todo wrap as defer callback
       return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
     }
     
@@ -321,14 +318,11 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
     req = lluv_req_new(L, UV_GETNAMEINFO, NULL);
 
     err = uv_getnameinfo(loop->handle, LLUV_R(req, getnameinfo), lluv_on_getnameinfo, (struct sockaddr*)&sa, flags);
-    if(err < 0){
-      lluv_req_free(L, req);
-      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
-    }
+
+    lua_settop(L, 0);
+    lluv_loop_pushself(L, loop);
+    return lluv_return_loop_req(L, loop, req, err);
   }
-  lua_settop(L, 0);
-  lluv_loop_pushself(L, loop);
-  return 1;
 }
 
 static const lluv_uv_const_t lluv_dns_constants[] = {
