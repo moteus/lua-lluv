@@ -47,7 +47,7 @@ script:
   - lua testsrvr.lua > /dev/null &
   - lua corun.lua testclnt.lua
   - lua ts.lua > /dev/null &
-  - lua tt.lua
+  - lua defer_error.lua
 
 # after_success:
 #   - coveralls -b .. -r .. --dump c.report.json
