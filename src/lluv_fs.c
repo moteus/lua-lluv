@@ -256,13 +256,27 @@ static void lluv_on_fs(uv_fs_t *arg){
 #define LLUV_POST_FS_FILE()                                               \
   if(err < 0){                                                            \
     lluv_fs_request_free(L, req);                                         \
-    return lluv_fail(L, f->flags, LLUV_ERR_UV, err, path);                \
+    if(!cb){                                                              \
+      return lluv_fail(L, f->flags, LLUV_ERR_UV, err, path);              \
+    }                                                                     \
+    lua_pushvalue(L, 1);                                                  \
+    lluv_error_create(L, LLUV_ERR_UV, err, path);                         \
+    lluv_loop_defer_call(L, loop, 2);                                     \
+    lua_pushboolean(L, 1);                                                \
+    return 1;                                                             \
   }                                                                       \
 
 #define LLUV_POST_FS_LOOP()                                               \
   if(err < 0){                                                            \
     lluv_fs_request_free(L, req);                                         \
-    return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, path); \
+    if(!cb){                                                              \
+      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, path); \
+    }                                                                     \
+    lluv_loop_pushself(L, loop);                                          \
+    lluv_error_create(L, LLUV_ERR_UV, err, path);                         \
+    lluv_loop_defer_call(L, loop, 2);                                     \
+    lua_pushboolean(L, 1);                                                \
+    return 1;                                                             \
   }                                                                       \
 
 #define LLUV_POST_FS_COMMON()                                             \
