@@ -64,20 +64,58 @@ static int lluv_udp_bind(lua_State *L){
 
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
-  unsigned int flags = lluv_opt_flags_ui(L, 4, 0, FLAGS);
+  unsigned int flags = 0;
+  int top = lua_gettop(L);
+  if(top > 5)lua_settop(L, top = 5);
 
-  lua_settop(L, 3);
+  if((top > 4) || (!lua_isfunction(L, 4))){
+    flags = lluv_opt_flags_ui(L, 4, flags, FLAGS);
+  }
 
   if(err < 0){
-    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    lua_checkstack(L, 3);
+
+    lua_pushvalue(L, 2); lua_pushliteral(L, ":"); lua_pushvalue(L, 3); lua_concat(L, 3);
+
+    if(!lua_isfunction(L, top)){
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    }
+
+    lluv_error_create(L, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    lua_remove(L, -2);
+    lua_pushvalue(L, 1);
+    lua_insert(L, -2);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+    lua_settop(L, 1);
+    return 1;
   }
 
   err = uv_udp_bind(LLUV_H(handle, uv_udp_t), (struct sockaddr *)&sa, flags);
   if(err < 0){
-    lua_settop(L, 3);
-    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    lua_checkstack(L, 3);
+
+    lua_pushvalue(L, 2); lua_pushliteral(L, ":"); lua_pushvalue(L, 3); lua_concat(L, 3);
+
+    if(!lua_isfunction(L, top)){
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    }
+
+    lluv_error_create(L, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    lua_remove(L, -2);
+    lua_pushvalue(L, 1);
+    lua_insert(L, -2);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+    lua_settop(L, 1);
+    return 1;
+  }
+
+  if(lua_isfunction(L, top)){
+    lua_pushvalue(L, 1);
+    lua_pushnil(L);
+    lluv_loop_defer_call(L,
+      lluv_loop_by_handle(&handle->handle),
+      lluv_push_addr(L, &sa) + 2
+    );
   }
 
   lua_settop(L, 1);

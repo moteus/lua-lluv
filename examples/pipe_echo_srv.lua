@@ -41,9 +41,15 @@ local function on_connection(srv, err)
   cli:start_read(on_read)
 end
 
-local srv = uv.pipe()
+uv.pipe()
+:bind("\\\\.\\pipe\\sock.echo", function(srv, err, addr)
+  if err then
+    print("Can not bind:", tostring(err))
+    return srv:close()
+  end
 
-srv:bind("\\\\.\\pipe\\sock.echo")
-srv:listen(on_connection)
+  print("Bind on: " .. addr)
+  srv:listen(on_connection)
+end)
 
 uv.run()

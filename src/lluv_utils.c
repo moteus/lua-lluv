@@ -136,6 +136,11 @@ LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct 
 
   UNUSED_ARG(L);
 
+  if((addr[0] == '*')&&(addr[1] == '\0')){
+    static const char *zero_ip = "0.0.0.0";
+    addr = zero_ip;
+  }
+
   memset(sa, 0, sizeof(*sa));
 
   err = uv_ip4_addr(addr, port, (struct sockaddr_in*)sa);

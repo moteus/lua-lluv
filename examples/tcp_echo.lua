@@ -1,7 +1,4 @@
 local uv = require "lluv"
-local server = uv.tcp()
-
-print("BIND:", server:bind("127.0.0.1", 5555))
 
 local function on_write(cli, err)
   if err then
@@ -19,15 +16,25 @@ local function on_read(cli, err, data)
   -- io.write(data)
 end
 
-print("LISTEN_START:", server:listen(function(server, err)
-  print("LISTEN: ", err or "OK")
-  if err then return end
+uv.tcp()
+:bind("127.0.0.1", 5555, function(server, err, host, port)
+  if err then
+    print("Can not bind:", tostring(err))
+    return server:close()
+  end
 
-  -- create client socket in same loop as server
-  local cli, err = server:accept()
-  if not cli then print("ACCEPT: ", err) else print("ACCEPT: ", cli:getpeername()) end
+  print("Bind on: " .. host .. ":" .. port)
 
-  cli:start_read(on_read)
-end))
+  print("LISTEN_START:", server:listen(function(server, err)
+    print("LISTEN: ", err or "OK")
+    if err then return end
+
+    -- create client socket in same loop as server
+    local cli, err = server:accept()
+    if not cli then print("ACCEPT: ", err) else print("ACCEPT: ", cli:getpeername()) end
+
+    cli:start_read(on_read)
+  end))
+end)
 
 uv.run()

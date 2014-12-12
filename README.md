@@ -36,13 +36,21 @@ local function on_connection(server, err)
     :start_read(on_read)
 end
 
-uv.tcp()
-  :bind("127.0.0.1", 5555)
-  :listen(on_connection)
+local function on_bind(server, err, host, port)
+  if err then
+    print("Bind fail:" .. tostring(err))
+    return server:close()
+  end
 
-uv.pipe()
-  :bind([[\\.\pipe\sock.echo]])
-  :listen(on_connection)
+  if port then host = host .. ":" .. port end
+  print("Bind on: " .. host)
+
+  server:listen(on_connection)
+end
+
+uv.tcp():bind("127.0.0.1", 5555, on_bind)
+
+uv.pipe():bind([[\\.\pipe\sock.echo]], on_bind)
 
 uv.run()
 ```

@@ -63,9 +63,22 @@ static int lluv_pipe_bind(lua_State *L){
   lluv_handle_t *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
   const char      *addr = luaL_checkstring(L, 2);
   int               err = uv_pipe_bind(LLUV_H(handle, uv_pipe_t), addr);
+  int top = lua_gettop(L);
+  if(top > 3) lua_settop(L, top = 3);
 
   if(err < 0){
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+    if(!lua_isfunction(L, top)){
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, addr);
+    }
+    lua_pushvalue(L, 1);
+    lluv_error_create(L, LLUV_ERR_UV, err, addr);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+  }
+  else{
+    lua_pushvalue(L, 1);
+    lua_pushnil(L);
+    lua_pushvalue(L, 2);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 3);
   }
 
   lua_settop(L, 1);
