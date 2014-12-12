@@ -9,10 +9,6 @@ env:
     - LUA=lua5.3
     - LUA=luajit
 
-matrix:
-  allow_failures:
-    - env: LUA=lua5.3
-
 services:
   - memcached
 
@@ -47,6 +43,7 @@ script:
   - lua -e"require'lluv.memcached'.self_test()"
   - lua -e"require'lluv.ftp'.self_test('127.0.0.1', 'moteus', '123456')"
   - lunit.sh test-fs.lua
+  - lunit.sh test-defer-error.lua
   - cd ./luasocket
   - lua testsrvr.lua > /dev/null &
   - lua corun.lua testclnt.lua

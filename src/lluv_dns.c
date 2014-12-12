@@ -309,11 +309,10 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
     if(err < 0){
       int top = lua_gettop(L);
       if(!lua_isfunction(L, top)){
-        return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, NULL);
+        return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, lua_tostring(L, argc + 1));
       }
-
       lluv_loop_pushself(L, loop);
-      lluv_error_create(L, LLUV_ERR_UV, err, NULL);
+      lluv_error_create(L, LLUV_ERR_UV, err, lua_tostring(L, argc + 1));
       lluv_loop_defer_call(L, loop, 2);
       lluv_loop_pushself(L, loop);
       return 1;
