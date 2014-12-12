@@ -36,7 +36,6 @@ local EOL = "\r\n"
 local class       = ut.class
 local usplit      = ut.usplit
 local split_first = ut.split_first
-local defer       = ut.DeferQueue.new()
 
 local function trim(s)
   return (string.gsub(s, "^%s*(.-)%s*$", "%1"))
@@ -91,8 +90,7 @@ local EREADY = Error.EREADY
 local ECONN  = Error.ECONN
 
 local function write_with_cb(cli, data, cb)
-  local ok, err = cli:write(data, cb)
-  if not ok then defer:call(cb, cli, err) end
+  cli:write(data, cb)
 end
 
 -------------------------------------------------------------------
@@ -268,7 +266,7 @@ end
 function TcpConnection:close()
   if not self._sock then return end
   self._sock:close()
-  self._defer, self._sock = nil
+  self._sock = nil
 end
 
 end
