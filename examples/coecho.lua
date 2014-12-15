@@ -12,13 +12,24 @@ local function CreateServer(ip, port, cb)
     return cb(cli)
   end
 
-  uv.tcp()
-    :bind(ip, port)
-    :listen(on_connect)
+  local function on_bind(srv, err)
+    if err then
+      srv:close()
+      return error("Can not bind to " .. ip .. ":" .. port .. " : " .. tostring(err))
+    end
+
+    srv:listen(on_connect)
+  end
+
+  uv.tcp():bind(ip, port, on_bind)
 end
 ----------------------------------------------------------------------------
 
-local echo_worker = function(sock, err)
+local function spawn(fn, ...)
+  coroutine.wrap(fn)(...)
+end
+
+local function echo_worker(sock, err)
   if not sock then return end
 
   local cli = socket.tcp(sock)
@@ -42,7 +53,7 @@ local echo_worker = function(sock, err)
 end
 
 CreateServer("127.0.0.1", 5555, function(...)
-  coroutine.wrap(echo_worker)(...)
+  spawn(echo_worker, ...)
 end)
 
 uv.run()
