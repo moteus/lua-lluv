@@ -44,7 +44,7 @@ local function server(host, port, fn)
     end
 
     fiber(function()
-      cli:reset_co() -- change coroutine-owner for socket
+      cli:attach() -- attach socket to current coroutine
       fn(cli)
     end)
 

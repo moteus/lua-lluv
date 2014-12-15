@@ -309,7 +309,7 @@ function CoSock:accept()
   return CoSock.new(cli)
 end
 
-function CoSock:reset_co(co)
+function CoSock:attach(co)
   assert(not self:_waiting())
   self._co = co or coroutine.running()
   return self
