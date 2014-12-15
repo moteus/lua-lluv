@@ -297,11 +297,14 @@ function CoSock:accept()
 
   self:_start_accept()
 
-  self:_start("accept")
-  local ok, cli = self:_yield()
-  self:_stop("accept")
-
-  if not ok then return nil, cli end
+  local cli = self._accept_list:pop()
+  if not cli then
+    self:_start("accept")
+    local ok, err = self:_yield()
+    self:_stop("accept")
+    if not ok then return nil, err end
+    cli = err
+  end
 
   return CoSock.new(cli)
 end
