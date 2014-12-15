@@ -265,23 +265,43 @@ function CoSock:bind(host, port)
   return self
 end
 
+local MAX_ACCEPT_COUNT = 10
+
+function CoSock:_start_accept()
+  if self._accept_list then return end
+
+  self._accept_list = ut.Queue.new()
+
+  self._sock:listen(function(srv, err)
+    if err then return self:_on_io_error(err) end
+
+    local cli, err = srv:accept()
+    if not cli then return end
+
+    while self._accept_list:size() > MAX_ACCEPT_COUNT do
+      self._accept_list:pop():close()
+    end
+
+    self._accept_list:push(cli)
+
+    if self:_waiting("accept") then
+      return self:_resume(true, self._accept_list:pop())
+    end
+  end)
+
+  return self
+end
+
 function CoSock:accept()
   if not self._sock then return nil, self._err end
 
-  local terminated
+  self:_start_accept()
+
   self:_start("accept")
-  self._sock:listen(function(srv, err)
-    if terminated then return end
-    if err then return self:_on_io_error(err) end
-    local cli, err = srv:accept()
-    if not cli then return end
-    return self:_resume(true, cli)
-  end)
   local ok, cli = self:_yield()
-  terminated = true
   self:_stop("accept")
 
-  if not ok then return nil, "closed" end
+  if not ok then return nil, cli end
 
   return CoSock.new(cli)
 end

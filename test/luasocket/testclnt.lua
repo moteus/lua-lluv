@@ -761,10 +761,9 @@ active_close()
 -- test_closed()
 
 ------------------------------------------------------------------------
-if ENABLE then test("accept function: ")
+test("accept function: ")
 accept_timeout()
-accept_errors()
-end
+-- accept_errors()
 
 if ENABLE then test("getstats test")
 getstats_test()
