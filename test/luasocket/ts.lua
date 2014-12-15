@@ -7,6 +7,6 @@ server = assert(socket.bind(host, port));
 while true do
   print("server: waiting for client connection...")
   local control = assert(server:accept())
-  -- socket.sleep(0.5)
+  socket.sleep(0.5)
   control:close()
 end
