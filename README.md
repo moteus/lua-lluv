@@ -3,7 +3,7 @@ lua-lluv
 [![Licence](http://img.shields.io/badge/Licence-MIT-brightgreen.svg)](LICENSE)
 [![Build Status](https://travis-ci.org/moteus/lua-lluv.svg?branch=master)](https://travis-ci.org/moteus/lua-lluv)
 
-##Lua low level binding to [libuv](https://github.com/joyent/libuv)
+##Lua low level binding to [libuv](https://github.com/libuv/libuv)
 
 ## Compatible with libuv>=1.0.0
 
