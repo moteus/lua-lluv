@@ -15,6 +15,9 @@
 #include "lluv_list.h"
 #include <assert.h>
 
+#ifndef LLUV_DEFER_DEPTH
+#  define LLUV_DEFER_DEPTH 10
+#endif
 
 #define LLUV_LOOP_NAME LLUV_PREFIX" Loop"
 static const char *LLUV_LOOP = LLUV_LOOP_NAME;
@@ -135,14 +138,17 @@ LLUV_INTERNAL void lluv_loop_defer_call(lua_State *L, lluv_loop_t *loop, int nar
 
 LLUV_INTERNAL int lluv_loop_defer_proceed(lua_State *L, lluv_loop_t *loop){
   int top = lua_gettop(L);
-  size_t s = lluv_list_size(L, &loop->defer);
-  for(; s != 0; --s){
-    int err = lluv_list_pop_front(L, &loop->defer);
-    assert(err == 1);
-    assert((top+1) == lua_gettop(L));
-    err = lluv_lua_call(L, 0, 0);
-    assert(top == lua_gettop(L));
-    if(err) return err; 
+  int i;
+  for(i = 0; i < LLUV_DEFER_DEPTH; ++i){
+    size_t s = lluv_list_size(L, &loop->defer);
+    for(; s != 0; --s){
+      int err = lluv_list_pop_front(L, &loop->defer);
+      assert(err == 1);
+      assert((top+1) == lua_gettop(L));
+      err = lluv_lua_call(L, 0, 0);
+      assert(top == lua_gettop(L));
+      if(err) return err; 
+    }
   }
   return 0;
 }
