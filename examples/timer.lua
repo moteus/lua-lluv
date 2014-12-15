@@ -30,7 +30,7 @@ uv.timer():start(4700, function(timer)
     print("HClose:", h)
   end)
 
-  timer:loop():walk(function(handle)
+  timer:loop():handles(function(handle)
     -- if handle == timer then return end
     handle:close(function(h)
       print("WClose:", h)

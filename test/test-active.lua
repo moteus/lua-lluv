@@ -15,37 +15,38 @@ end
 
 timer = assert(uv.timer())
 
-assert(false == timer:is_active());
-assert(false == timer:is_closing());
+assert(false == timer:active());
+assert(false == timer:closing());
 assert(false == timer:closed());
 
 assert(timer:start(1000, 0, timer_cb));
 
-assert(true  == timer:is_active());
-assert(false == timer:is_closing());
+assert(true  == timer:active());
+assert(false == timer:closing());
 assert(false == timer:closed());
 
 assert(timer:stop())
 
-assert(false == timer:is_active());
-assert(false == timer:is_closing());
+assert(false == timer:active());
+assert(false == timer:closing());
 assert(false == timer:closed());
 
 assert(timer:start(1000, 0, timer_cb));
 
-assert(true  == timer:is_active());
-assert(false == timer:is_closing());
+assert(true  == timer:active());
+assert(false == timer:closing());
 assert(false == timer:closed());
 
 assert(timer:close(close_cb))
 
-assert(false == timer:is_active());
-assert(true  == timer:is_closing());
+assert(false == timer:active());
+assert(true  == timer:closing());
 assert(false == timer:closed());
 
 assert(0 == uv.run());
 
 assert(close_cb_called == 1);
+assert(not pcall(timer.closing, timer));
 assert(true == timer:closed());
 
 
