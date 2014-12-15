@@ -60,9 +60,10 @@ function CoSock:__init(s)
   self._on_close = self._on_write
 
   self._wait = {
-    read  = false;
-    write = false;
-    conn  = false;
+    read   = false;
+    write  = false;
+    conn   = false;
+    accept = false;
   }
 
   self._err = "closed"
@@ -261,6 +262,33 @@ function CoSock:bind(host, port)
     self._sock = uv.tcp()
     return nil, err
   end
+  return self
+end
+
+function CoSock:accept()
+  if not self._sock then return nil, self._err end
+
+  local terminated
+  self:_start("accept")
+  self._sock:listen(function(srv, err)
+    if terminated then return end
+    if err then return self:_on_io_error(err) end
+    local cli, err = srv:accept()
+    if not cli then return end
+    return self:_resume(true, cli)
+  end)
+  local ok, cli = self:_yield()
+  terminated = true
+  self:_stop("accept")
+
+  if not ok then return nil, "closed" end
+
+  return CoSock.new(cli)
+end
+
+function CoSock:reset_co(co)
+  assert(not self:_waiting())
+  self._co = co or coroutine.running()
   return self
 end
 
