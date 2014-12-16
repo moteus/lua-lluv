@@ -406,10 +406,12 @@ end
 function UdpSock:receivefrom(size)
   if not self._sock then return nil, self._err end
 
-  local data = self._buf:pop()
-  if data then
-    if size then return (data[1]:sub(1, size)), data[2], data[3] end
-    return data[1], data[2], data[3]
+  while true do
+    local data = self._buf:pop()
+    if data and self:_is_peer(data[2], data[3]) then
+      if size then return (data[1]:sub(1, size)), data[2], data[3] end
+      return data[1], data[2], data[3]
+    end
   end
 
   self:_start_read()
@@ -422,7 +424,7 @@ function UdpSock:receivefrom(size)
 
   assert(self._buf:size() > 0)
 
-  data = self._buf:pop()
+  local data = self._buf:pop()
   if size then return (data[1]:sub(1, size)), data[2], data[3] end
   return data[1], data[2], data[3]
 end
