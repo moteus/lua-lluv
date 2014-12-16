@@ -1,4 +1,5 @@
 local uv        = require "lluv"
+local ut        = require "lluv.utils"
 local socket    = require "lluv.luasocket"
 local sendmail_ = require "sendmail"
 
@@ -16,7 +17,7 @@ local function sendmail(server, ...)
   return sendmail_(server, ...)
 end
 
-coroutine.wrap(sendmail){
+ut.corun(sendmail, {
   server = {
     address  = "localhost";
     user     = "moteus@test.localhost.com";
@@ -34,6 +35,6 @@ coroutine.wrap(sendmail){
   },
 
   message = {"CoSocket message"}
-}
+})
 
 uv.run()

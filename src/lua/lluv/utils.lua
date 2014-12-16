@@ -98,6 +98,24 @@ local function class_self_test()
 end
 
 -------------------------------------------------------------------
+local corun do
+
+local uv = require "lluv"
+
+local function spawn(fn, ...)
+  coroutine.wrap(fn)(...)
+end
+
+local function fiber(...)
+  uv.defer(spawn, ...)
+end
+
+corun = fiber
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
 local List = class() do
 
 function List:reset()
@@ -686,5 +704,6 @@ return {
   split_first = split_first;
   split       = split;
   usplit      = usplit;
+  corun       = corun;
   self_test   = self_test;
 }

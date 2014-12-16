@@ -25,10 +25,6 @@ local function CreateServer(ip, port, cb)
 end
 ----------------------------------------------------------------------------
 
-local function spawn(fn, ...)
-  coroutine.wrap(fn)(...)
-end
-
 local function echo_worker(sock, err)
   if not sock then return end
 
@@ -53,7 +49,7 @@ local function echo_worker(sock, err)
 end
 
 CreateServer("127.0.0.1", 5555, function(...)
-  spawn(echo_worker, ...)
+  ut.corun(echo_worker, ...)
 end)
 
 uv.run()

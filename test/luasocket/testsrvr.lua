@@ -1,12 +1,9 @@
 local uv = require("lluv");
+local ut = require("lluv.utils");
 
 socket = require("lluv.luasocket");
 host = host or "127.0.0.1";
 port = port or "8383";
-
-local function spawn(fn, ...) coroutine.wrap(fn)(...) end
-
-local function fiber(...) uv.defer(spawn, ...) end
 
 local function main()
     server = assert(socket.bind(host, port));
@@ -28,6 +25,6 @@ local function main()
     end
 end
 
-fiber(main)
+ut.corun(main)
 
 uv.run()

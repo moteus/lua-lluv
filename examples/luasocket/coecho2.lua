@@ -2,15 +2,6 @@ local uv     = require "lluv"
 local ut     = require "lluv.utils"
 local socket = require "lluv.luasocket"
 
-local function spawn(fn, ...)
-  coroutine.wrap(fn)(...)
-end
-
-local function fiber(...)
-  -- we must run `spawn` from main thread
-  uv.defer(spawn, ...)
-end
-
 local function echo_worker(cli)
   cli:settimeout(5)
 
@@ -43,7 +34,7 @@ local function server(host, port, fn)
       break
     end
 
-    fiber(function()
+    ut.corun(function()
       cli:attach() -- attach socket to current coroutine
       fn(cli)
     end)
@@ -51,7 +42,7 @@ local function server(host, port, fn)
   end
 end
 
-fiber(server, "127.0.0.1", 5555, echo_worker)
+ut.corun(server, "127.0.0.1", 5555, echo_worker)
 
 uv.timer():start(10000, 10000, function()
   print("#IDLE TIMER")
