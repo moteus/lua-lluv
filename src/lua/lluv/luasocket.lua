@@ -545,6 +545,12 @@ local function sleep(s)
   coroutine.yield()
 end
 
+local function toip(name)
+  local res, err = CoGetAddrInfo(name)
+  if not res then return nil, tostring(err) end
+  return res[1].address, res
+end
+
 uv.signal_ignore(uv.SIGPIPE)
 
 return {
@@ -554,4 +560,5 @@ return {
   bind    = bind;
   gettime = function() return math.floor(uv.now()/1000) end;
   sleep   = sleep;
+  toip    = toip;
 }
