@@ -106,7 +106,7 @@ function CoSock:_start(op)
     self._timer:again(self._timeout * 1000)
   end
 
-  self:_unset_wait()
+  assert(not self:_waiting())
 
   assert(self._wait[op] == false, op)
   self._wait[op] = true
@@ -116,11 +116,11 @@ function CoSock:_stop(op)
   if self._timer then
     self._timer:stop()
   end
-  self:_unset_wait()
+  self:_unset_wait(op)
 end
 
 function CoSock:_on_io_error(err)
-  if err == EOF then err = "closed" end
+  if err then err = "closed" end
 
   self._err = err
 
@@ -210,7 +210,7 @@ function CoSock:send(data)
   self:_stop("write")
 
   if not ok then
-    return nil, "closed"
+    return nil, self._err
   end
   return ok, err
 end
