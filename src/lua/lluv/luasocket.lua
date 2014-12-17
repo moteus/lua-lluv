@@ -53,10 +53,6 @@ function BaseSock:__init()
     self:_resume(nil, "timeout")
   end):stop())
 
-  self._on_write = function(cli, err) self:_resume(not err, err) end
-
-  self._on_close = self._on_write
-
   self._wait = {
     read   = false;
     write  = false;
@@ -361,8 +357,6 @@ end
 ----------------------------------------------------------------------------
 local UdpSock = ut.class(BaseSock) do
 
-local MAX_ACCEPT_COUNT = 10
-
 function UdpSock:__init(s)
   assert(self.__base.__init(self))
 
@@ -387,10 +381,8 @@ function UdpSock:_start_read()
     print(cli, host, port)
     if err then return self:_on_io_error(err) end
 
-    if data then
-      if self:_is_peer(host, port) then
-        self._buf:push{data, host, port}
-      end
+    if data and self:_is_peer(host, port) then
+      self._buf:push{data, host, port}
     end
 
     if self:_waiting("read") then return self:_resume(true) end
@@ -408,7 +400,8 @@ function UdpSock:receivefrom(size)
 
   while true do
     local data = self._buf:pop()
-    if data and self:_is_peer(data[2], data[3]) then
+    if not data then break end
+    if self:_is_peer(data[2], data[3]) then
       if size then return (data[1]:sub(1, size)), data[2], data[3] end
       return data[1], data[2], data[3]
     end
