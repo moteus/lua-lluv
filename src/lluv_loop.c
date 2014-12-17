@@ -342,6 +342,18 @@ static int lluv_loop_alive(lua_State *L){
   return 1;
 }
 
+static int lluv_loop_fileno(lua_State *L){
+  lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
+  lutil_pushint64(L, uv_backend_fd(loop->handle));
+  return 1;
+}
+
+static int lluv_poll_timeout(lua_State *L){
+  lluv_loop_t* loop = lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
+  lutil_pushint64(L, uv_backend_timeout(loop->handle));
+  return 1;
+}
+
 static int lluv_loop_stop(lua_State *L){
   lluv_loop_t* loop = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
   uv_stop(loop->handle);
@@ -419,15 +431,17 @@ static int lluv_push_default_loop_l(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_loop_methods[] = {
-  { "__tostring", lluv_loop_to_s     },
-  { "run",        lluv_loop_run      },
-  { "close",      lluv_loop_close    },
-  { "alive",      lluv_loop_alive    },
-  { "stop",       lluv_loop_stop     },
-  { "now",        lluv_loop_now      },
-  { "handles",    lluv_loop_handles  },
-  { "defer",      lluv_loop_defer    },
-
+  { "__tostring",   lluv_loop_to_s     },
+  { "run",          lluv_loop_run      },
+  { "close",        lluv_loop_close    },
+  { "alive",        lluv_loop_alive    },
+  { "stop",         lluv_loop_stop     },
+  { "now",          lluv_loop_now      },
+  { "handles",      lluv_loop_handles  },
+  { "defer",        lluv_loop_defer    },
+  { "fileno",       lluv_loop_fileno   },
+  { "poll_timeout", lluv_poll_timeout  },
+  
   { "close_all_handles", lluv_loop_close_all_handles },
 
   {NULL,NULL}
