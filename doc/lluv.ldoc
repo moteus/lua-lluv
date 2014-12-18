@@ -53,6 +53,10 @@ function now                        () end
 -- @treturn uv_loop loop
 function default_loop               () end
 
+--- Update the event loop’s concept of “now”.
+--
+function update_time       () end
+
 end
 
 -- ctor
@@ -413,31 +417,43 @@ do
 
 ---
 --
-function run        () end
+function run               () end
 
 ---
 --
-function close      () end
+function close             () end
 
 ---
 --
-function alive      () end
+function alive             () end
 
 ---
 --
-function stop       () end
+function stop              () end
 
 ---
 --
-function now        () end
+function now               () end
 
 ---
 --
-function handles    () end
+function handles           () end
 
 ---
 --
-function close_all_handles() end
+function fileno            () end
+
+---
+--
+function poll_timeout      () end
+
+---
+--
+function update_time       () end
+
+---
+--
+function close_all_handles () end
 
 end
 
