@@ -921,6 +921,8 @@ do
 
 --- Open an existing file descriptor.
 -- 
+-- @tparam number fileno descriptor
+-- @treturn uv_tcp self
 function open                       () end
 
 --- Bind the handle to an address and port.
@@ -992,19 +994,74 @@ end
 -- @type uv_udp
 --
 do
+
+--- Open an existing file descriptor.
+-- 
+-- @tparam number fileno descriptor
+-- @treturn uv_udp self
 function open                       () end
+
+--- Bind the handle to an address and port.
+--
+-- @tparam string host
+-- @tparam number port
+-- @tparam[opt] number flags
+-- @tparam[opt] function callback(self, error, host, port)
+-- @treturn uv_udp self
 function bind                       () end
-function try_send                   () end
+
+-- Send data over the UDP socket.
+--
+-- @tparam string|table data
+-- @tparam[opt] function callback(self, error)
+-- @treturn uv_udp self
 function send                       () end
+
+---
+--
+function try_send                   () end
+
+--- Get the current address to which the handle is bound.
+--
+-- @treturn string host
+-- @treturn number port
 function getsockname                () end
+
+--- Read datagrams from UDP socket.
+--
+-- @tparam function callback(self, error, data, flags, host, port)
+-- @treturn uv_udp self
 function start_recv                 () end
+
+--- Stop listening for incoming datagrams.
+--
+-- @treturn uv_udp self
 function stop_recv                  () end
+
+---
+--
 function set_membership             () end
+
+---
+--
 function set_multicast_loop         () end
+
+---
+--
 function set_multicast_ttl          () end
+
+---
+--
 function set_multicast_interface    () end
+
+---
+--
 function set_broadcast              () end
+
+---
+--
 function set_ttl                    () end
+
 end
 
 ---
