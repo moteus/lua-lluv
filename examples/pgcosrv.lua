@@ -378,7 +378,7 @@ local function main(host, port)
 
   CreateServer(host, port, function(cli, err)
     if not cli then return server(nil, err) end
-    coroutine.wrap(PgSrvInstance)(cli, server)
+    ut.corun(PgSrvInstance, cli, server)
   end)
 
   uv.run(debug.traceback)

@@ -15,7 +15,6 @@ local function echo_worker(cli)
       print("\n<ERROR> - ", err)
       if err ~= "timeout" then break end
     end
-
   end
 
   cli:close()
@@ -38,14 +37,9 @@ local function server(host, port, fn)
       cli:attach() -- attach socket to current coroutine
       fn(cli)
     end)
-
   end
 end
 
 ut.corun(server, "127.0.0.1", 5555, echo_worker)
-
-uv.timer():start(10000, 10000, function()
-  print("#IDLE TIMER")
-end)
 
 uv.run()
