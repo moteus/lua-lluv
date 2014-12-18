@@ -859,22 +859,74 @@ end
 -- @type uv_tcp
 --
 do
+
+--- Open an existing file descriptor.
+-- 
 function open                       () end
+
+--- Bind the handle to an address and port.
+--
+-- @tparam string host
+-- @tparam number port
+-- @tparam[opt] number flags
+-- @tparam[opt] function callback(self, error, host, port)
+-- @treturn uv_tcp self
 function bind                       () end
+
+--- Connect the handle to remote endpoint.
+--
+-- @tparam string host
+-- @tparam number port
+-- @tparam function callback(self, error)
+-- @treturn uv_tcp self
 function connect                    () end
+
+--- Enable / disable Nagle’s algorithm.
+--
+-- @treturn uv_tcp self
 function nodelay                    () end
+
+--- Enable / disable TCP keep-alive.
+--
+-- @treturn uv_tcp self
 function keepalive                  () end
+
+--- Enable / disable simultaneous asynchronous accept requests.
+--
+-- @treturn uv_tcp self
 function simultaneous_accepts       () end
+
+--- Get the current address to which the handle is bound.
+--
+-- @treturn string host
+-- @treturn number port
 function getsockname                () end
+
+--- Get the address of the peer connected to the handle.
+--
+-- @treturn string host
+-- @treturn number port
 function getpeername                () end
+
 end
 
 ---
 -- @type uv_tty
 --
 do
+
+--- Set the TTY mode.
+--
+-- @tparam number mode
+-- @treturn uv_tty self
 function set_mode                   () end
+
+--- Gets the current Window size.
+--
+-- @treturn number width
+-- @treturn number height
 function get_winsize                () end
+
 end
 
 ---
@@ -900,7 +952,18 @@ end
 -- @type uv_poll
 --
 do
+
+--- Start polling the file descriptor.
+--
+-- @tparam number|string|table events
+-- @tparam function callback(self, error, event)
+-- @treturn uv_poll self
 function start                      () end
+
+--- Stop polling the file descriptor.
+--
+-- @treturn uv_poll self
 function stop                       () end
+
 end
 
