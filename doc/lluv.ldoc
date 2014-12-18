@@ -61,20 +61,86 @@ end
 
 -- ctor
 do
-function tty                        () end
-function tcp                        () end
-function udp                        () end
-function timer                      () end
-function idle                       () end
-function fs_event                   () end
-function fs_poll                    () end
+
+--- Create new event loop object
+--
 function loop                       () end
+
+--- Create new TTY handle
+--
+-- @treturn uv_tty handle
+function tty                        () end
+
+--- Create new TCP handle
+--
+-- @treturn uv_tcp handle
+function tcp                        () end
+
+--- Create new UDP handle
+--
+-- @treturn uv_udp handle
+function udp                        () end
+
+--- Create new Timer handle
+--
+-- @treturn uv_timer handle
+function timer                      () end
+
+--- Create new Idle handle
+--
+-- @treturn uv_idle handle
+function idle                       () end
+
+--- Create new FS event handle
+--
+-- @treturn uv_fs_event handle
+function fs_event                   () end
+
+--- Create new FS poll handle
+--
+-- @treturn uv_fs_poll handle
+function fs_poll                    () end
+
+--- Create new Pipe handle
+--
+-- @tparam[opt=false] boolean ipc indicate if this pipe will be used for handle passing between processes
+-- @treturn uv_pipe
 function pipe                       () end
+
+--- Create new Poll handle
+--
+-- @tparam number file handle
+-- @treturn uv_poll
 function poll                       () end
+
+--- Create new Poll handle
+--
+-- @tparam number socket handle
+-- @treturn uv_poll
+function poll_socket                () end
+
+--- Create new Prepare handle
+--
+-- @treturn uv_prepare handle
 function prepare                    () end
+
+--- Create new Check handle
+--
+-- @treturn uv_check handle
 function check                      () end
+
+--- spawn new process and return new Process handle
+--
+-- @tparam process_options options
+-- @tparam[opt] function callback(process, exit_status, signal)
+-- @treturn uv_process handle
 function spawn                      () end
+
+--- Create new Signal handle
+--
+-- @treturn uv_signal handle
 function signal                     () end
+
 end
 
 -- misc
@@ -483,7 +549,7 @@ function unref                      () end
 
 --- Indicates if handle is referenced.
 --
--- @treturn boolen
+-- @treturn boolean
 function has_ref                    () end
 
 --- Indicates if handle is active.
@@ -507,6 +573,70 @@ function recv_buffer_size           () end
 function fileno                     () end
 
 end
+
+---
+-- @type uv_stream
+--
+do
+
+--- Shutdown the outgoing (write) side of a duplex stream.
+-- 
+-- @tparam function callback(self, error)
+-- @treturn uv_stream self
+function shutdown                   () end
+
+--- Start listening for incoming connections.
+--
+-- @tparam[opt] number backlog
+-- @tparam function callback(self, error)
+-- @treturn uv_stream self
+function listen                     () end
+
+--- Accept incoming connections.
+--
+-- @tparam[opt] uv_stream client handle
+-- @treturn uv_stream client
+function accept                     () end
+
+--- Read data from an incoming stream.
+--
+-- @tparam function callback(self, error, data)
+-- @treturn uv_stream self
+function start_read                 () end
+
+--- Stop reading data from the stream.
+--
+-- @treturn uv_stream self
+function stop_read                  () end
+
+--- Write data to stream.
+--
+-- @tparam string|table data
+-- @tparam[opt] function callback(self, error)
+-- @treturn uv_stream self
+function write                      () end
+
+--- Write data to stream.
+--
+-- @treturn uv_stream self
+function try_write                  () end
+
+--- Check if stream is readable.
+--
+-- @treturn boolean flag
+function is_readable                () end
+
+--- Check if stream is writable.
+--
+-- @treturn boolean flag
+function is_writable                () end
+
+---
+--
+function set_blocking               () end
+
+end
+
 
 --- lluv idle handle
 -- @type uv_idle
@@ -581,42 +711,111 @@ function getpath                    () end
 
 end
 
----
--- @type ub_fs_poll
+--- lluv FS poll handle
+-- @type uv_fs_poll
 --
 do
+
+--- Check the file at path for changes every interval milliseconds.
+--
+-- @tparam function callback(handle, prev_stat, curr_stat)
+-- @treturn uv_fs_poll self
 function start                      () end
+
+--- Stop the handle
+--
+-- @treturn uv_fs_poll self
 function stop                       () end
+
+--- Get the path being monitored by the handle.
+--
+-- @treturn string path
 function getpath                    () end
+
 end
 
----
--- @type ub_pipe
+--- lluv Pipe handle
+-- @type uv_pipe
 --
 do
+--- Open an existing file descriptor.
+-- 
+-- @tparam number fileno file descriptor
+-- @treturn uv_pipe self
 function open                       () end
+
+--- Bind the pipe to a file path (Unix) or a name (Windows).
+-- 
+-- @tparam string name
+-- @tparam[opt] function callback(self, error, name)
+-- @treturn uv_pipe self
 function bind                       () end
+
+--- Connect to the Unix domain socket or the named pipe.
+-- 
+-- @tparam string name
+-- @tparam function callback(self, error)
+-- @treturn uv_pipe self
 function connect                    () end
+
+--- Get the name of the Unix domain socket or the named pipe.
+--
+-- @treturn string name
 function getsockname                () end
+
+--- Set the number of pending pipe instance handles when the pipe server is waiting for connections.
+--
+-- @tparam number count
+-- @treturn uv_pipe self
 function pending_instances          () end
+
+--- Get the number of pending pipe instance.
+--
+-- @treturn number count
 function pending_count              () end
+
+--- Get the type of first pending handle.
+-- `accept` function can check and create hanle of needed type.
+--
+-- @treturn string type
 function pending_type               () end
+
 end
 
 ---
--- @type ub_prepare
+-- @type uv_prepare
 --
 do
+
+--- Start the handle.
+--
+-- @tparam function callback(self)
+-- @tparam uv_prepare self
 function start                      () end
+
+--- Stop the handle.
+--
+-- @tparam uv_prepare self
 function stop                       () end
+
 end
 
 ---
--- @type ub_check
+-- @type uv_check
 --
 do
+
+--- Start the handle.
+--
+-- @tparam function callback(self)
+-- @tparam uv_check self
 function start                      () end
+
+--- Stop the handle.
+--
+-- @tparam uv_check self
 function stop                       () end
+
 end
 
 ---
@@ -638,31 +837,26 @@ function kill                       () end
 end
 
 ---
--- @type ub_signal
+-- @type uv_signal
 --
 do
+
+--- Start the handle watching for the given signal.
+--
+-- @tparam number signum
+-- @tparam function callback(self, signum)
+-- @tparam uv_signal self
 function start                      () end
-function stop                       () end
-end
 
----
--- @type ub_stream
+--- Stop the handle.
 --
-do
-function shutdown                   () end
-function listen                     () end
-function accept                     () end
-function start_read                 () end
-function stop_read                  () end
-function try_write                  () end
-function write                      () end
-function is_readable                () end
-function is_writable                () end
-function set_blocking               () end
+-- @tparam uv_signal self
+function stop                       () end
+
 end
 
 ---
--- @type ub_tcp
+-- @type uv_tcp
 --
 do
 function open                       () end
@@ -676,7 +870,7 @@ function getpeername                () end
 end
 
 ---
--- @type ub_tty
+-- @type uv_tty
 --
 do
 function set_mode                   () end
@@ -684,7 +878,7 @@ function get_winsize                () end
 end
 
 ---
--- @type ub_udp
+-- @type uv_udp
 --
 do
 function open                       () end
@@ -700,5 +894,13 @@ function set_multicast_ttl          () end
 function set_multicast_interface    () end
 function set_broadcast              () end
 function set_ttl                    () end
+end
+
+---
+-- @type uv_poll
+--
+do
+function start                      () end
+function stop                       () end
 end
 
