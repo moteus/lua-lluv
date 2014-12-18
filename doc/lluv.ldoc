@@ -145,20 +145,79 @@ end
 
 -- misc
 do
+--- Return libuv version.
+--
+-- @tparam[opt] unpack if true then version return as three number
+-- @treturn[1] string version
+-- @treturn[2] number minor
+-- @treturn[2] number major
+-- @treturn[2] number patch
 function version                    () end
+
+--- Get the title of the current process.
+--
+-- @treturn string title.
 function get_process_title          () end
+
+--- Set the title of the current process.
+--
+-- @tparam string title.
 function set_process_title          () end
+
+--- Get the resident set size for the current process.
+--
+-- @treturn number rss
 function resident_set_memory        () end
+
+--- Get the current system uptime.
+--
+-- @treturn number uptime
 function uptime                     () end
+
+--- Gets the resource usage for the current process.
+--
 function getrusage                  () end
+
+--- Get information about the CPUs on the system.
+--
+-- @treturn cpu_infos infos
 function cpu_info                   () end
+
+--- Get address information about the network interfaces on the system. 
+--
+-- @treturn interface_address addresses
 function interface_addresses        () end
+
+--- Get the executable path.
+--
+-- @treturn string path
 function exepath                    () end
+
+--- Get the current working directory.
+--
+-- @treturn string path
 function cwd                        () end
+
+--- Change the current working directory.
+--
+-- @tparam string path
 function chdir                      () end
+
+--- Get memory information (in bytes).
+--
+-- @treturn number count
 function get_total_memory           () end
+
+--- Get memory information (in bytes).
+--
+-- @treturn number count
 function get_free_memory            () end
+
+--- Returns the current high-resolution real time.
+--
+-- @treturn number time
 function hrtime                     () end
+
 end
 
 -- fs submodule

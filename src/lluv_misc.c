@@ -209,6 +209,8 @@ static int lluv_interface_addresses(lua_State *L){
 
 #define MAX_PATH_LEN 4096
 
+#define IS_PATH_SEP(s) (((s)=='\\')||((s)=='/'))
+
 static int lluv_exepath(lua_State *L){
   char *buf = lluv_alloc(L, MAX_PATH_LEN); size_t len = MAX_PATH_LEN;
   int err = uv_exepath(buf, &len);
@@ -229,6 +231,7 @@ static int lluv_cwd(lua_State *L){
     lua_pushstring(L, "");
   }
   else{
+    if(len && IS_PATH_SEP(buf[len])) --len;
     lua_pushlstring(L, buf, len);
   }
   lluv_free(L, buf);
