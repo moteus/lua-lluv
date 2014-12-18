@@ -480,8 +480,8 @@ static const struct luaL_Reg lluv_stream_methods[] = {
   { "try_write",    lluv_stream_try_write     },
   { "write",        lluv_stream_write         },
   { "write2",       lluv_stream_write2        },
-  { "is_readable",  lluv_stream_is_readable   },
-  { "is_writable",  lluv_stream_is_writable   },
+  { "readable",     lluv_stream_is_readable   },
+  { "writable",     lluv_stream_is_writable   },
   { "set_blocking", lluv_stream_set_blocking  },
   
   {NULL,NULL}

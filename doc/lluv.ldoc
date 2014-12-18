@@ -683,12 +683,12 @@ function try_write                  () end
 --- Check if stream is readable.
 --
 -- @treturn boolean flag
-function is_readable                () end
+function readable                   () end
 
 --- Check if stream is writable.
 --
 -- @treturn boolean flag
-function is_writable                () end
+function writable                   () end
 
 ---
 --
@@ -723,19 +723,24 @@ do
 -- @tparam[opt] number timeout timer will start after the specified amount of time.
 -- @tparam[opt] number repeat  timer will run again after the specified amount of time.
 -- @tparam function callback(handle)
+-- @treturn uv_timer self
 function start                      () end
 
 --- Stop timer handle.
 --
+-- @treturn uv_timer self
 function stop                       () end
 
 --- Stop the Timer, and if it is repeating restart it using the repeat value as the timeout.
 --
+-- @tparam[opt] number repeat new repeat value
+-- @treturn uv_timer self
 function again                      () end
 
 --- Set the repeat value. 
 --
 -- @tparam number repeat new value
+-- @treturn uv_timer self
 function set_repeat                 () end
 
 --- Get repeat value. 
@@ -766,7 +771,7 @@ function stop                       () end
 
 --- Get the path being monitored by the handle.
 --
-function getpath                    () end
+function path                       () end
 
 end
 

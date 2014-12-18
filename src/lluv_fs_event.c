@@ -124,7 +124,7 @@ static int lluv_fs_getpath(lua_State *L){
 static const struct luaL_Reg lluv_fs_event_methods[] = {
   { "start",      lluv_fs_event_start      },
   { "stop",       lluv_fs_event_stop       },
-  { "getpath",    lluv_fs_getpath          },
+  { "path",       lluv_fs_getpath          },
 
   {NULL,NULL}
 };
