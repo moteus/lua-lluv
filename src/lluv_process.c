@@ -37,10 +37,11 @@ static void lluv_on_process_exit(uv_process_t* arg, int64_t exit_status, int ter
   }
 
   lluv_handle_pushself(L, handle);
+  lua_pushnil(L);
   lutil_pushint64(L, exit_status);
   lutil_pushint64(L, term_signal);
 
-  LLUV_HANDLE_CALL_CB(L, handle, 3);
+  LLUV_HANDLE_CALL_CB(L, handle, 4);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -325,9 +326,16 @@ LLUV_IMPL_SAFE(lluv_process_spawn){
     if(opt.stdio) lluv_free(L, opt.stdio);
 
     if(err < 0){
-      luaL_unref(L, LLUV_LUA_REGISTRY, cb);
-      lluv_handle_cleanup(L, handle);
-      return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
+      if(cb == LUA_NOREF){
+        uv_close(LLUV_H(handle, uv_handle_t), NULL);
+        luaL_unref(L, LLUV_LUA_REGISTRY, cb);
+        lluv_handle_cleanup(L, handle);
+        return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
+      }
+      lua_rawgeti(L, LLUV_LUA_REGISTRY, cb);
+      lua_pushvalue(L, -2);
+      lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
+      lluv_loop_defer_call(L, loop, 2);
     }
     LLUV_EXIT_CB(handle) = cb;
 

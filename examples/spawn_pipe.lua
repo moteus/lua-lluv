@@ -16,14 +16,16 @@ local handle, err = uv.spawn({
   file = "cat",
   args = {},
   stdio = {P(stdin, true), P(stdout, false), P(stderr, false)}
-}, function(...)
-  print("exit:", ...)
+}, function(handle, err, status, signal)
+  handle:close()
+  if err then
+    print("Error spawn:", err)
+  else
+    print("exit:", status .. "/" .. signal)
+  end
 end)
 
-if not handle then
-  print("Error spawn:", err)
-  os.exit(-1)
-end
+assert(handle)
 
 print(handle, handle:pid())
 

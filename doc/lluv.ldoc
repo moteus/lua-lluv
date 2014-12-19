@@ -132,7 +132,7 @@ function check                      () end
 --- spawn new process and return new Process handle
 --
 -- @tparam process_options options
--- @tparam[opt] function callback(process, exit_status, signal)
+-- @tparam[opt] function callback(process, error, exit_status, signal)
 -- @treturn uv_process handle
 function spawn                      () end
 

@@ -9,17 +9,22 @@ local fprintf = function(f, ...) f:write((string.format(...))) end
 
 local stderr = io.stderr
 
-local function close_process_handle(handle, exit_status, term_signal)
+local function close_process_handle(handle, err, exit_status, term_signal)
   handle:close()
 
   for i, worker in ipairs(workers) do
     if worker.proc == handle then
+      worker.pipe:close()
       table.remove(workers, i)
       break
     end
   end
 
-  fprintf(stderr, "Process exited with status %d, signal %d\n", exit_status, term_signal)
+  if err then
+    fprintf(stderr, "Spawn error: %s\n", tostring(err))
+  else
+    fprintf(stderr, "Process exited with status %d, signal %d\n", exit_status, term_signal)
+  end
 
   child_worker_count = #workers
 
@@ -62,13 +67,11 @@ local function setup_workers(fname)
 
   for i = 1, #uv.cpu_info() do
     local worker = {
+      id   = tostring(i),
       pipe = uv.pipe(true),
     }
 
-    worker.id = tostring(i)
-
-    local err
-    worker.proc, err = uv.spawn({
+    worker.proc = uv.spawn({
       file  = lua_path,
       args  = {worker_path, worker.id},
       stdio = {
@@ -81,12 +84,6 @@ local function setup_workers(fname)
       }
     }, close_process_handle)
 
-    if not worker.proc then
-      worker.pipe:close()
-      fprintf(stderr, "Spawn error: %s\n", tostring(err))
-      os.exit(1)
-    end
-
     workers[i] = worker
   end
 end
@@ -95,18 +92,14 @@ end
 
 setup_workers("worker.lua")
 
-local server, err = uv.tcp():bind("0.0.0.0", 7000)
+uv.tcp():bind("*", 7000, function(server, err, host, port)
+  if err then
+    fprintf(stderr, "Bind error %s\n", tostring(err))
+    return uv.stop()
+  end
 
-if not server then
-  fprintf(stderr, "Bind error %s\n", tostring(err))
-  return
-end
-
-local ok, err = server:listen(on_new_connection)
-
-if not ok then
-  fprintf(stderr, "Bind error %s\n", tostring(err))
-  return
-end
+  fprintf(stderr, "Bind on %s:%d\n", host, port)
+  server:listen(on_new_connection)
+end)
 
 uv.run(debug.traceback);
