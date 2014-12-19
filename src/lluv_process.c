@@ -327,9 +327,9 @@ LLUV_IMPL_SAFE(lluv_process_spawn){
 
     if(err < 0){
       if(cb == LUA_NOREF){
-        uv_close(LLUV_H(handle, uv_handle_t), NULL);
-        luaL_unref(L, LLUV_LUA_REGISTRY, cb);
-        lluv_handle_cleanup(L, handle);
+        lua_getfield(L, -1, "close");
+        lua_pushvalue(L, -2);
+        lua_pcall(L, 1, 0, 0);
         return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, opt.file);
       }
       lua_rawgeti(L, LLUV_LUA_REGISTRY, cb);

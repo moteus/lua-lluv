@@ -54,7 +54,21 @@ proc4, err = uv.spawn({
 assert(proc4 == nil)
 assert(err ~= nil)
 
-assert(#uv.handles() == 3)
+local function find_proc4()
+  for _, handle in ipairs(uv.handles()) do
+    if not( (handle == proc1 )
+         or (handle == proc2 )
+         or (handle == proc3 )
+      )
+    then return handle end
+  end
+end
+
+assert(#uv.handles() == 4)
+
+proc4 = assert(find_proc4())
+assert(not proc4:active())
+assert(proc4:closing())
 
 uv.run()
 
