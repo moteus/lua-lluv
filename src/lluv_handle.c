@@ -156,7 +156,10 @@ static void lluv_on_handle_close(uv_handle_t *arg){
   if(!IS_(handle, OPEN))return; //! @check is it possible?
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CLOSE_CB(handle));
-  if(lua_isnil(L, -1)) lua_pop(L, 1);
+  if(lua_isnil(L, -1)){
+    lua_pop(L, 1);
+    lluv_handle_cleanup(L, handle);
+  }
   else{
     lluv_handle_pushself(L, handle);
     lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->ud_ref);

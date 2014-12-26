@@ -168,20 +168,46 @@ static int lluv_loop_new(lua_State *L){
   return lluv_loop_new_impl(L, 0);
 }
 
+typedef struct lluv_close_walk_ctx_tag{
+  lua_State *L; 
+  uint32_t  count;
+} lluv_close_walk_ctx_t;
+
 static void lluv_loop_on_walk_close(uv_handle_t* handle, void* arg){
-  lua_State *L = (lua_State*)arg;
+  lluv_close_walk_ctx_t *ctx = (lluv_close_walk_ctx_t *)arg;
+  lua_State *L = ctx->L;
+
+   /* in any case we should call uv_run for this handle */
+  ctx->count += 1;
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  if(uv_is_closing(handle)) return;
-
-  // if(!uv_is_active(handle)) return; // @fixme do we shold ignore this handles
+  if(uv_is_closing(handle)){
+    return;
+  }
 
   lluv_handle_pushself(L, lluv_handle_byptr(handle));
-  if(lua_isnil(L, -1)){lua_pop(L, 1); return; }
+  if(lua_isnil(L, -1)){
+    /* This handle create some one else or
+     * someone corrupt registry
+     * but still we need close it
+     */
+    lua_pop(L, 1);
+    uv_close(handle, NULL);
+    return;
+  }
 
   lua_getfield(L, -1, "close");
-  if(lua_isnil(L, -1)){lua_pop(L, 2); return; }
+  if(lua_isnil(L, -1)){
+    /* is it even possible?
+     * too late to cry
+     */
+    assert(0 && "broken metatable");
+
+    lua_pop(L, 2);
+    uv_close(handle, NULL);
+    return;
+  }
 
   lua_insert(L, -2);
   lua_pcall(L, 1, 0, 0);
@@ -195,16 +221,18 @@ static int lluv_loop_close_all_handles_impl(lua_State *L){
   */
 
   lluv_loop_t* loop = lluv_check_loop(L, LLUV_LOOP_INDEX, LLUV_FLAG_OPEN);
-  lua_State *arg = L;
+  lluv_close_walk_ctx_t arg = {L, 0};
   int err = 0;
 
-  uv_walk(loop->handle, lluv_loop_on_walk_close, arg);
+  uv_walk(loop->handle, lluv_loop_on_walk_close, &arg);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  while((err = uv_run(loop->handle, UV_RUN_ONCE))){
-    if(err < 0)
-      return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+  if(arg.count){
+    while((err = uv_run(loop->handle, UV_RUN_ONCE))){
+      if(err < 0)
+        return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+    }
   }
 
   return 0;
@@ -221,21 +249,36 @@ static int lluv_loop_close_all_handles(lua_State *L){
   return lua_gettop(L) - 1;
 }
 
-static int lluv_loop_close(lua_State *L){
+static int lluv_loop_close_impl(lua_State *L, int ignore_error, int close_handle){
   lluv_loop_t* loop = lluv_check_loop(L, 1, 0);
   int err;
 
   if(!IS_(loop, OPEN)) return 0;
 
-  if((lua_isboolean(L,2))&&(lua_toboolean(L,2))){
+  if((!close_handle) && lua_isboolean(L, 2)){
+    close_handle = lua_toboolean(L, 2);
+  }
+
+  if(close_handle){
     int ret = lluv_loop_close_all_handles(L);
-    if(ret != 1) return ret;
+    if(!ignore_error){
+      if(ret != 0) return ret;
+    }
   }
 
   err = uv_loop_close(loop->handle);
-  if(err < 0){
-    return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+  if(!ignore_error){
+    if(err < 0){
+      return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+    }
   }
+
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
+  if(lua_rawequal(L, 1, -1)){
+    lua_pushnil(L);
+    lua_rawsetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
+  }
+  lua_pop(L, 1);
 
   FLAG_UNSET(loop, LLUV_FLAG_OPEN);
   lua_pushnil(L);
@@ -248,6 +291,22 @@ static int lluv_loop_close(lua_State *L){
   loop->handle = NULL;
   lluv_list_close(L, &loop->defer);
   return 0;
+}
+
+static int lluv_loop_close(lua_State *L){
+  if(!lluv_opt_loop(L, 1, 0)){
+    lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_DEFAULT_LOOP_TAG);
+    if(lua_isnil(L, -1)) return 0;
+    lua_pop(L, 1);
+  }
+
+  lluv_ensure_loop_at(L, 1);
+  return lluv_loop_close_impl(L, 0, 0);
+}
+
+static int lluv_loop__gc(lua_State *L){
+  lluv_check_loop(L, 1, 0);
+  return lluv_loop_close_impl(L, 1, 1);
 }
 
 static int lluv_loop_to_s(lua_State *L){
@@ -439,6 +498,7 @@ static int lluv_push_default_loop_l(lua_State *L){
 }
 
 static const struct luaL_Reg lluv_loop_methods[] = {
+  { "__gc",         lluv_loop__gc          },
   { "__tostring",   lluv_loop_to_s         },
   { "run",          lluv_loop_run          },
   { "close",        lluv_loop_close        },
@@ -470,6 +530,7 @@ static const struct luaL_Reg lluv_loop_functions[] = {
   {"run",          lluv_loop_run           },
   {"stop",         lluv_loop_stop          },
   {"handles",      lluv_loop_handles       },
+  {"close",        lluv_loop_close         },
   {"now",          lluv_loop_now           },
   {"default_loop", lluv_push_default_loop_l},
   {"update_time",  lluv_loop_update_time   },

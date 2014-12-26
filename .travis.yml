@@ -33,6 +33,7 @@ install:
 
 script: 
   - cd test
+  - lua test-close.lua
   - lua test-active.lua
   - lua test-multi-write.lua
   - lua test-spawn.lua
