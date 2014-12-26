@@ -156,12 +156,19 @@ static void lluv_on_handle_close(uv_handle_t *arg){
   if(!IS_(handle, OPEN))return; //! @check is it possible?
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CLOSE_CB(handle));
-  lluv_handle_pushself(L, handle);
+  if(lua_isnil(L, -1)) lua_pop(L, 1);
+  else{
+    lluv_handle_pushself(L, handle);
+    lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->ud_ref);
 
-  lluv_handle_cleanup(L, handle);
+    /* we can not cleanup handle after callback
+     * because it may raise error and we leave half closed handle
+     * so we put `data` field as argument.
+     */
+    lluv_handle_cleanup(L, handle);
 
-  if(lua_isnil(L, -2)) lua_pop(L, 2);
-  else LLUV_LOOP_CALL_CB(L, loop, 1);
+    LLUV_LOOP_CALL_CB(L, loop, 2);
+  }
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
