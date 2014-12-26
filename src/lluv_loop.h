@@ -58,7 +58,8 @@ LLUV_INTERNAL int lluv_loop_defer_proceed(lua_State *L, lluv_loop_t *loop);
 
 #define LLUV_CHECK_LOOP_CB_INVARIANT(L) \
   assert("Some one use invalid callback handler" && (lua_gettop(L) == LLUV_CALLBACK_TOP_SIZE)); \
-  assert("Invalid LLUV registry" && (lua_type(L, LLUV_LUA_REGISTRY) == LUA_TTABLE));
+  assert("Invalid number of upvalues" && (lua_isnone(L, LLUV_NONE_MARK_INDEX)));                \
+  assert("Invalid LLUV registry" && (lua_type(L, LLUV_LUA_REGISTRY) == LUA_TTABLE));            \
 
 #define LLUV_HANDLE_CALL_CB(L, H, A)                                            \
   {                                                                             \

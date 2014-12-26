@@ -12,11 +12,23 @@ assert(timer:closed())
 local loop2 = assert(uv.default_loop())
 assert(loop2 ~= loop)
 
-local f = false
-timer = uv.timer():start(function() f = true end)
+local start = false
+local close = false
 
-uv.run()
+timer = uv.timer()
+  :start(function() start = true end)
+  :close(function() close = true end)
 
-assert(f == true)
+uv.close(true)
+
+assert(timer:closed())
+assert(close)
+assert(not start)
+
+local timer = uv.timer()
+coroutine.wrap(function()
+  uv.close(true)
+end)()
+assert(timer:closed())
 
 print("Done!")

@@ -226,13 +226,24 @@ static int lluv_loop_close_all_handles_impl(lua_State *L){
 
   uv_walk(loop->handle, lluv_loop_on_walk_close, &arg);
 
-  LLUV_CHECK_LOOP_CB_INVARIANT(L);
-
   if(arg.count){
+    lua_State *prev_state = loop->L;
+
+    loop->level += 1;
+    loop->L = L;
+
+    LLUV_CHECK_LOOP_CB_INVARIANT(loop->L);
+
     while((err = uv_run(loop->handle, UV_RUN_ONCE))){
-      if(err < 0)
-        return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+      if(err < 0) break;
+      LLUV_CHECK_LOOP_CB_INVARIANT(loop->L);
     }
+
+    loop->L = prev_state;
+    loop->level -= 1;
+
+    if(err < 0)
+      return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
   }
 
   return 0;
@@ -329,13 +340,13 @@ static int lluv_loop_run_impl(lua_State *L){
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  ++loop->level;
+  loop->level += 1;
   loop->L = L;
   err = lluv_loop_defer_proceed(L, loop);
   if(!err) err = uv_run(loop->handle, mode);
   if(!err) err = lluv_loop_defer_proceed(L, loop);
   loop->L = prev_state;
-  --loop->level;
+  loop->level -= 1;
 
   if(err < 0){
     return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
