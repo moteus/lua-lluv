@@ -34,10 +34,11 @@ typedef struct lluv_loop_tag lluv_loop_t;
 #endif
 
 #define LLUV_LUA_REGISTRY        lua_upvalueindex(1)
-#define LLUV_LOOP_INDEX          lua_upvalueindex(2)
-#define LLUV_ERROR_HANDLER_INDEX lua_upvalueindex(3)
-#define LLUV_ERROR_MARK_INDEX    lua_upvalueindex(4)
-#define LLUV_NONE_MARK_INDEX     lua_upvalueindex(5)
+#define LLUV_LUA_HANDLES         lua_upvalueindex(2)
+#define LLUV_LOOP_INDEX          lua_upvalueindex(3)
+#define LLUV_ERROR_HANDLER_INDEX lua_upvalueindex(4)
+#define LLUV_ERROR_MARK_INDEX    lua_upvalueindex(5)
+#define LLUV_NONE_MARK_INDEX     lua_upvalueindex(6)
 
 extern const char *LLUV_MEMORY_ERROR_MARK;
 

@@ -874,7 +874,8 @@ static int lluv_file_pipe(lua_State *L){
 
   /*local ok, err = uv.pipe(loop, ipc)*/
   lua_pushvalue(L, LLUV_LUA_REGISTRY);
-  lua_pushcclosure(L, IS_(f, RAISE_ERROR) ? lluv_pipe_create_unsafe : lluv_pipe_create_safe, 1);
+  lua_pushvalue(L, LLUV_LUA_HANDLES);
+  lua_pushcclosure(L, IS_(f, RAISE_ERROR) ? lluv_pipe_create_unsafe : lluv_pipe_create_safe, 2);
   lluv_loop_pushself(L, f->loop);
   lua_pushboolean(L, ipc);
   lua_call(L, 2, 2);

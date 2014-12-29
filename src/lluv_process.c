@@ -304,7 +304,8 @@ LLUV_IMPL_SAFE(lluv_process_spawn){
 
   lua_pushlightuserdata(L, &opt);
   lua_pushvalue(L, LLUV_LUA_REGISTRY);
-  lua_pushcclosure(L, lluv_fill_process_options_, 1);
+  lua_pushvalue(L, LLUV_LUA_HANDLES);
+  lua_pushcclosure(L, lluv_fill_process_options_, 2);
   lua_insert(L, 1);
 
   if(lua_pcall(L, 2, 1, 0)){

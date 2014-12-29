@@ -38,6 +38,7 @@
 #define LLUV_VERSION_COMMENT "dev"
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
+static const char* LLUV_HANDLES  = LLUV_PREFIX" Handles";
 
 static int lluv_push_version(lua_State *L){
   lua_pushnumber(L, LLUV_VERSION_MAJOR);
@@ -62,46 +63,52 @@ static const struct luaL_Reg lluv_functions[] = {
 };
 
 static int luaopen_lluv_impl(lua_State *L, int safe){
+#define NUPVALUES 2
+#define LLUV_PUSH_UPVALUES(L) lua_pushvalue(L, -3); lua_pushvalue(L, -3)
+
   lua_rawgetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
   if(!lua_istable(L, -1)){ /* registry */
     lua_pop(L, 1);
-    lua_newtable(L);
-    lua_pushvalue(L, -1);
-    lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
+    lua_newtable(L); lua_pushvalue(L, -1); lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
+    lua_newtable(L); lua_pushvalue(L, -1); lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_HANDLES);
   }
 
-  lua_newtable(L); /* library  */
+  lua_newtable(L); /* registry, handles, library  */
 
-  lua_pushvalue(L, -2); lluv_loop_initlib     (L, 1);
+  LLUV_PUSH_UPVALUES(L); lluv_loop_initlib     (L, NUPVALUES);
 
-  lua_pushvalue(L, -2); luaL_setfuncs(L, lluv_functions, 1);
-  lua_pushvalue(L, -2); lluv_error_initlib    (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_fs_initlib       (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_handle_initlib   (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_stream_initlib   (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_timer_initlib    (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_fbuf_initlib     (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_idle_initlib     (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_tcp_initlib      (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_pipe_initlib     (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_tty_initlib      (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_udp_initlib      (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_prepare_initlib  (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_check_initlib    (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_poll_initlib     (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_signal_initlib   (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_fs_event_initlib (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_fs_poll_initlib  (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_process_initlib  (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_misc_initlib     (L, 1, safe);
-  lua_pushvalue(L, -2); lluv_dns_initlib      (L, 1, safe);
+  LLUV_PUSH_UPVALUES(L); luaL_setfuncs(L, lluv_functions, NUPVALUES);
+  LLUV_PUSH_UPVALUES(L); lluv_error_initlib    (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_fs_initlib       (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_handle_initlib   (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_stream_initlib   (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_timer_initlib    (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_fbuf_initlib     (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_idle_initlib     (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_tcp_initlib      (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_pipe_initlib     (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_tty_initlib      (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_udp_initlib      (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_prepare_initlib  (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_check_initlib    (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_poll_initlib     (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_signal_initlib   (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_fs_event_initlib (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_fs_poll_initlib  (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_process_initlib  (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_misc_initlib     (L, NUPVALUES, safe);
+  LLUV_PUSH_UPVALUES(L); lluv_dns_initlib      (L, NUPVALUES, safe);
 
   lua_remove(L, -2); /* registry */
+  lua_remove(L, -2); /* handles  */
 
   lluv_push_version(L);
   lua_setfield(L, -2, "_VERSION");
 
   return 1;
+
+#undef LLUV_PUSH_UPVALUES
+#undef NUPVALUES
 }
 
 LLUV_EXPORT_API

@@ -148,7 +148,8 @@ static int lluv_new_(lua_State *L, lluv_loop_t *loop, uv_handle_type type, int u
   if(type == UV_TCP){
     /*local ok, err = uv.tcp(loop)*/
     lua_pushvalue(L, LLUV_LUA_REGISTRY);
-    lua_pushcclosure(L, unsafe ? lluv_tcp_create_unsafe : lluv_tcp_create_safe, 1);
+    lua_pushvalue(L, LLUV_LUA_HANDLES);
+    lua_pushcclosure(L, unsafe ? lluv_tcp_create_unsafe : lluv_tcp_create_safe, 2);
     lluv_loop_pushself(L, loop);
     lua_call(L, 1, 2);
 
@@ -161,7 +162,8 @@ static int lluv_new_(lua_State *L, lluv_loop_t *loop, uv_handle_type type, int u
   if(type == UV_NAMED_PIPE){
     /*local ok, err = uv.pipe(loop)*/
     lua_pushvalue(L, LLUV_LUA_REGISTRY);
-    lua_pushcclosure(L, unsafe ? lluv_pipe_create_unsafe : lluv_pipe_create_safe, 1);
+    lua_pushvalue(L, LLUV_LUA_HANDLES);
+    lua_pushcclosure(L, unsafe ? lluv_pipe_create_unsafe : lluv_pipe_create_safe, 2);
     lluv_loop_pushself(L, loop);
     lua_call(L, 1, 2);
 

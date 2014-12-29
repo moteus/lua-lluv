@@ -253,9 +253,10 @@ static int lluv_loop_close_all_handles(lua_State *L){
   /* lluv_loop_t* loop = */ lluv_check_loop(L, 1, LLUV_FLAG_OPEN);
   lua_settop(L, 1);
 
-  lua_pushvalue(L, LLUV_LUA_REGISTRY); lua_pushvalue(L, 1); /* loop, reg, loop            */
-  lua_pushnil(L); lua_pushnil(L);                           /* loop, reg, loop, err, mark */
-  lua_pushcclosure(L, lluv_loop_close_all_handles_impl, 4); /* loop, closure              */
+  lua_pushvalue(L, LLUV_LUA_REGISTRY); lua_pushvalue(L, LLUV_LUA_HANDLES);
+  lua_pushvalue(L, 1);                                      /* loop, reg, handles, loop   */
+  lua_pushnil(L); lua_pushnil(L);                           /* loop, reg, handles, loop, err, mark */
+  lua_pushcclosure(L, lluv_loop_close_all_handles_impl, 5); /* loop, closure              */
   lua_call(L, 0, LUA_MULTRET);                              /* loop, ...                  */
   return lua_gettop(L) - 1;
 }
@@ -398,8 +399,10 @@ static int lluv_loop_run(lua_State *L){
   lua_insert(L, 1);                           /* mode, loop, err  */
   lua_pushvalue(L, LLUV_LUA_REGISTRY);        /* mode, loop, err, reg */
   lua_insert(L, 2);                           /* mode, reg, loop, err */
-  lua_pushnil(L);                             /* mode, reg, loop, err, mark */
-  lua_pushcclosure(L, lluv_loop_run_impl, 4); /* mode, closure */
+  lua_pushvalue(L, LLUV_LUA_HANDLES);         /* mode, reg, loop, err,  */
+  lua_insert(L, 3);                           /* mode, reg, handles, loop, err */
+  lua_pushnil(L);                             /* mode, reg, handles, loop, err, mark */
+  lua_pushcclosure(L, lluv_loop_run_impl, 5); /* mode, closure */
   lua_insert(L, 1);                           /* closure, mode */
   lua_call(L, 1, LUA_MULTRET);
 
