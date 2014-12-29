@@ -101,7 +101,11 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type typ
   handle->ud_ref = LUA_NOREF;
 
   lua_pushvalue(L, -1);
-  handle->self = luaL_ref(L, LLUV_LUA_REGISTRY);
+  lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
+
+  handle->self = LUA_NOREF;
+
+  lluv_handle_lock(L, handle);
 
   return handle;
 }
@@ -118,6 +122,7 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h){
   size_t off = offsetof(lluv_handle_t, handle);
   lluv_handle_t *handle = (lluv_handle_t *)(((char*)h) - off);
   assert(handle == h->data);
+  assert(&handle->handle == h);
   return handle;
 }
 
@@ -129,7 +134,7 @@ LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h){
 }
 
 LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle){
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->self);
+  lua_rawgetp(L, LLUV_LUA_HANDLES, &handle->handle);
   assert(handle == lua_touserdata(L, -1));
   return 1;
 }
@@ -141,9 +146,26 @@ LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
     luaL_unref(L,  LLUV_LUA_REGISTRY, handle->callbacks[i]);
     handle->callbacks[i] = LUA_NOREF;
   }
+
   luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
   luaL_unref(L, LLUV_LUA_REGISTRY, handle->ud_ref);
   handle->self = handle->ud_ref = LUA_NOREF;
+
+  lua_pushnil(L); lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
+}
+
+LLUV_INTERNAL void lluv_handle_lock(lua_State *L, lluv_handle_t *handle){
+  if(handle->self != LUA_NOREF) return;
+
+  lluv_handle_pushself(L, handle);
+  handle->self = luaL_ref(L, LLUV_LUA_REGISTRY);
+}
+
+LLUV_INTERNAL void lluv_handle_unlock(lua_State *L, lluv_handle_t *handle){
+  if(handle->self == LUA_NOREF) return;
+  
+  luaL_unref(L, LLUV_LUA_HANDLES, handle->self);
+  handle->self = LUA_NOREF;
 }
 
 static void lluv_on_handle_close(uv_handle_t *arg){

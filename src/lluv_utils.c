@@ -408,3 +408,13 @@ LLUV_INTERNAL int lluv_return(lua_State *L, lluv_handle_t *handle, int cb, int e
   return 1;
 }
 
+LLUV_INTERNAL int lluv_new_weak_table(lua_State*L, const char *mode){
+  int top = lua_gettop(L);
+  lua_newtable(L);
+  lua_newtable(L);
+  lua_pushstring(L, mode);
+  lua_setfield(L, -2, "__mode");
+  lua_setmetatable(L,-2);
+  assert((top+1) == lua_gettop(L));
+  return 1;
+}

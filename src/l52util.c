@@ -177,5 +177,6 @@ int64_t lutil_optint64(lua_State *L, int idx, int64_t v){
 }
 
 void lutil_pushnvalues(lua_State *L, int n){
-  for(;n;--n) lua_pushvalue(L, -n);
+  int i = -n;
+  for(;n;--n) lua_pushvalue(L, i);
 }

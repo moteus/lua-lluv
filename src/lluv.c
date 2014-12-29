@@ -69,8 +69,8 @@ static int luaopen_lluv_impl(lua_State *L, int safe){
   lua_rawgetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
   if(!lua_istable(L, -1)){ /* registry */
     lua_pop(L, 1);
-    lua_newtable(L); lua_pushvalue(L, -1); lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
-    lua_newtable(L); lua_pushvalue(L, -1); lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_HANDLES);
+    lua_newtable(L);             lua_pushvalue(L, -1); lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
+    lluv_new_weak_table(L, "kv");lua_pushvalue(L, -1); lua_rawsetp(L, LUA_REGISTRYINDEX, LLUV_HANDLES);
   }
 
   lua_newtable(L); /* registry, handles, library  */

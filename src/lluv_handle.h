@@ -54,4 +54,8 @@ LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle);
 
 LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg);
 
+LLUV_INTERNAL void lluv_handle_lock(lua_State *L, lluv_handle_t *handle);
+
+LLUV_INTERNAL void lluv_handle_unlock(lua_State *L, lluv_handle_t *handle);
+
 #endif
