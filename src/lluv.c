@@ -57,7 +57,14 @@ static int lluv_push_version(lua_State *L){
   return 1;
 }
 
+static int lluv_debug_registry(lua_State *L){
+  lua_rawgetp(L, LUA_REGISTRYINDEX, LLUV_REGISTRY);
+  lua_rawgetp(L, LUA_REGISTRYINDEX, LLUV_HANDLES);
+  return 2;
+}
+
 static const struct luaL_Reg lluv_functions[] = {
+  {"__registry", lluv_debug_registry},
 
   {NULL,NULL}
 };

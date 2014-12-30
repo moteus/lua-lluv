@@ -47,7 +47,7 @@ static int lluv_tcp_connect(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; lluv_req_t *req;
   int err = lluv_check_addr(L, 2, &sa);
-  
+
   if(err < 0){
     lua_settop(L, 3);
     lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
@@ -59,15 +59,11 @@ static int lluv_tcp_connect(lua_State *L){
   req = lluv_req_new(L, UV_CONNECT, handle);
 
   err = uv_tcp_connect(LLUV_R(req, connect), LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
-  if(err < 0){
-    lluv_req_free(L, req);
-    lua_settop(L, 3);
-    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
-    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
-  }
 
-  lua_settop(L, 1);
-  return 1;
+  if((err >= 0)||(lluv_req_has_cb(L, req)))
+    lluv_handle_lock(L, handle);
+
+  return lluv_return_req(L, handle, req, err);
 }
 
 static int lluv_tcp_bind(lua_State *L){

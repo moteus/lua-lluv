@@ -31,5 +31,6 @@ LLUV_INTERNAL void lluv_req_ref(lua_State *L, lluv_req_t *req);
 
 LLUV_INTERNAL lluv_req_t* lluv_req_byptr(uv_req_t *r);
 
+LLUV_INTERNAL int lluv_req_has_cb(lua_State *L, lluv_req_t *req);
 
 #endif

@@ -41,3 +41,12 @@ LLUV_INTERNAL void lluv_req_ref(lua_State *L, lluv_req_t *req){
   luaL_unref(L, LLUV_LUA_REGISTRY, req->arg);
   req->arg = luaL_ref(L, LLUV_LUA_REGISTRY);
 }
+
+LLUV_INTERNAL int lluv_req_has_cb(lua_State *L, lluv_req_t *req){
+  int res;
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+  res = lua_isnil(L, -1);
+  lua_pop(L, 1);
+
+  return res;
+}

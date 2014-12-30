@@ -49,6 +49,9 @@ LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
 
   if(!IS_(handle, OPEN)){
     lluv_req_free(L, req);
+    lluv_handle_unlock(L, handle);
+
+    LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
@@ -57,11 +60,13 @@ LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
 
   if(lua_isnil(L, -1)){
     lua_pop(L, 1);
+    lluv_handle_unlock(L, handle);
+
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
-  lluv_handle_pushself(L, handle);
+  lluv_handle_pushunlock(L, handle);
   lluv_push_status(L, status);
 
   LLUV_HANDLE_CALL_CB(L, handle, 2);
@@ -91,6 +96,10 @@ static int lluv_stream_shutdown(lua_State *L){
   req = lluv_req_new(L, UV_SHUTDOWN, handle);
 
   err = uv_shutdown(LLUV_R(req, shutdown), LLUV_H(handle, uv_stream_t), lluv_on_stream_shutdown_cb);
+
+  if((err >= 0)||(lluv_req_has_cb(L, req)))
+    lluv_handle_lock(L, handle);
+
   return lluv_return_req(L, handle, req, err);
 }
 
@@ -127,6 +136,12 @@ static int lluv_stream_listen(lua_State *L){
   LLUV_CONNECTION_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_listen(LLUV_H(handle, uv_stream_t), backlog, lluv_on_stream_connection_cb);
+
+  if(err >= 0){
+    /*There no way to stop this callback so we never free this lock*/
+    lluv_handle_lock(L, handle);
+  }
+
   return lluv_return(L, handle, LLUV_CONNECTION_CB(handle), err);
 }
 
@@ -267,6 +282,8 @@ static void lluv_on_stream_read_cb(uv_stream_t* arg, ssize_t nread, const uv_buf
 
     lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)nread, NULL);
     lua_pushnil(L);
+
+    lluv_handle_unlock(L, handle);
   }
 
   LLUV_HANDLE_CALL_CB(L, handle, 3);
@@ -282,6 +299,7 @@ static int lluv_stream_start_read(lua_State *L){
   LLUV_READ_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
 
   err = uv_read_start(LLUV_H(handle, uv_stream_t), lluv_alloc_buffer_cb, lluv_on_stream_read_cb);
+  if(err >= 0) lluv_handle_lock(L, handle);
   return lluv_return(L, handle, LLUV_READ_CB(handle), err);
 }
 
@@ -296,8 +314,11 @@ static int lluv_stream_stop_read(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
-  luaL_unref(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
-  LLUV_READ_CB(handle) = LUA_NOREF;
+  if(LLUV_READ_CB(handle) != LUA_NOREF){
+    lluv_handle_unlock(L, handle);
+    luaL_unref(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
+    LLUV_READ_CB(handle) = LUA_NOREF;
+  }
 
   lua_settop(L, 1);
   return 1;
@@ -332,6 +353,9 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
 
   if(!IS_(handle, OPEN)){
     lluv_req_free(L, req);
+    lluv_handle_unlock(L, handle);
+
+    LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
@@ -340,11 +364,13 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
 
   if(lua_isnil(L, -1)){
     lua_pop(L, 1);
+    lluv_handle_unlock(L, handle);
+
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
-  lluv_handle_pushself(L, handle);
+  lluv_handle_pushunlock(L, handle);
   lluv_push_status(L, status);
 
   LLUV_HANDLE_CALL_CB(L, handle, 2);
@@ -413,6 +439,9 @@ static int lluv_stream_write(lua_State *L){
 
   err = uv_write(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), &buf, 1, lluv_on_stream_write_cb);
 
+  if((err >= 0)||(lluv_req_has_cb(L, req)))
+    lluv_handle_lock(L, handle);
+
   return lluv_return_req(L, handle, req, err);
 }}
 
@@ -439,6 +468,10 @@ static int lluv_stream_write2(lua_State *L){
   lluv_req_ref(L, req); /* string */
 
   err = uv_write2(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), &buf, 1, LLUV_H(src, uv_stream_t), lluv_on_stream_write_cb);
+
+  if((err >= 0)||(lluv_req_has_cb(L, req)))
+    lluv_handle_lock(L, handle);
+
   return lluv_return_req(L, handle, req, err);
 }
 

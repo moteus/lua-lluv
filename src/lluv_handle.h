@@ -24,6 +24,7 @@
 
 typedef struct lluv_handle_tag{
   int         self;
+  int         lock;
   lua_State   *L;
   lluv_flags_t flags;
   int          ud_ref; /* userdata reference */
@@ -51,6 +52,8 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h);
 LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h);
 
 LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle);
+
+LLUV_INTERNAL int lluv_handle_pushunlock(lua_State *L, lluv_handle_t *handle);
 
 LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg);
 

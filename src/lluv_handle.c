@@ -28,6 +28,8 @@
 #include "lluv_process.h"
 #include <assert.h>
 
+static const char* LLUV_HANDLES_SET = LLUV_PREFIX" Handles set";
+
 static int lluv_handle_dispatch(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
   luaL_checkstring(L, 2);
@@ -103,9 +105,13 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type typ
   lua_pushvalue(L, -1);
   lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
 
-  handle->self = LUA_NOREF;
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+  assert(lua_istable(L, -1));
+  lua_pushvalue(L, -2); lua_pushboolean(L, 1); lua_rawset(L, -3);
+  lua_pop(L, 1);
 
-  lluv_handle_lock(L, handle);
+  handle->self = LUA_NOREF;
+  handle->lock = 0;
 
   return handle;
 }
@@ -128,14 +134,61 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h){
 
 LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h){
   lluv_handle_t *handle = lluv_handle_byptr(h);
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->self);
-  assert(handle == lua_touserdata(L, -1));
+  return lluv_handle_pushself(L, handle);
+}
+
+static int lluv_find_handle(lua_State *L, uv_handle_t *handle){
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+  lua_pushnil(L);
+  while(lua_next(L, -2) != 0){
+    lluv_handle_t *lhandle;
+
+    assert(lua_isboolean(L, -1));
+    assert(lua_toboolean(L, -1));
+    lua_pop(L, 1);
+
+    lhandle = (lluv_handle_t*)lua_touserdata(L, -1);
+    if(handle == &lhandle->handle){
+      lua_remove(L, -2);
+      return 1;
+    }
+  }
+  lua_pop(L, 1);
+  lua_pushnil(L);
+  return 1;
+}
+
+static int lluv_handle_find(lua_State *L, uv_handle_t *h){
+  lua_rawgetp(L, LLUV_LUA_HANDLES, h);
+  if(lua_isnil(L, -1)){
+    lua_pop(L, 1);
+    lluv_find_handle(L, h);
+  }
+
   return 1;
 }
 
 LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle){
-  lua_rawgetp(L, LLUV_LUA_HANDLES, &handle->handle);
+
+  /** Lua 5.1
+   *  When Lua call __gc it already remove key from LLUV_LUA_HANDLES
+   *  `lluv_handle_close` restore it and lock but it may not help
+   * and lua can again remove key from LLUV_LUA_HANDLES so
+   * we have to use LLUV_LUA_REGISTRY
+   */
+
+  if(handle->self != LUA_NOREF)
+    lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->self);
+  else
+    lluv_handle_find(L, &handle->handle);
+
   assert(handle == lua_touserdata(L, -1));
+  return 1;
+}
+
+LLUV_INTERNAL int lluv_handle_pushunlock(lua_State *L, lluv_handle_t *handle){
+  lluv_handle_pushself(L, handle);
+  lluv_handle_unlock(L, handle);
   return 1;
 }
 
@@ -152,9 +205,14 @@ LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
   handle->self = handle->ud_ref = LUA_NOREF;
 
   lua_pushnil(L); lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
+  handle->lock = 0;
 }
 
 LLUV_INTERNAL void lluv_handle_lock(lua_State *L, lluv_handle_t *handle){
+  assert(handle->lock >= 0);
+
+  handle->lock += 1;
+
   if(handle->self != LUA_NOREF) return;
 
   lluv_handle_pushself(L, handle);
@@ -162,10 +220,39 @@ LLUV_INTERNAL void lluv_handle_lock(lua_State *L, lluv_handle_t *handle){
 }
 
 LLUV_INTERNAL void lluv_handle_unlock(lua_State *L, lluv_handle_t *handle){
-  if(handle->self == LUA_NOREF) return;
-  
-  luaL_unref(L, LLUV_LUA_HANDLES, handle->self);
-  handle->self = LUA_NOREF;
+  if(handle->self == LUA_NOREF){
+    assert(handle->lock == 0);
+    return;
+  }
+
+  assert(handle->lock > 0);
+  handle->lock -= 1;
+
+  if(handle->lock == 0){
+    luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
+    handle->self = LUA_NOREF;
+  }
+}
+
+static int lluv_handle_lock_(lua_State *L){
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_lock(L, handle);
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_handle_unlock_(lua_State *L){
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_unlock(L, handle);
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_handle_locked_(lua_State *L){
+  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  if(handle->lock) lua_pushinteger(L, handle->lock);
+  else lua_pushboolean(L, 0);
+  return 1;
 }
 
 static void lluv_on_handle_close(uv_handle_t *arg){
@@ -208,6 +295,10 @@ static int lluv_handle_close(lua_State *L){
   if(uv_is_closing(LLUV_H(handle, uv_handle_t))){
     return 0;
   }
+
+  lua_pushvalue(L, 1);
+  lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
+  lluv_handle_lock(L, handle);
 
   lua_settop(L, 2);
   if(lua_isfunction(L, 2)){
@@ -350,6 +441,9 @@ static const struct luaL_Reg lluv_handle_methods[] = {
   { "send_buffer_size", lluv_handle_send_buffer_size },
   { "recv_buffer_size", lluv_handle_recv_buffer_size },
   { "fileno",           lluv_handle_fileno           },
+  { "lock",             lluv_handle_lock_            },
+  { "unlock",           lluv_handle_unlock_          },
+  { "locked",           lluv_handle_locked_          },
 
   {NULL,NULL}
 };
@@ -379,6 +473,8 @@ static const struct luaL_Reg lluv_handle_functions[] = {
 LLUV_INTERNAL void lluv_handle_initlib(lua_State *L, int nup, int safe){
   int ret;
   lutil_pushnvalues(L, nup);
+
+  lluv_new_weak_table(L, "k"); lua_rawsetp(L, -nup - 1, LLUV_HANDLES_SET);
 
   ret = lutil_newmetatablep(L, LLUV_HANDLE);
   lua_insert(L, -1 - nup); /* move mt prior upvalues */

@@ -81,6 +81,8 @@ static int lluv_fs_event_start(lua_State *L){
 
   err = uv_fs_event_start(LLUV_H(handle, uv_fs_event_t), lluv_on_fs_event_start, path, flags);
 
+  if(err >= 0) lluv_handle_lock(L, handle);
+
   return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
@@ -90,6 +92,9 @@ static int lluv_fs_event_stop(lua_State *L){
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
+
+  lluv_handle_unlock(L, handle);
+
   lua_settop(L, 1);
   return 1;
 }

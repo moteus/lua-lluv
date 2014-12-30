@@ -291,6 +291,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\lluv.h"
+				>
+			</File>
+			<File
 				RelativePath="..\src\lluv_check.h"
 				>
 			</File>

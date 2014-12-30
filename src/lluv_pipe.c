@@ -95,6 +95,8 @@ static int lluv_pipe_connect(lua_State *L){
 
   uv_pipe_connect( LLUV_R(req, connect), LLUV_H(handle, uv_pipe_t), addr, lluv_on_stream_connect_cb);
 
+  lluv_handle_lock(L, handle);
+
   lua_settop(L, 1);
   return 1;
 }
