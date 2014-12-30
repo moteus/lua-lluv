@@ -29,6 +29,7 @@
 #include <assert.h>
 
 static const char* LLUV_HANDLES_SET = LLUV_PREFIX" Handles set";
+static const char* LLUV_HANDLE_NIL_UD = LLUV_PREFIX" nil ud";
 
 static int lluv_handle_dispatch(lua_State *L){
   lluv_handle_t *handle = lluv_check_handle(L, 1, 0);
@@ -100,14 +101,12 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type typ
     handle->callbacks[i] = LUA_NOREF;
   }
 
-  handle->ud_ref = LUA_NOREF;
-
   lua_pushvalue(L, -1);
   lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
 
   lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
   assert(lua_istable(L, -1));
-  lua_pushvalue(L, -2); lua_pushboolean(L, 1); lua_rawset(L, -3);
+  lua_pushvalue(L, -2); lua_pushlightuserdata(L, (void*)LLUV_HANDLE_NIL_UD); lua_rawset(L, -3);
   lua_pop(L, 1);
 
   handle->self = LUA_NOREF;
@@ -200,11 +199,11 @@ LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
     handle->callbacks[i] = LUA_NOREF;
   }
 
-  luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
-  luaL_unref(L, LLUV_LUA_REGISTRY, handle->ud_ref);
-  handle->self = handle->ud_ref = LUA_NOREF;
+  //! @todo cleanup LLUV_HANDLES_SET
 
-  lua_pushnil(L); lua_rawsetp(L, LLUV_LUA_HANDLES, &handle->handle);
+  luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
+  handle->self = LUA_NOREF;
+
   handle->lock = 0;
 }
 
@@ -271,7 +270,6 @@ static void lluv_on_handle_close(uv_handle_t *arg){
   }
   else{
     lluv_handle_pushself(L, handle);
-    lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->ud_ref);
 
     /* we can not cleanup handle after callback
      * because it may raise error and we leave half closed handle
@@ -279,7 +277,7 @@ static void lluv_on_handle_close(uv_handle_t *arg){
      */
     lluv_handle_cleanup(L, handle);
 
-    LLUV_LOOP_CALL_CB(L, loop, 2);
+    LLUV_LOOP_CALL_CB(L, loop, 1);
   }
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
@@ -412,16 +410,31 @@ static int lluv_handle_fileno(lua_State *L){
 }
 
 static int lluv_handle_set_data(lua_State *L){
-  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
+  lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
   lua_settop(L, 2);
-  luaL_unref(L, LLUV_LUA_REGISTRY, handle->ud_ref);
-  handle->ud_ref = luaL_ref(L, LLUV_LUA_REGISTRY);
+  if(lua_isnil(L, -1)){
+    lua_pop(L, 1);
+    lua_pushlightuserdata(L, (void*)LLUV_HANDLE_NIL_UD);
+  }
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+  assert(lua_istable(L, -1));
+  lua_insert(L, 1);
+  lua_rawset(L, -3);
   return 0;
 }
 
 static int lluv_handle_get_data(lua_State *L){
-  lluv_handle_t *handle = lluv_check_handle(L, 1, LLUV_FLAG_OPEN);
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, handle->ud_ref);
+  lluv_check_handle(L, 1, 0);
+  lua_settop(L, 1);
+
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+  assert(lua_istable(L, -1));
+  lua_insert(L, -2);
+  lua_rawget(L, -2);
+
+  if(lua_touserdata(L, -1) == LLUV_HANDLE_NIL_UD)
+    lua_pushnil(L);
+
   return 1;
 }
 

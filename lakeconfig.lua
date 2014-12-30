@@ -110,8 +110,8 @@ end
 
 local TESTS = {}
 
-function run_test(name, params)
-  local test_dir = TESTDIR or J(ROOT, 'test')
+function run_test(test_dir, name, params)
+  local test_dir = test_dir or TESTDIR or J(ROOT, 'test')
   local cmd = J(test_dir, name)
   if params then cmd = cmd .. ' ' .. params end
   local ok = run(cmd, test_dir)
@@ -121,8 +121,8 @@ function run_test(name, params)
   print("TEST " .. name .. (ok and ' - pass!' or ' - fail!'))
 end
 
-function exec_test(name, params)
-  local test_dir = TESTDIR or J(ROOT, 'test')
+function exec_test(test_dir, name, params)
+  local test_dir = test_dir or TESTDIR or J(ROOT, 'test')
   local cmd = J(test_dir, name)
   if params then cmd = cmd .. ' ' .. params end
   local ok = exec(cmd, test_dir)
@@ -130,6 +130,11 @@ function exec_test(name, params)
   table.insert(TESTS, {cmd = cmd, result = ok})
 
   print("TEST " .. name .. (ok and ' - pass!' or ' - fail!'))
+end
+
+function spawn_test(test_dir, file)
+  local test_dir = test_dir or TESTDIR or J(ROOT, 'test')
+  return spawn(file, test_dir)
 end
 
 function test_summary()

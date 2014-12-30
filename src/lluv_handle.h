@@ -27,7 +27,6 @@ typedef struct lluv_handle_tag{
   int         lock;
   lua_State   *L;
   lluv_flags_t flags;
-  int          ud_ref; /* userdata reference */
   int          callbacks[LLUV_MAX_HANDLE_CB];
   uv_handle_t  handle;
 } lluv_handle_t;

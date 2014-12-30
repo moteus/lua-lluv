@@ -25,11 +25,23 @@ install = target('install', {
 })
 
 target('test', install, function()
-  run_test('test-close.lua')
-  run_test('test-fs.lua')
-  run_test('test-multi-write.lua')
-  run_test('test-spawn.lua')
-  run_test('test-gc-timer.lua')
+  run_test(nil, 'test-close.lua')
+  run_test(nil, 'test-fs.lua')
+  run_test(nil, 'test-multi-write.lua')
+  run_test(nil, 'test-spawn.lua')
+  run_test(nil, 'test-gc-timer.lua')
+  run_test(nil, 'test-defer-error.lua')
+  run_test(nil, 'test-data.lua')
+
+  local dir = J(TESTDIR, "luasocket")
+
+  if spawn_test(dir, 'testsrvr.lua') then
+    run_test(dir, 'corun.lua', 'testclnt.lua')
+  end
+
+  if spawn_test(dir, 'ts.lua') then
+    run_test(dir, 'defer_error.lua')
+  end
 
   if not test_summary() then
     quit("test fail")
