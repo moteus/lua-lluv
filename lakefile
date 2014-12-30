@@ -30,6 +30,7 @@ target('test', install, function()
   run_test(nil, 'test-multi-write.lua')
   run_test(nil, 'test-spawn.lua')
   run_test(nil, 'test-gc-timer.lua')
+  run_test(nil, 'test-gc-tcp.lua')
   run_test(nil, 'test-defer-error.lua')
   run_test(nil, 'test-data.lua')
 
