@@ -40,7 +40,7 @@ local function on_bind(server, err)
   server:listen(on_connection)
 end
 
-uv.tcp():bind("0.0.0.0", 5555, on_bind)
+uv.tcp():bind("127.0.0.1", 5555, on_bind)
 
 uv.tcp():connect("127.0.0.1", 5555, function(cli, err)
   if err then

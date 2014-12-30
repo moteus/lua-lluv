@@ -130,7 +130,8 @@ static int lluv_tcp_bind(lua_State *L){
   }
 
   lua_settop(L, 1);
-  return 1;}
+  return 1;
+}
 
 static int lluv_tcp_open(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
