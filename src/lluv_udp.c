@@ -29,7 +29,7 @@ LLUV_IMPL_SAFE(lluv_udp_create){
   lluv_handle_t *handle = lluv_handle_create(L, UV_UDP, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_udp_init(loop->handle, LLUV_H(handle, uv_udp_t));
   if(err < 0){
-    lluv_handle_cleanup(L, handle);
+    lluv_handle_cleanup(L, handle, -1);
     return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;

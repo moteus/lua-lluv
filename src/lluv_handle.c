@@ -92,7 +92,7 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type typ
 
   assert(uv_handle_size(type) >= sizeof(uv_handle_t));
 
-  handle = lutil_newudatap_impl(L, sizeof(lluv_handle_t) + extra_size, LLUV_HANDLE);
+  handle = (lluv_handle_t *)lutil_newudatap_impl(L, sizeof(lluv_handle_t) + extra_size, LLUV_HANDLE);
 
   handle->L      = L;
   handle->flags  = flags | LLUV_FLAG_OPEN;
@@ -124,30 +124,25 @@ LLUV_INTERNAL lluv_handle_t* lluv_check_handle(lua_State *L, int idx, lluv_flags
 }
 
 LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h){
-  size_t off = offsetof(lluv_handle_t, handle);
+  static const size_t off = offsetof(lluv_handle_t, handle);
   lluv_handle_t *handle = (lluv_handle_t *)(((char*)h) - off);
   assert(handle == h->data);
   assert(&handle->handle == h);
   return handle;
 }
 
-LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h){
-  lluv_handle_t *handle = lluv_handle_byptr(h);
-  return lluv_handle_pushself(L, handle);
-}
-
-static int lluv_find_handle(lua_State *L, uv_handle_t *handle){
+static int lluv_find_handle(lua_State *L, uv_handle_t *h){
   lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
   lua_pushnil(L);
   while(lua_next(L, -2) != 0){
-    lluv_handle_t *lhandle;
+    lluv_handle_t *handle;
 
     assert(lua_isboolean(L, -1));
     assert(lua_toboolean(L, -1));
     lua_pop(L, 1);
 
-    lhandle = (lluv_handle_t*)lua_touserdata(L, -1);
-    if(handle == &lhandle->handle){
+    handle = (lluv_handle_t*)lua_touserdata(L, -1);
+    if(h == &handle->handle){
       lua_remove(L, -2);
       return 1;
     }
@@ -157,7 +152,7 @@ static int lluv_find_handle(lua_State *L, uv_handle_t *handle){
   return 1;
 }
 
-static int lluv_handle_find(lua_State *L, uv_handle_t *h){
+LLUV_INTERNAL int lluv_handle_find(lua_State *L, uv_handle_t *h){
   lua_rawgetp(L, LLUV_LUA_HANDLES, h);
   if(lua_isnil(L, -1)){
     lua_pop(L, 1);
@@ -191,15 +186,24 @@ LLUV_INTERNAL int lluv_handle_pushunlock(lua_State *L, lluv_handle_t *handle){
   return 1;
 }
 
-LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle){
+LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle, int idx){
   int i;
+
+  if(idx){
+    idx = lua_absindex(L, idx);
+
+    assert(handle == lua_touserdata(L, idx));
+
+    lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+    lua_pushvalue(L, idx); lua_pushnil(L); lua_rawset(L, -3);
+    lua_pop(L, 1);
+  }
+
   FLAG_UNSET(handle, LLUV_FLAG_OPEN);
   for(i = 0; i < LLUV_MAX_HANDLE_CB; ++i){
     luaL_unref(L,  LLUV_LUA_REGISTRY, handle->callbacks[i]);
     handle->callbacks[i] = LUA_NOREF;
   }
-
-  //! @todo cleanup LLUV_HANDLES_SET
 
   luaL_unref(L, LLUV_LUA_REGISTRY, handle->self);
   handle->self = LUA_NOREF;
@@ -261,23 +265,27 @@ static void lluv_on_handle_close(uv_handle_t *arg){
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
-  if(!IS_(handle, OPEN))return; //! @check is it possible?
+  if(!IS_(handle, OPEN)) return; //! @check is it possible?
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_CLOSE_CB(handle));
-  if(lua_isnil(L, -1)){
-    lua_pop(L, 1);
-    lluv_handle_cleanup(L, handle);
+  lluv_handle_pushself(L, handle);
+
+  if(lua_isnil(L, -2)){
+    lluv_handle_cleanup(L, handle, -1);
+    lua_pop(L, 2);
   }
   else{
-    lluv_handle_pushself(L, handle);
+    lluv_handle_cleanup(L, handle, 0);
 
-    /* we can not cleanup handle after callback
-     * because it may raise error and we leave half closed handle
-     * so we put `data` field as argument.
-     */
-    lluv_handle_cleanup(L, handle);
+    lua_pushvalue(L, -1); lua_insert(L, -3);
 
     LLUV_LOOP_CALL_CB(L, loop, 1);
+
+    /* cleanup LLUV_HANDLES_SET after callback */
+    assert(lluv_check_handle(L, -1, 0));
+    lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+    lua_insert(L, -2); lua_pushnil(L); lua_rawset(L, -3);
+    lua_pop(L, 1);
   }
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);

@@ -27,7 +27,7 @@ LLUV_IMPL_SAFE(lluv_timer_create){
   lluv_handle_t *handle = lluv_handle_create(L, UV_TIMER, safe_flag | INHERITE_FLAGS(loop));
   int err = uv_timer_init(loop->handle, LLUV_H(handle, uv_timer_t));
   if(err < 0){
-    lluv_handle_cleanup(L, handle);
+    lluv_handle_cleanup(L, handle, -1);
     return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;

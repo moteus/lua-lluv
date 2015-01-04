@@ -159,7 +159,7 @@ void *lutil_newudatap_impl(lua_State *L, size_t size, const void *p){
 void lutil_pushint64(lua_State *L, int64_t v){
   if(sizeof(lua_Integer) >= sizeof(int64_t)){
     lua_pushinteger(L, (lua_Integer)v);
-	  return;
+    return;
   }
   lua_pushnumber(L, (lua_Number)v);
 }
@@ -173,7 +173,7 @@ int64_t lutil_checkint64(lua_State *L, int idx){
 int64_t lutil_optint64(lua_State *L, int idx, int64_t v){
   if(sizeof(lua_Integer) >= sizeof(int64_t))
     return luaL_optinteger(L, idx, v);
-  return (int64_t)luaL_optnumber(L, idx, v);
+  return (int64_t)luaL_optnumber(L, idx, (lua_Number)v);
 }
 
 void lutil_pushnvalues(lua_State *L, int n){

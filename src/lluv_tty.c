@@ -35,7 +35,7 @@ LLUV_IMPL_SAFE(lluv_tty_create){
   handle = lluv_stream_create(L, UV_TTY, safe_flag | INHERITE_FLAGS(loop));
   err = uv_tty_init(loop->handle, LLUV_H(handle, uv_tty_t), fd, readable);
   if(err < 0){
-    lluv_handle_cleanup(L, handle);
+    lluv_handle_cleanup(L, handle, -1);
     return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
   }
   return 1;

@@ -44,11 +44,18 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_create(lua_State *L, uv_handle_type typ
 
 LLUV_INTERNAL lluv_handle_t* lluv_check_handle(lua_State *L, int idx, lluv_flags_t flags);
 
-LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle);
+LLUV_INTERNAL void lluv_handle_cleanup(lua_State *L, lluv_handle_t *handle, int idx);
 
+/* Convert uv_handle_t* to lluv_handle_t*
+ * There no checks so it function has UB if this handle was created not by
+ * lluv library.
+ */
 LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h);
 
-LLUV_INTERNAL int lluv_handle_push(lua_State *L, uv_handle_t *h);
+/* find lluv_handle Lua object associatad with this handle.
+ * function returns nil if this handle has no Lua object.
+ */
+LLUV_INTERNAL int lluv_handle_find(lua_State *L, uv_handle_t *h);
 
 LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle);
 
