@@ -6,6 +6,18 @@ local TIMER = uv.timer():start(10000, function()
   uv.stop()
 end)
 
+local function Client(host, port)
+  uv.tcp():connect(host, port, function(cli, err)
+    if err then
+      io.stderr:write("Can not connect to server:", tostring(err), "\n")
+      return cli:close()
+    end
+
+    cli:write{"HELLO", ", ", "WORLD", "!!!"}
+    cli:close()
+  end)
+end
+
 local function on_read(cli, err, data)
   if err then
    if err:name() == 'EOF' then
@@ -37,20 +49,17 @@ local function on_bind(server, err)
     io.stderr:write("Can not bind on server:", tostring(err), "\n")
     return server:close()
   end
+
+  local host, port = server:getsockname()
+
+  io.stderr:write("Bind on:", host, ":", port, "\n")
+
   server:listen(on_connection)
+
+  Client(host, port)
 end
 
-uv.tcp():bind("127.0.0.1", 5555, on_bind)
-
-uv.tcp():connect("127.0.0.1", 5555, function(cli, err)
-  if err then
-    io.stderr:write("Can not connect to server:", tostring(err), "\n")
-    return cli:close()
-  end
-
-  cli:write{"HELLO", ", ", "WORLD", "!!!"}
-  cli:close()
-end)
+uv.tcp():bind("127.0.0.1", 0, on_bind)
 
 uv.run()
 

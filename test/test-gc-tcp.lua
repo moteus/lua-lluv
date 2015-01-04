@@ -97,32 +97,34 @@ function test_2()
 
   uv.timer():start(10000, function() uv.stop() end)
 
-  local function on_data(cli, err, data)
-    if err then
-      assert(err:name() == 'EOF')
-      assert(not cli:locked())
-      PASS = true
-      return uv.stop()
+  uv.timer():start(5000, function()
+    local function on_data(cli, err, data)
+      if err then
+        assert(err:name() == 'EOF')
+        assert(not cli:locked())
+        PASS = true
+        return uv.stop()
+      end
+
+      assert(cli:locked())
     end
 
-    assert(cli:locked())
-  end
-
-  local cli = uv.tcp()
-  assert(not cli:locked())
-
-  cli:connect("127.0.0.1", port, function(cli, err)
-    assert(not err, tostring(err))
+    local cli = uv.tcp()
     assert(not cli:locked())
-    cli:write("hello", function()
+
+    cli:connect("127.0.0.1", port, function(cli, err)
+      assert(not err, tostring(err))
       assert(not cli:locked())
-      cli:start_read(on_data)
+      cli:write("hello", function()
+        assert(not cli:locked())
+        cli:start_read(on_data)
+        assert(cli:locked())
+      end)
       assert(cli:locked())
     end)
+
     assert(cli:locked())
   end)
-
-  assert(cli:locked())
 
   uv.run()
 
