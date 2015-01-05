@@ -21,7 +21,7 @@ before_install:
   - bash .travis/setup_lua.sh
   - bash .travis/setup_uv.sh
   - bash .travis/setup_ftp.sh
-  - sudo luarocks install lunitx --from=http://rocks.moonscript.org/manifests/moteus
+  - sudo luarocks install lunitx
   - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
   - sudo luarocks install ltn12 --from=https://rocks.moonscript.org/dev
   - sudo luarocks install lua-path
@@ -37,6 +37,7 @@ script:
   - lua test-active.lua
   - lua test-multi-write.lua
   - lua test-spawn.lua
+  - lua test-gc-basic.lua
   - lua test-gc-timer.lua
   - lua test-gc-tcp.lua
   - lua test-data.lua

@@ -914,7 +914,7 @@ end
 end
 -------------------------------------------------------------------
 
-local function self_test(server, user, pass)
+local function self_test(server, user, pass, verbose)
   local ltn12 = require "ltn12"
 
   local ftp = Connection.new(server, {
@@ -926,20 +926,22 @@ local function self_test(server, user, pass)
     print("<ERROR>", err)
   end
 
-  function ftp:on_trace_control(data, send)
-    print(send and "SEND:" or "RECV:")
-    print(data)
-    print("**************************")
-  end
-
-  function ftp:on_trace_req(req, code, reply, data)
-    print("+", req.data, " GET ", code)
-    print(reply)
-    if data then
-      print("--------------------------")
+  if verbose then
+    function ftp:on_trace_control(data, send)
+      print(send and "SEND:" or "RECV:")
       print(data)
+      print("**************************")
     end
-    print("++++++++++++++++++++++++++")
+
+    function ftp:on_trace_req(req, code, reply, data)
+      print("+", req.data, " GET ", code)
+      print(reply)
+      if data then
+        print("--------------------------")
+        print(data)
+      end
+      print("++++++++++++++++++++++++++")
+    end
   end
 
   ftp:open(function(self, err, code, data)
