@@ -610,7 +610,7 @@ static lluv_file_t *lluv_check_file(lua_State *L, int i, lluv_flags_t flags){
     }
   }
 
-  luaL_argcheck (L, FLAGS_IS_SET(f, flags), i, LLUV_FILE_NAME" closed");
+  luaL_argcheck (L, FLAGS_IS_SET(f->flags, flags), i, LLUV_FILE_NAME" closed");
   return f;
 }
 

@@ -21,12 +21,18 @@ LLUV_INTERNAL lluv_req_t* lluv_req_new(lua_State *L, uv_req_type type, lluv_hand
   req->handle   = h;
   req->cb       = luaL_ref(L, LLUV_LUA_REGISTRY);
   req->arg      = LUA_NOREF;
+
+  if(h) lluv_handle_lock(L, h, LLUV_LOCK_REQ);
+
   return req;
 }
 
 LLUV_INTERNAL void lluv_req_free(lua_State *L, lluv_req_t *req){
   luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);
   luaL_unref(L, LLUV_LUA_REGISTRY, req->arg);
+  if(req->handle){
+    lluv_handle_unlock(L, req->handle, LLUV_LOCK_REQ);
+  }
   lluv_free(L, req);
 }
 

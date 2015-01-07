@@ -23,8 +23,9 @@
 #include "lluv_utils.h"
 
 typedef struct lluv_handle_tag{
-  int         self;
-  int         lock;
+  int          self;
+  lluv_flags_t lock;
+  int          lock_counter;
   lua_State   *L;
   lluv_flags_t flags;
   int          callbacks[LLUV_MAX_HANDLE_CB];
@@ -59,12 +60,18 @@ LLUV_INTERNAL int lluv_handle_find(lua_State *L, uv_handle_t *h);
 
 LLUV_INTERNAL int lluv_handle_pushself(lua_State *L, lluv_handle_t *handle);
 
-LLUV_INTERNAL int lluv_handle_pushunlock(lua_State *L, lluv_handle_t *handle);
-
 LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg);
 
-LLUV_INTERNAL void lluv_handle_lock(lua_State *L, lluv_handle_t *handle);
+LLUV_INTERNAL void lluv_handle_lock(lua_State *L, lluv_handle_t *handle, lluv_flags_t lock);
 
-LLUV_INTERNAL void lluv_handle_unlock(lua_State *L, lluv_handle_t *handle);
+LLUV_INTERNAL void lluv_handle_unlock(lua_State *L, lluv_handle_t *handle, lluv_flags_t lock);
+
+#define LLUV_LOCK_CLOSE       LLUV_FLAG_0
+#define LLUV_LOCK_START       LLUV_FLAG_1
+#define LLUV_LOCK_READ        LLUV_FLAG_1
+#define LLUV_LOCK_EXIT        LLUV_FLAG_1
+#define LLUV_LOCK_CONNECTION  LLUV_FLAG_2
+#define LLUV_LOCK_MANUAL      LLUV_FLAG_3
+#define LLUV_LOCK_REQ         LLUV_FLAG_7 /* counter lock */
 
 #endif

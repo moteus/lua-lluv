@@ -82,7 +82,7 @@ LLUV_INTERNAL lluv_loop_t* lluv_check_loop(lua_State *L, int idx, lluv_flags_t f
   lluv_loop_t *loop = (lluv_loop_t *)lutil_checkudatap (L, idx, LLUV_LOOP);
   luaL_argcheck (L, loop != NULL, idx, LLUV_LOOP_NAME" expected");
 
-  luaL_argcheck (L, FLAGS_IS_SET(loop, flags), idx, LLUV_LOOP_NAME" closed");
+  luaL_argcheck (L, FLAGS_IS_SET(loop->flags, flags), idx, LLUV_LOOP_NAME" closed");
   return loop;
 }
 
@@ -292,7 +292,7 @@ static int lluv_loop_close_impl(lua_State *L, int ignore_error, int close_handle
   }
   lua_pop(L, 1);
 
-  FLAG_UNSET(loop, LLUV_FLAG_OPEN);
+  UNSET(loop, LLUV_FLAG_OPEN);
   lua_pushnil(L);
   lua_rawsetp(L, LLUV_LUA_REGISTRY, loop->handle);
 

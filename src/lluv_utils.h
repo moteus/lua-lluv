@@ -109,30 +109,30 @@ typedef unsigned char lluv_flag_t;
 
 #define lluv_flags_t unsigned char
 
-#define LLUV_FLAG_0  (lluv_flags_t)1<<0
-#define LLUV_FLAG_1  (lluv_flags_t)1<<1
-#define LLUV_FLAG_2  (lluv_flags_t)1<<2
-#define LLUV_FLAG_3  (lluv_flags_t)1<<3
-#define LLUV_FLAG_4  (lluv_flags_t)1<<4
-#define LLUV_FLAG_5  (lluv_flags_t)1<<5
-#define LLUV_FLAG_6  (lluv_flags_t)1<<6
-#define LLUV_FLAG_7  (lluv_flags_t)1<<7
+#define LLUV_FLAG_0  ((lluv_flags_t)1<<0)
+#define LLUV_FLAG_1  ((lluv_flags_t)1<<1)
+#define LLUV_FLAG_2  ((lluv_flags_t)1<<2)
+#define LLUV_FLAG_3  ((lluv_flags_t)1<<3)
+#define LLUV_FLAG_4  ((lluv_flags_t)1<<4)
+#define LLUV_FLAG_5  ((lluv_flags_t)1<<5)
+#define LLUV_FLAG_6  ((lluv_flags_t)1<<6)
+#define LLUV_FLAG_7  ((lluv_flags_t)1<<7)
 
 /*At least one flag*/
-#define FLAG_IS_SET(O, F) (O->flags & (lluv_flags_t)(F))
+#define FLAG_IS_SET(O, F) (O & (lluv_flags_t)(F))
 /*All flags set*/
-#define FLAGS_IS_SET(O, F) ((lluv_flags_t)(F) == (O->flags & (lluv_flags_t)(F)))
+#define FLAGS_IS_SET(O, F) ((lluv_flags_t)(F) == (O & (lluv_flags_t)(F)))
 
-#define FLAG_SET(O, F)    O->flags |= (lluv_flags_t)(F)
-#define FLAG_UNSET(O, F)  O->flags &= ~((lluv_flags_t)(F))
+#define FLAG_SET(O, F)    O |= (lluv_flags_t)(F)
+#define FLAG_UNSET(O, F)  O &= ~((lluv_flags_t)(F))
 
-#define IS_(O, F)    FLAG_IS_SET(O, LLUV_FLAG_##F)
-#define SET_(O, F)   FLAG_SET(O,    LLUV_FLAG_##F)
-#define UNSET_(O, F) FLAG_UNSET(O,  LLUV_FLAG_##F)
+#define IS_(O, F)    FLAG_IS_SET(O->flags, LLUV_FLAG_##F)
+#define SET_(O, F)   FLAG_SET(O->flags,    LLUV_FLAG_##F)
+#define UNSET_(O, F) FLAG_UNSET(O->flags,  LLUV_FLAG_##F)
 
-#define IS(O, F)     FLAG_IS_SET(O, F)
-#define SET(O, F)    FLAG_SET(O, F)
-#define UNSET(O, F)  FLAG_UNSET(O, F)
+#define IS(O, F)     FLAG_IS_SET(O->flags, F)
+#define SET(O, F)    FLAG_SET(O->flags, F)
+#define UNSET(O, F)  FLAG_UNSET(O->flags, F)
 
 #define LLUV_FLAG_OPEN         LLUV_FLAG_0
 #define LLUV_FLAG_NOCLOSE      LLUV_FLAG_1

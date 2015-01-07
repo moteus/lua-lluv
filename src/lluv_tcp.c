@@ -39,7 +39,7 @@ static lluv_handle_t* lluv_check_tcp(lua_State *L, int idx, lluv_flags_t flags){
   lluv_handle_t *handle = lluv_check_stream(L, idx, LLUV_FLAG_OPEN);
   luaL_argcheck (L, LLUV_H(handle, uv_handle_t)->type == UV_TCP, idx, LLUV_TCP_NAME" expected");
 
-  luaL_argcheck (L, FLAGS_IS_SET(handle, flags), idx, LLUV_TCP_NAME" closed");
+  luaL_argcheck (L, FLAGS_IS_SET(handle->flags, flags), idx, LLUV_TCP_NAME" closed");
   return handle;
 }
 
@@ -59,9 +59,6 @@ static int lluv_tcp_connect(lua_State *L){
   req = lluv_req_new(L, UV_CONNECT, handle);
 
   err = uv_tcp_connect(LLUV_R(req, connect), LLUV_H(handle, uv_tcp_t), (struct sockaddr *)&sa, lluv_on_stream_connect_cb);
-
-  if((err >= 0)||(lluv_req_has_cb(L, req)))
-    lluv_handle_lock(L, handle);
 
   return lluv_return_req(L, handle, req, err);
 }

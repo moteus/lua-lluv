@@ -28,22 +28,23 @@ static void lluv_on_process_exit(uv_process_t* arg, int64_t exit_status, int ter
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 
   if(!IS_(handle, OPEN)){
-    lluv_handle_unlock(L, handle);
+    lluv_handle_unlock(L, handle, LLUV_LOCK_EXIT);
 
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, LLUV_EXIT_CB(handle));
-  if(lua_isnil(L, -1)){
-    lua_pop(L, 1);
-    lluv_handle_unlock(L, handle);
+  lluv_handle_pushself(L, handle);
+  lluv_handle_unlock(L, handle, LLUV_LOCK_EXIT);
+
+  if(lua_isnil(L, -2)){
+    lua_pop(L, 2);
 
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
-  lluv_handle_pushunlock(L, handle);
   lua_pushnil(L);
   lutil_pushint64(L, exit_status);
   lutil_pushint64(L, term_signal);
@@ -333,8 +334,7 @@ LLUV_IMPL_SAFE(lluv_process_spawn){
     if(opt.env)   lluv_free(L, opt.env);
     if(opt.stdio) lluv_free(L, opt.stdio);
 
-    /* unlock in callback */
-    if(cb != LUA_NOREF) lluv_handle_lock(L, handle);
+    if(cb != LUA_NOREF) lluv_handle_lock(L, handle, LLUV_LOCK_EXIT);
 
     if(err < 0){
       if(cb == LUA_NOREF){

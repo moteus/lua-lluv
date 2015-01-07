@@ -189,9 +189,6 @@ static int lluv_udp_send(lua_State *L){
 
   err = uv_udp_send(LLUV_R(req, udp_send), LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
 
-  if((err >= 0)||(lluv_req_has_cb(L, req)))
-    lluv_handle_lock(L, handle);
-
   return lluv_return_req(L, handle, req, err);
 }
 
@@ -241,7 +238,7 @@ static void lluv_on_udp_recv_cb(uv_udp_t *arg, ssize_t nread, const uv_buf_t* bu
     lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)nread, NULL);
     lua_pushnil(L);
 
-    lluv_handle_unlock(L, handle);
+    lluv_handle_unlock(L, handle, LLUV_LOCK_READ);
   }
   lua_pushinteger(L, flags);
 
@@ -259,7 +256,7 @@ static int lluv_udp_start_recv(lua_State *L){
 
   err = uv_udp_recv_start(LLUV_H(handle, uv_udp_t), lluv_alloc_buffer_cb, lluv_on_udp_recv_cb);
 
-  if(err >= 0) lluv_handle_lock(L, handle);
+  if(err >= 0) lluv_handle_lock(L, handle, LLUV_LOCK_READ);
 
   return lluv_return(L, handle, LLUV_READ_CB(handle), err);
 }
@@ -278,7 +275,7 @@ static int lluv_udp_stop_recv(lua_State *L){
   if(LLUV_READ_CB(handle) != LUA_NOREF){
     luaL_unref(L, LLUV_LUA_REGISTRY, LLUV_READ_CB(handle));
     LLUV_READ_CB(handle) = LUA_NOREF;
-    lluv_handle_unlock(L, handle);
+    lluv_handle_unlock(L, handle, LLUV_LOCK_READ);
   }
 
   lua_settop(L, 1);

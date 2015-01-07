@@ -53,7 +53,7 @@ static int lluv_check_start(lua_State *L){
 
   err = uv_check_start(LLUV_H(handle, uv_check_t), lluv_on_check_start);
 
-  if(err >= 0) lluv_handle_lock(L, handle);
+  if(err >= 0) lluv_handle_lock(L, handle, LLUV_LOCK_START);
 
   return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
@@ -65,7 +65,7 @@ static int lluv_check_stop(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
 
-  lluv_handle_unlock(L, handle);
+  lluv_handle_unlock(L, handle, LLUV_LOCK_START);
 
   lua_settop(L, 1);
   return 1;
