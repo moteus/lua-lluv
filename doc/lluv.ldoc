@@ -611,6 +611,33 @@ function unref                      () end
 -- @treturn boolean
 function has_ref                    () end
 
+--- Protect handle from Lua gc.
+-- lluv temporary lock handle if it has planned callback
+-- so threre usially no reason to manually lock handle.
+-- You need this function only if you plan find inactive
+-- handle using `loop:handles()` method.
+--
+-- @usage
+-- -- here we create timer but it is inactive and has no
+-- -- Lua reference so without `lock()` it will be GC'ed.
+-- uv.timer():lock()
+--
+-- -- Assume we have only one handle. We can find handle.
+-- local timer = uv.handles()[1]
+--
+-- @treturn uv_handle self
+function lock                       () end
+
+--- Apply to handle regular rules of Lua gc.
+--
+-- @treturn uv_handle self
+function unlock                     () end
+
+--- Indicates if handle is locked.
+--
+-- @treturn bool status
+function locked                     () end
+
 --- Indicates if handle is active.
 --
 function is_active                  () end
@@ -839,7 +866,7 @@ function pending_instances          () end
 function pending_count              () end
 
 --- Get the type of first pending handle.
--- `accept` function can check and create hanle of needed type.
+-- `accept` function can check and create handle of needed type.
 --
 -- @treturn string type
 function pending_type               () end
