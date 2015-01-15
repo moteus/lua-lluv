@@ -54,3 +54,38 @@ uv.pipe():bind([[\\.\pipe\sock.echo]], on_bind)
 
 uv.run()
 ```
+
+Coroutine based echo server
+```Lua
+local uv     = require "lluv"
+local ut     = require "lluv.utils"
+local socket = require "lluv.luasocket"
+
+local function echo(cli)
+  while true do
+    local msg, err = cli:receive("*r")
+    if not msg then break end
+    cli:send(msg)
+  end
+  cli:close()
+end
+
+local function server(host, port, fn)
+  local srv = socket.tcp()
+
+  srv:bind(host, port)
+
+  while true do
+    local cli = srv:accept()
+
+    ut.corun(function()
+      cli:attach() -- attach socket to current coroutine
+      fn(cli)
+    end)
+  end
+end
+
+ut.corun(server, "127.0.0.1", 5555, echo)
+
+uv.run()
+```
