@@ -41,11 +41,11 @@ static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
 static const char* LLUV_HANDLES  = LLUV_PREFIX" Handles";
 
 static int lluv_push_version(lua_State *L){
-  lua_pushnumber(L, LLUV_VERSION_MAJOR);
+  lua_pushinteger(L, LLUV_VERSION_MAJOR);
   lua_pushliteral(L, ".");
-  lua_pushnumber(L, LLUV_VERSION_MINOR);
+  lua_pushinteger(L, LLUV_VERSION_MINOR);
   lua_pushliteral(L, ".");
-  lua_pushnumber(L, LLUV_VERSION_PATCH);
+  lua_pushinteger(L, LLUV_VERSION_PATCH);
 #ifdef LLUV_VERSION_COMMENT
   if(LLUV_VERSION_COMMENT[0]){
     lua_pushliteral(L, "-"LLUV_VERSION_COMMENT);

@@ -30,3 +30,9 @@ doc/doc/
 
 #lake deps
 *.d
+
+# Incremental link MSVC
+*.ilk
+
+# Debug infromtation
+*.pdb
