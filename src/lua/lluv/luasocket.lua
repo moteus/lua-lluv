@@ -31,8 +31,7 @@ local function co_resume(...)
   return _check_resume(coroutine.resume(...))
 end
 
-local function CoGetAddrInfo(host, port)
-  local co = assert(coroutine.running())
+local function CoGetAddrInfo(co, host, port)
   local terminated = false
 
   uv.getaddrinfo(host, port, {
@@ -297,7 +296,7 @@ end
 
 function TcpSock:connect(host, port)
   self:_start("conn")
-  local res, err = CoGetAddrInfo(host, port)
+  local res, err = CoGetAddrInfo(self._co, host, port)
   self:_stop("conn")
 
   if not res then return nil, err end
@@ -551,7 +550,7 @@ local function sleep(s)
 end
 
 local function toip(name)
-  local res, err = CoGetAddrInfo(name)
+  local res, err = CoGetAddrInfo(coroutine.running(), name)
   if not res then return nil, tostring(err) end
   return res[1].address, res
 end
