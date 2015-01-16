@@ -2,8 +2,12 @@ local uv = require "lluv"
 
 local chunk_size = 10
 
+local file_name = "test.txt"
+
 local function on_close()
-  os.remove("test.txt")
+  print("Close:", file_name)
+  os.remove(file_name)
+  print("Remove:", file_name)
 end
 
 local offset = 0
@@ -32,11 +36,13 @@ local function on_open(file, err, path)
   file:read(chunk_size, on_read_data)
 end
 
-uv.fs_open("test.txt", "w+", function(file, err, path)
+uv.fs_open(file_name, "w+", function(file, err, path)
   print("Create:", path, err or file)
   if err then return end
   file:write(("0123456789"):rep(3) .. "012345")
+  print("Write test data")
   file:close(function()
+    print("Close:", path)
     uv.fs_open(path, "r+", on_open)
   end)
 end)
