@@ -479,6 +479,11 @@ static const struct luaL_Reg lluv_handle_methods[] = {
 
 //}
 
+static int lluv_debug_handles(lua_State *L){
+  lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
+  return 1;
+}
+
 LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg){
   lluv_handle_t *handle = lluv_handle_byptr(arg);
   lua_State *L = LLUV_HCALLBACK_L(handle);
@@ -495,6 +500,7 @@ LLUV_INTERNAL void lluv_on_handle_start(uv_handle_t *arg){
 }
 
 static const struct luaL_Reg lluv_handle_functions[] = {
+  {"__handles", lluv_debug_handles},
 
   {NULL,NULL}
 };
