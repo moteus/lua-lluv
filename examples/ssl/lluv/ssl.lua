@@ -122,7 +122,7 @@ end
 function SSLSocket:_handshake(cb)
   local ret, err, e = self._ssl:handshake()
   if ret == nil then
-    return cb(self, err)
+    return uv.defer(cb, self, err)
   end
 
   local i = self._out:pending()
@@ -133,7 +133,7 @@ function SSLSocket:_handshake(cb)
   end
   if ret == false then return end
   self._skt:stop_read()
-  cb(self)
+  uv.defer(cb, self)
 end
 
 function SSLSocket:close(cb)
