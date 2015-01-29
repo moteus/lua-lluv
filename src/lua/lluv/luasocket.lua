@@ -172,7 +172,7 @@ local TcpSock = ut.class(BaseSock) do
 local MAX_ACCEPT_COUNT = 10
 
 function TcpSock:__init(s)
-  assert(self.__base.__init(self))
+  assert(TcpSock.__base.__init(self))
 
   self._buf   = assert(ut.Buffer.new("\r*\n", true))
 
@@ -181,7 +181,6 @@ function TcpSock:__init(s)
 
   if s then
     self._sock = s
-    self:_start_read()
   else
     self._sock = assert(uv.tcp())
   end
@@ -294,7 +293,7 @@ function TcpSock:send(data)
   return ok, err
 end
 
-function TcpSock:connect(host, port)
+function TcpSock:_connect(host, port)
   self:_start("conn")
   local res, err = CoGetAddrInfo(self._co, host, port)
   self:_stop("conn")
@@ -323,6 +322,12 @@ function TcpSock:connect(host, port)
 
   if not ok then return nil, err end
 
+  return self
+end
+
+function TcpSock:connect(host, port)
+  local ok, err = self:_connect(host, port)
+  if not ok then return nil, err end
   return self:_start_read()
 end
 
@@ -338,7 +343,7 @@ function TcpSock:bind(host, port)
   return self
 end
 
-function TcpSock:accept()
+function TcpSock:_accept()
   if not self._sock then return nil, self._err end
 
   self:_start_accept()
@@ -352,11 +357,17 @@ function TcpSock:accept()
     cli = err
   end
 
-  return TcpSock.new(cli)
+  return self.__class.new(cli)
+end
+
+function TcpSock:accept()
+  local s, err = self:_accept()
+  if not s then return nil, err end
+  return s:_start_read()
 end
 
 function TcpSock:close()
-  self.__base.close(self)
+  TcpSock.__base.close(self)
   if self._sock  then self._sock:close()  end
   self._sock = nil
   return true
@@ -369,7 +380,7 @@ end
 local UdpSock = ut.class(BaseSock) do
 
 function UdpSock:__init(s)
-  assert(self.__base.__init(self))
+  assert(UdpSock.__base.__init(self))
 
   self._buf   = assert(ut.Queue.new())
 
@@ -492,7 +503,7 @@ function UdpSock:getpeername(host, port)
 end
 
 function UdpSock:close()
-  self.__base.close(self)
+  UdpSock.__base.close(self)
   if self._sock  then self._sock:close()  end
   self._sock = nil
   return true
@@ -565,4 +576,7 @@ return {
   gettime = function() return math.floor(uv.now()/1000) end;
   sleep   = sleep;
   toip    = toip;
+
+  _TcpSock = TcpSock;
+  _UdpSock = UdpSock;
 }

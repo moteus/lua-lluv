@@ -58,6 +58,7 @@ end
 local function class(base)
   local t = base and setmetatable({}, base) or {}
   t.__index = t
+  t.__class = t
   t.__base  = base
 
   function t.new(...)
