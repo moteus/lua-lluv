@@ -233,6 +233,77 @@ function SSLSocket:listen(cb)
   return self
 end
 
+function SSLSocket:loop()
+  return self._skt:loop()
+end
+
+function SSLSocket:closed()
+  return not not self._skt
+end
+
+function SSLSocket:ref()
+  return self._skt:ref()
+end
+
+function SSLSocket:unref()
+  return self._skt:unref()
+end
+
+function SSLSocket:has_ref()
+  return self._skt:has_ref()
+end
+
+function SSLSocket:active()
+  return self._skt:active()
+end
+
+function SSLSocket:closing()
+  return self._skt:closing()
+end
+
+function SSLSocket:send_buffer_size()
+  return self._skt:send_buffer_size()
+end
+
+function SSLSocket:recv_buffer_size()
+  return self._skt:recv_buffer_size()
+end
+
+function SSLSocket:lock()
+  self._skt:lock()
+  return self
+end
+
+function SSLSocket:unlock()
+  self._skt:unlock()
+  return self
+end
+
+function SSLSocket:locked()
+  return self._skt:locked()
+end
+
+function SSLSocket:__tostring()
+  return "Lua-UV ssl (" .. tostring(self._skt) .. ")"
+end
+
+function SSLSocket:shutdown(cb)
+  if not self._shutdowned then
+    self._ssl:shutdown()
+    if cb then self._skt:shutdown(cb)
+    else self._skt:shutdown() end
+    self._shutdowned = true
+  end
+end
+
+function SSLSocket:getsockname()
+  return self._skt:getsockname(cb)
+end
+
+function SSLSocket:getpeername()
+  return self._skt:getpeername(cb)
+end
+
 end
 
 local SSLContext = ut.class() do
