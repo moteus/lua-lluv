@@ -322,6 +322,13 @@ function Buffer:append(data)
   return self
 end
 
+function Buffer:prepend(data)
+  if #data > 0 then
+    self._lst:push_front(data)
+  end
+  return self
+end
+
 function Buffer:read_line(eol, eol_is_rex)
   local plain
 

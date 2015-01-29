@@ -106,7 +106,7 @@ function SSLSocket:__init(ctx, mode, socket)
   self._mode = (mode == 'server')
   self._inp  = ssl.bio.mem(BUFFER_SIZE)
   self._out  = ssl.bio.mem(BUFFER_SIZE)
-  self._ssl  = self._ctx:ssl(self._inp, self._out, self._mode)
+  self._ssl  = self._ctx:_ssl(self._inp, self._out, self._mode)
   return self
 end
 
@@ -225,7 +225,7 @@ end
 function SSLSocket:accept()
   local cli, err = self._skt:accept()
   if not cli then return nil, err end
-  return SSLSocket.new(self._ctx, "server", cli)
+  return self._ctx:server(cli)
 end
 
 function SSLSocket:listen(cb)
@@ -245,16 +245,16 @@ function SSLContext:__init(cfg)
   return self
 end
 
-function SSLContext:wrap(socket)
-  return SSLSocket.new(self._ctx, self._mode, socket)
+function SSLContext:_ssl(...)
+  return self._ctx:ssl(...)
 end
 
 function SSLContext:client(socket)
-  return SSLSocket.new(self._ctx, "client", socket)
+  return SSLSocket.new(self, "client", socket)
 end
 
 function SSLContext:server(socket)
-  return SSLSocket.new(self._ctx, "server", socket)
+  return SSLSocket.new(self, "server", socket)
 end
 
 end
