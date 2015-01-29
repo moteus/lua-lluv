@@ -15,6 +15,13 @@
 #include <lua.h>
 #include "l52util.h"
 
+#define LLUV_UV_VER_GE(MAJ, MIN, PAT) \
+  ((MAJ <  UV_VERSION_MAJOR)|| \
+  ((MAJ == UV_VERSION_MAJOR)&& \
+  ((MIN <  UV_VERSION_MINOR)|| \
+  ((MIN == UV_VERSION_MINOR)&& \
+   (PAT <= UV_VERSION_PATCH)))))
+
 typedef struct lluv_req_tag lluv_req_t;
 
 typedef struct lluv_handle_tag lluv_handle_t;

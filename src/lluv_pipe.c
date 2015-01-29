@@ -126,6 +126,37 @@ static int lluv_pipe_getsockname(lua_State *L){
   }
 }
 
+#if LLUV_UV_VER_GE(1,3,0)
+
+static int lluv_pipe_getpeername(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
+  char buf[255]; size_t len = sizeof(buf);
+  int err = uv_pipe_getpeername(LLUV_H(handle, uv_pipe_t), buf, &len);
+  if(err >= 0){
+    lua_pushlstring(L, buf, len);
+    return 1;
+  }
+  if(err != UV_ENOBUFS){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+  {
+    char *buf = lluv_alloc(L, len);
+    if(!buf){
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+    }
+    err = uv_pipe_getpeername(LLUV_H(handle, uv_pipe_t), buf, &len);
+    if(err < 0){
+      lluv_free(L, buf);
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+    }
+    lua_pushlstring(L, buf, len);
+    lluv_free(L, buf);
+    return 1;
+  }
+}
+
+#endif
+
 static int lluv_pipe_pending_instances(lua_State *L){
   lluv_handle_t  *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
   int count              = luaL_checkint(L, 2);
@@ -158,6 +189,9 @@ static const struct luaL_Reg lluv_pipe_methods[] = {
   { "bind",              lluv_pipe_bind              },
   { "connect",           lluv_pipe_connect           },
   { "getsockname",       lluv_pipe_getsockname       },
+#if LLUV_UV_VER_GE(1,3,0)
+  { "getpeername",       lluv_pipe_getpeername       },
+#endif
   { "pending_instances", lluv_pipe_pending_instances },
   { "pending_count",     lluv_pipe_pending_count     },
   { "pending_type",      lluv_pipe_pending_type      },
