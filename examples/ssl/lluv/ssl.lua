@@ -28,6 +28,17 @@ local function clone(t)
   return o
 end
 
+local function chunks(msg, chunk_size, len)
+  len = len or #msg
+  return function(_, b)
+    b = b + chunk_size
+    if b > len then return nil end
+    local e = b + chunk_size - 1
+    if e > len then e = len end
+    return b, (string.sub(msg, b, e))
+  end, nil, -chunk_size + 1
+end
+
 local unpack = table.unpack or unpack
 
 -- opt is LuaSEC compatiable table
@@ -99,6 +110,8 @@ end
 local SSLSocket = ut.class() do
 
 local BUFFER_SIZE = 8192
+local ICHUNK_SIZE = BUFFER_SIZE
+local OCHUNK_SIZE = math.floor(BUFFER_SIZE / 2)
 
 function SSLSocket:__init(ctx, mode, socket)
   self._ctx  = assert(ctx)
@@ -148,23 +161,32 @@ function SSLSocket:start_read(cb)
   self._skt:start_read(function(cli, err, data)
     if err then return cb(self, err) end
 
-    local ret, err = self._inp:write(data)
-    if ret == nil then
-      cli:stop_read()
-      return cb(self, err)
-    end
+    for pos, chunk in chunks(data, ICHUNK_SIZE) do
+      if self:closed() then break end
 
-    while true do
-      ret, err = self._ssl:read()
-      if not ret or #ret == 0 then break end
-      cb(self, nil, ret)
+      local ret, err = self._inp:write(chunk)
+      if ret == nil then
+        cli:stop_read()
+        return cb(self, err)
+      end
+
+      while not self:closed() do
+        ret, err = self._ssl:read()
+        if not ret or #ret == 0 then break end
+        cb(self, nil, ret)
+      end
     end
   end)
 
+  local msg = {}
   while true do
-    ret, err = self._ssl:read()
+    local ret, err = self._ssl:read()
     if not ret or #ret == 0 then break end
-    uv.defer(cb, self, nil, ret)
+    msg[#msg + 1] = ret
+  end
+
+  if #msg > 0 then
+    uv.defer(cb, self, nil, table.concat(msg))
   end
 
   return self
@@ -177,20 +199,20 @@ function SSLSocket:stop_read()
 end
 
 function SSLSocket:write(data, cb)
-  local ret, err = self._ssl:write(data)
-  if ret == nil then
-    if cb then
-      return uv.defer(cb, self, err)
-    else
+  local msg = {}
+
+  for pos, chunk in chunks(data, OCHUNK_SIZE) do
+    local ret, err = self._ssl:write(chunk)
+    if ret == nil then
+      if cb then return uv.defer(cb, self, err) end
       return nil, err
     end
-  end
 
-  local msg = {}
-  while true do
-    local chunk, err = self._out:read()
-    if not chunk or #chunk == 0 then break end
-    msg[#msg + 1] = chunk
+    while true do
+      local chunk, err = self._out:read()
+      if not chunk or #chunk == 0 then break end
+      msg[#msg + 1] = chunk
+    end
   end
 
   if #msg > 0 then
@@ -238,7 +260,7 @@ function SSLSocket:loop()
 end
 
 function SSLSocket:closed()
-  return not not self._skt
+  return not self._skt
 end
 
 function SSLSocket:ref()
