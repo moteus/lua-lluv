@@ -38,7 +38,10 @@ function SslSocket:handshake()
   terminated = true
   self:_stop("write")
 
-  if not ok then return nil, self._err end
+  if not ok then
+    self._sock:stop_read()
+    return nil, self._err
+  end
 
   return self:_start_read()
 end
