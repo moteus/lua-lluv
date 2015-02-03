@@ -107,6 +107,36 @@ local function make_ctx(opt)
   return ctx
 end
 
+local SSLError = ut.class() do
+
+function SSLError:__init(no, name, msg, ext)
+  self._no   = no
+  self._name = name
+  self._msg  = msg or ''
+  self._ext  = ext or ''
+  return self
+end
+
+function SSLError:cat() return 'OPENSSL' end
+
+function SSLError:no()  return self._no    end
+
+function SSLError:name() return self._name end
+
+function SSLError:msg() return self._msg   end
+
+function SSLError:ext() return self._ext   end
+
+function SSLError:__tostring()
+  return string.format("[%s][%s] %s (%d) - %s",
+    self:cat(), self:name(), self:msg(), self:no(), self:ext()
+  )
+end
+
+end
+
+local function OpenSSL_Error(msg, ext) return SSLError.new(-1, "ESSL", msg, ext) end
+
 local SSLSocket = ut.class() do
 
 local BUFFER_SIZE = 8192
@@ -133,18 +163,28 @@ function SSLSocket:handshake(cb)
 end
 
 function SSLSocket:_handshake(cb)
-  local ret, err, e = self._ssl:handshake()
+  local ret, err = self._ssl:handshake()
+
   if ret == nil then
+    self._skt:stop_read()
+    err = OpenSSL_Error("Handshake error: " .. tostring(err))
     return uv.defer(cb, self, err)
   end
 
-  local i = self._out:pending()
-  if i > 0 then
-    local msg, err = self._out:read()
-    self._skt:write(msg, function() self:_handshake(cb) end)
-    return
+  local msg = {}
+  while true do
+    local chunk, err = self._out:read()
+    if not chunk or #chunk == 0 then break end
+    msg[#msg + 1] = chunk
   end
+
+  if #msg > 0 then
+    self._skt:write(msg, function() self:_handshake(cb) end)
+  end
+
+  -- not ready
   if ret == false then return end
+
   self._skt:stop_read()
   uv.defer(cb, self)
 end
@@ -167,6 +207,7 @@ function SSLSocket:start_read(cb)
       local ret, err = self._inp:write(chunk)
       if ret == nil then
         cli:stop_read()
+        err = OpenSSL_Error("Read error: " .. tostring(err))
         return cb(self, err)
       end
 
@@ -204,6 +245,7 @@ function SSLSocket:write(data, cb)
   for pos, chunk in chunks(data, OCHUNK_SIZE) do
     local ret, err = self._ssl:write(chunk)
     if ret == nil then
+      err = OpenSSL_Error("Write error: " .. tostring(err))
       if cb then return uv.defer(cb, self, err) end
       return nil, err
     end
@@ -334,7 +376,6 @@ function SSLContext:__init(cfg)
   local ctx, err = make_ctx(cfg)
   if not ctx then return nil, err end
   self._ctx  = ctx
-  self._mode = cfg.mode
   return self
 end
 
