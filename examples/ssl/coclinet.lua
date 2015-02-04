@@ -8,7 +8,7 @@ local ctx = assert(ssl.context(config))
 
 ut.corun(function()
   while true do
-    local cli = socket.ssl(ctx:client())
+    local cli = socket.ssl(ctx)
     local ok, err = cli:connect("127.0.0.1", 8881)
     if not ok then
       print("Connect fail:", err)

@@ -43,7 +43,7 @@ local unpack = table.unpack or unpack
 
 -- opt is LuaSEC compatiable table
 local function make_ctx(opt)
-  local proto = opt.protocol or 'SSLv3' 
+  local proto = opt.protocol or 'TLSv1'
   proto = proto:sub(1,3):upper() .. proto:sub(4)
 
   local ctx, err = ssl.ssl.ctx_new(proto, opt.ciphers)
@@ -72,8 +72,9 @@ local function make_ctx(opt)
     ctx:use(xkey, xcert)
   end
 
-  if opt.cafile or opt.capath then
-    ctx:verify_locations(opt.cafile, opt.capath)
+  if opt.cafile then
+    local ok, err = ctx:verify_locations(opt.cafile, opt.capath)
+    if not ok then return nil, err end
   end
 
   if opt.verify then

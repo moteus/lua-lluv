@@ -4,11 +4,20 @@ local Socket = require "lluv.luasocket"
 
 local SslSocket = ut.class(Socket._TcpSock) do
 
-function SslSocket:__init(s)
-  assert(SslSocket.__base.__init(self, s))
-  self._sock:stop_read()
+function SslSocket:__init(ctx, mode)
+  self._ssl_ctx  = assert(ctx)
+  self._ssl_mode = mode
+  self._ssl_ctor = mode and ctx.server or ctx.client
 
+  assert(SslSocket.__base.__init(self))
+
+  self._sock:stop_read()
   return self
+end
+
+function SslSocket:_reset()
+  if self._sock then self._sock:close() end
+  self._sock = assert(self._ssl_ctor(self._ssl_ctx))
 end
 
 function SslSocket:connect(host, port)
@@ -43,7 +52,14 @@ function SslSocket:handshake()
     return nil, self._err
   end
 
-  return self:_start_read()
+  local ok, err = self:_start_read()
+  if not ok then return nil, err end
+
+  return self
+end
+
+function SslSocket:__tostring()
+  return "lluv.ssl.luasocket (" .. tostring(self._sock) .. ")"
 end
 
 end

@@ -7,7 +7,7 @@ local config = require "./config"
 local ctx = assert(ssl.context(config))
 
 ut.corun(function()
-  local srv = socket.ssl(ctx:server())
+  local srv = socket.ssl(ctx, true)
   print("Bind  ", srv:bind("127.0.0.1", 8881))
   while true do
     local cli, err = srv:accept()

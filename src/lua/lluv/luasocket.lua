@@ -179,11 +179,8 @@ function TcpSock:__init(s)
   self._wait.conn   = false
   self._wait.accept = false
 
-  if s then
-    self._sock = s
-  else
-    self._sock = assert(uv.tcp())
-  end
+  if s then self._sock = s
+  else self:_reset() end
 
   return self
 end
@@ -293,6 +290,11 @@ function TcpSock:send(data)
   return ok, err
 end
 
+function TcpSock:_reset()
+  if self._sock then self._sock:close() end
+  self._sock = uv.tcp()
+end
+
 function TcpSock:_connect(host, port)
   self:_start("conn")
   local res, err = CoGetAddrInfo(self._co, host, port)
@@ -315,8 +317,7 @@ function TcpSock:_connect(host, port)
 
     if ok then break end
 
-    self._sock:close()
-    self._sock = uv.tcp()
+    self:_reset()
   end
   terminated = true
 
