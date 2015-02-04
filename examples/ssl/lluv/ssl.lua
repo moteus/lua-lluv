@@ -362,11 +362,31 @@ function SSLSocket:shutdown(cb)
 end
 
 function SSLSocket:getsockname()
-  return self._skt:getsockname(cb)
+  return self._skt:getsockname()
 end
 
 function SSLSocket:getpeername()
-  return self._skt:getpeername(cb)
+  return self._skt:getpeername()
+end
+
+function SSLSocket:getpeercert()
+  return self._ssl:peer()
+end
+
+function SSLSocket:verifypeer()
+  local c, s = self:getpeercert()
+  if not c then
+    err = OpenSSL_Error("Authorize error: " .. tostring(s or 'no peer certificate'))
+    return nil, err
+  end
+
+  local ok, err = self._ssl:getpeerverification()
+  if not ok then
+    err = OpenSSL_Error("Authorize error: " .. tostring(err or 'authorization failed'))
+    return nil, err
+  end
+
+  return c, s
 end
 
 end

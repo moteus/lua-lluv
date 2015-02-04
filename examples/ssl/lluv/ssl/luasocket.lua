@@ -75,6 +75,14 @@ function SslSocket:__tostring()
   return "lluv.ssl.luasocket (" .. tostring(self._sock) .. ")"
 end
 
+function SslSocket:getpeercert()
+  return self._sock:getpeercert()
+end
+
+function SslSocket:verifypeer()
+  return self._sock:verifypeer()
+end
+
 end
 
 local function new_ssl(ctx, mode)
