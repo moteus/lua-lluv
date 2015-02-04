@@ -1,16 +1,29 @@
 local uv     = require "lluv"
 local ut     = require "lluv.utils"
-local Socket = require "lluv.luasocket"
+local socket = require "lluv.luasocket"
 
-local SslSocket = ut.class(Socket._TcpSock) do
+local SslSocket = ut.class(socket._TcpSock) do
 
-function SslSocket:__init(ctx, mode)
-  self._ssl_ctx  = assert(ctx)
+function SslSocket:__init(p, ...)
+  assert(p, "SSL Socket or SSL Context expected")
+
+  if p.handshake then return self:__init_skt(p) end
+
+  return self:__init_ctx(p, ...)
+end
+
+function SslSocket:__init_skt(skt)
+  assert(SslSocket.__base.__init(self, skt))
+  self._sock:stop_read()
+  return self
+end
+
+function SslSocket:__init_ctx(ctx, mode)
+  self._ssl_ctx  = ctx
   self._ssl_mode = mode
   self._ssl_ctor = mode and ctx.server or ctx.client
 
   assert(SslSocket.__base.__init(self))
-
   self._sock:stop_read()
   return self
 end
@@ -64,6 +77,21 @@ end
 
 end
 
+local function new_ssl(ctx, mode)
+  return SslSocket.new(ctx, mode)
+end
+
+local function wrap_ssl(skt, ctx, mode)
+  if not skt.handshake then -- this is Lua-UV TCP Socket
+    assert(ctx, "SSL Context expected")
+    if mode then skt = ctx:server(skt)
+    else skt = ctx:client(skt) end
+  end
+
+  return SslSocket.new(skt)
+end
+
 return {
-  ssl = SslSocket.new
+  ssl  = new_ssl;
+  wrap = wrap_ssl;
 }
