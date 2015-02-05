@@ -34,8 +34,8 @@ local function server(host, port, fn)
     end
 
     ut.corun(function()
-      cli:attach() -- attach socket to current coroutine
-      fn(cli)
+      -- attach socket to current coroutine
+      fn(cli:attach())
     end)
   end
 end

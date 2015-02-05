@@ -79,8 +79,8 @@ local function server(host, port, fn)
     local cli = srv:accept()
 
     ut.corun(function()
-      cli:attach() -- attach socket to current coroutine
-      fn(cli)
+      -- attach socket to current coroutine
+      fn(cli:attach())
     end)
   end
 end
