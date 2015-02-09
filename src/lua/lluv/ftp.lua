@@ -622,7 +622,7 @@ function Connection:pasv(cb)
     local _, _, a, b, c, d, p1, p2 = va.map(tonumber, string.find(reply, pattern))
     if not a then
       self:close()
-      return ocall(cb, self, Error(EPROTO, data))
+      return ocall(cb, self, Error(EPROTO, reply))
     end
 
     local ip, port = string.format("%d.%d.%d.%d", a, b, c, d), p1*256 + p2
@@ -653,7 +653,7 @@ end
 function Connection:open(cb)
   return self:_connect(function(self, err, code, greet)
     if err then return ocall(cb, self, err) end
-    self:on_greet(code, data, cb)
+    self:on_greet(code, greet, cb)
   end)
 end
 

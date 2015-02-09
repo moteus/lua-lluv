@@ -376,7 +376,7 @@ end
 function SSLSocket:verifypeer()
   local c, s = self:getpeercert()
   if not c then
-    err = OpenSSL_Error("Authorize error: " .. tostring(s or 'no peer certificate'))
+    local err = OpenSSL_Error("Authorize error: " .. tostring(s or 'no peer certificate'))
     return nil, err
   end
 

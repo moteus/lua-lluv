@@ -252,7 +252,7 @@ function Connection:_on_retr(req)
       req.cas   = cas ~= "" and cas or nil
     elseif SERVER_ERRORS[res] then
       assert(self._queue:pop() == req)
-      return ocall(req.cb, self, Error(res, value))
+      return ocall(req.cb, self, Error(res, line))
     else
       self:close()
       return ocall(self.on_error, self, Error("EPROTO", line))
