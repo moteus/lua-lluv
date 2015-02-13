@@ -16,18 +16,6 @@ local function load_key(key, path, ...)
   return key.read(data, ...)
 end
 
-local function iclone(t)
-  local o = {}
-  for i = 1, #t do o[i] = t[i] end
-  return o
-end
-
-local function clone(t)
-  local o = {}
-  for k,v in pairs(t) do o[k] = v end
-  return o
-end
-
 local function chunks(msg, chunk_size, len)
   len = len or #msg
   return function(_, b)
@@ -50,9 +38,9 @@ local function make_ctx(opt)
   if not ctx then return nil, err end
 
   local password = opt.password
-  if password and type(password) == 'function' then password = password() end
+  if type(password) == 'function' then password = password() end
 
-  local xkey, xcert, err
+  local xkey, xcert
   if opt.key then
     if password then
       xkey, err = load_key(ssl.pkey, opt.key, true, 'pem', password)
@@ -78,20 +66,20 @@ local function make_ctx(opt)
   end
 
   if opt.verify then
-    ctx:set_verify(iclone(opt.verify))
+    ctx:set_verify(opt.verify)
   end
 
-  if opt.options then
+  if opt.options and #opt.options > 0 then
     for i = 1, #opt.options do
       local name = opt.options[i]
-      local code = assert(ssl.ssl[name], "unkown option:" .. tostring(opt))
-      ctx:options(code)
+      assert(ssl.ssl[name], "unkown option:" .. tostring(name))
     end
+    ctx:options(unpack(opt.options))
   end
 
   if opt.verifyext then
-    local t = clone(opt.verifyext)
-    for k, v in pairs(t) do
+    local t = {}
+    for k, v in pairs(opt.verifyext) do
       t[k] = string.gsub(v, 'lsec_', '')
     end
     ctx:set_cert_verify(t)
