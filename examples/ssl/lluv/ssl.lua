@@ -66,7 +66,7 @@ local function make_ctx(opt)
   end
 
   if opt.verify then
-    ctx:set_verify(opt.verify)
+    ctx:verify_mode(opt.verify)
   end
 
   if opt.options and #opt.options > 0 then
