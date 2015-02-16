@@ -42,16 +42,13 @@ local function make_ctx(opt)
 
   local xkey, xcert
   if opt.key then
-    if password then
-      xkey, err = load_key(ssl.pkey, opt.key, true, 'pem', password)
-    else
-      xkey, err = load_key(ssl.pkey, opt.key, true, 'pem')
-    end
+    xkey, err = load_key(ssl.pkey, opt.key, true, 'pem', password)
     if not xkey then return nil, err end
 
     if opt.certificate then
       xcert, err = load_key(ssl.x509, opt.certificate)
     end
+
     if not xcert then
       xkey:close()
       return nil, err
