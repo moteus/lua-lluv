@@ -127,7 +127,7 @@ local SSLSocket = ut.class() do
 
 local BUFFER_SIZE = 8192
 local ICHUNK_SIZE = BUFFER_SIZE
-local OCHUNK_SIZE = math.floor(BUFFER_SIZE / 2)
+local OCHUNK_SIZE = BUFFER_SIZE
 
 function SSLSocket:__init(ctx, mode, socket)
   self._ctx  = assert(ctx)
@@ -181,6 +181,14 @@ function SSLSocket:close(cb)
   self._out:close()
   if cb then self._skt:close(cb) else self._skt:close() end
   self._inp, self._out, self._skt = nil
+  self._reading_flag = nil
+end
+
+function SSLSocket:_reading()
+  return
+    (not self:closed())
+    and self:active()
+    and self._reading_flag
 end
 
 function SSLSocket:start_read(cb)
@@ -197,13 +205,14 @@ function SSLSocket:start_read(cb)
         return cb(self, err)
       end
 
-      while not self:closed() do
+      while self:_reading() do
         ret, err = self._ssl:read()
         if not ret or #ret == 0 then break end
         cb(self, nil, ret)
       end
     end
   end)
+  self._reading_flag = true
 
   local msg = {}
   while true do
@@ -222,6 +231,7 @@ end
 function SSLSocket:stop_read()
   local ok, err = self._skt:stop_read()
   if not ok then return nil, err end
+  self._reading_flag = nil
   return self
 end
 
@@ -244,7 +254,7 @@ function SSLSocket:write(data, cb)
   end
 
   if #msg > 0 then
-    if cb then return self._skt:write(msg, cb)
+    if cb then return self._skt:write(msg, function(s, ...) cb(self, ...) end)
     else return self._skt:write(msg) end
   end
 
