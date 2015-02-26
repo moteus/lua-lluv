@@ -14,6 +14,10 @@ Current master
 luarocks install lluv --server=https://rocks.moonscript.org/dev
 ```
 
+###Related projects
+ * [lluv-ssl](https://github.com/moteus/lua-lluv-ssl) - SSL/TLS sockets for lluv library
+ * [lluv-websocket](https://github.com/moteus/lua-lluv-websocket) - Websocket sockets for lluv library
+
 ### Example
 
 Basic tcp/pipe echo server
