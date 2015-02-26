@@ -578,6 +578,6 @@ return {
   sleep   = sleep;
   toip    = toip;
 
-  _TcpSock = TcpSock;
-  _UdpSock = UdpSock;
+  _TcpSocket = TcpSock;
+  _UdpSocket = UdpSock;
 }

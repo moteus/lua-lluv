@@ -2,7 +2,7 @@ local uv     = require "lluv"
 local ut     = require "lluv.utils"
 local socket = require "lluv.luasocket"
 
-local SslSocket = ut.class(socket._TcpSock) do
+local SslSocket = ut.class(socket._TcpSocket) do
 
 function SslSocket:__init(p, ...)
   assert(p, "SSL Socket or SSL Context expected")
@@ -102,4 +102,6 @@ end
 return {
   ssl  = new_ssl;
   wrap = wrap_ssl;
+
+  _SslSocket = SslSocket;
 }
