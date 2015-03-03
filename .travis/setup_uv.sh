@@ -10,7 +10,7 @@ cd libuv
 
 mkdir -p lib
 mkdir -p build
-git clone http://git.chromium.org/external/gyp.git build/gyp
+git clone https://chromium.googlesource.com/external/gyp build/gyp
 
 if [ "$PLATFORM" == "macosx" ]; then
   ./gyp_uv.py -f xcode && xcodebuild -ARCHS="x86_64" -project uv.xcodeproj -configuration Release -target All
