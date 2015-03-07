@@ -133,12 +133,24 @@ LLUV_INTERNAL void lluv_free_buffer(uv_handle_t* h, const uv_buf_t *buf){
 
 LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct sockaddr_storage *sa){
   int err;
+  char tmp[40];
 
   UNUSED_ARG(L);
 
   if((addr[0] == '*')&&(addr[1] == '\0')){
     static const char *zero_ip = "0.0.0.0";
     addr = zero_ip;
+  }
+  else if(addr[0] == '['){
+    size_t len = strnlen(addr, 40);
+    if((addr[len] == '\0')&&(addr[len-1] == ']')){
+      memcpy(tmp, &addr[1], len-2);
+      tmp[len-2] = '\0';
+      addr = tmp;
+    }
+    else{
+      return UV_EINVAL;
+    }
   }
 
   memset(sa, 0, sizeof(*sa));
