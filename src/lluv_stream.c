@@ -56,18 +56,20 @@ LLUV_INTERNAL void lluv_on_stream_req_cb(uv_req_t* arg, int status){
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
   lluv_handle_pushself(L, handle);
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->ctx);
   lluv_req_free(L, req);
 
-  if(lua_isnil(L, -2)){
-    lua_pop(L, 2);
+  if(lua_isnil(L, -3)){
+    lua_pop(L, 3);
 
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
   lluv_push_status(L, status);
+  lua_insert(L, -2);
 
-  LLUV_HANDLE_CALL_CB(L, handle, 2);
+  LLUV_HANDLE_CALL_CB(L, handle, 3);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
@@ -355,25 +357,51 @@ static void lluv_on_stream_write_cb(uv_write_t* arg, int status){
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
   lluv_handle_pushself(L, handle);
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->ctx);
   lluv_req_free(L, req);
 
-  if(lua_isnil(L, -2)){
-    lua_pop(L, 2);
+  if(lua_isnil(L, -3)){
+    lua_pop(L, 3);
 
     LLUV_CHECK_LOOP_CB_INVARIANT(L);
     return;
   }
 
   lluv_push_status(L, status);
+  lua_insert(L, -2);
 
-  LLUV_HANDLE_CALL_CB(L, handle, 2);
+  LLUV_HANDLE_CALL_CB(L, handle, 3);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
-static int lluv_stream_writet(lua_State *L){
-  lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+static int lluv_stream_write_(lua_State *L, lluv_handle_t *handle, uv_buf_t *buf, size_t n){
   int err; lluv_req_t *req;
+
+  if(lua_gettop(L) == 4){
+    int ctx;
+    lluv_check_callable(L, -2);
+    ctx = luaL_ref(L, LLUV_LUA_REGISTRY);
+    req = lluv_req_new(L, UV_WRITE, handle);
+    lluv_req_ref(L, req); /* string/table */
+    req->ctx = ctx;
+  }
+  else{
+    if(lua_gettop(L) == 2)
+      lua_settop(L, 3);
+    else
+      lluv_check_args_with_cb(L, 3);
+
+    req = lluv_req_new(L, UV_WRITE, handle);
+    lluv_req_ref(L, req); /* string/table */
+  }
+
+  err = uv_write(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), buf, n, lluv_on_stream_write_cb);
+
+  return lluv_return_req(L, handle, req, err);
+}
+
+static int lluv_stream_write_t(lua_State *L, lluv_handle_t  *handle){
   int i, n = lua_rawlen(L, 2);
   uv_buf_t *buf;
   
@@ -386,54 +414,28 @@ static int lluv_stream_writet(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, ENOMEM, NULL); 
   }
 
-  if(lua_gettop(L) == 2)
-    lua_settop(L, 3);
-  else
-    lluv_check_args_with_cb(L, 3);
-
-  /* We clone array to save strings from gc */
-  /* user can write
-   * `t = {"HELLO"} sock:write(t) t[1] = nil`
-   */
-  lua_createtable(L, n, 0);
-
   for(i = 0; i < n; ++i){
     size_t len; const char *str;
     lua_rawgeti(L, 2, i + 1);
     str = luaL_checklstring(L, -1, &len);
-    lua_rawseti(L, -2, i + 1);
     buf[i] = uv_buf_init((char*)str, len);
+    lua_pop(L, 1);
   }
-  lua_replace(L, 2);
 
-  req = lluv_req_new(L, UV_WRITE, handle);
-  lluv_req_ref(L, req); /* table */
-
-  err = uv_write(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), buf, n, lluv_on_stream_write_cb);
-
-  return lluv_return_req(L, handle, req, err);
+  return lluv_stream_write_(L, handle, buf, n);
 }
 
 static int lluv_stream_write(lua_State *L){
-  if(lua_type(L, 2) == LUA_TTABLE) return lluv_stream_writet(L); else{
-
   lluv_handle_t  *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
-  size_t len; const char *str = luaL_checklstring(L, 2, &len);
-  int err; lluv_req_t *req;
-  uv_buf_t buf = uv_buf_init((char*)str, len);
-
-  if(lua_gettop(L) == 2)
-    lua_settop(L, 3);
-  else
-    lluv_check_args_with_cb(L, 3);
-
-  req = lluv_req_new(L, UV_WRITE, handle);
-  lluv_req_ref(L, req); /* string */
-
-  err = uv_write(LLUV_R(req, write), LLUV_H(handle, uv_stream_t), &buf, 1, lluv_on_stream_write_cb);
-
-  return lluv_return_req(L, handle, req, err);
-}}
+  if(lua_type(L, 2) == LUA_TTABLE){
+    return lluv_stream_write_t(L, handle);
+  }
+  else{
+    size_t len; const char *str = luaL_checklstring(L, 2, &len);
+    uv_buf_t buf = uv_buf_init((char*)str, len);
+    return lluv_stream_write_(L, handle, &buf, 1);
+  }
+}
 
 static int lluv_stream_write2(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);

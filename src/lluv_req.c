@@ -21,6 +21,7 @@ LLUV_INTERNAL lluv_req_t* lluv_req_new(lua_State *L, uv_req_type type, lluv_hand
   req->handle   = h;
   req->cb       = luaL_ref(L, LLUV_LUA_REGISTRY);
   req->arg      = LUA_NOREF;
+  req->ctx      = LUA_NOREF;
 
   if(h) lluv_handle_lock(L, h, LLUV_LOCK_REQ);
 
@@ -30,6 +31,7 @@ LLUV_INTERNAL lluv_req_t* lluv_req_new(lua_State *L, uv_req_type type, lluv_hand
 LLUV_INTERNAL void lluv_req_free(lua_State *L, lluv_req_t *req){
   luaL_unref(L, LLUV_LUA_REGISTRY, req->cb);
   luaL_unref(L, LLUV_LUA_REGISTRY, req->arg);
+  luaL_unref(L, LLUV_LUA_REGISTRY, req->ctx);
   if(req->handle){
     lluv_handle_unlock(L, req->handle, LLUV_LOCK_REQ);
   }
@@ -46,6 +48,11 @@ LLUV_INTERNAL lluv_req_t* lluv_req_byptr(uv_req_t *r){
 LLUV_INTERNAL void lluv_req_ref(lua_State *L, lluv_req_t *req){
   luaL_unref(L, LLUV_LUA_REGISTRY, req->arg);
   req->arg = luaL_ref(L, LLUV_LUA_REGISTRY);
+}
+
+LLUV_INTERNAL void lluv_req_ref_ctx(lua_State *L, lluv_req_t *req){
+  luaL_unref(L, LLUV_LUA_REGISTRY, req->ctx);
+  req->ctx = luaL_ref(L, LLUV_LUA_REGISTRY);
 }
 
 LLUV_INTERNAL int lluv_req_has_cb(lua_State *L, lluv_req_t *req){

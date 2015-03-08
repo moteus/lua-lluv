@@ -41,6 +41,7 @@ script:
   - lua test-gc-timer.lua
   - lua test-gc-tcp.lua
   - lua test-data.lua
+  - lua test-udp-send-ctx.lua
   - lua -e"require'lluv.utils'.self_test()"
   - lua -e"require'lluv.memcached'.self_test()"
   - lua -e"require'lluv.ftp'.self_test('127.0.0.1', 'moteus', '123456')"

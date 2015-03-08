@@ -151,12 +151,59 @@ static void lluv_on_udp_send_cb(uv_udp_send_t* arg, int status){
   lluv_on_stream_req_cb((uv_req_t*)arg, status);
 }
 
+static int lluv_udp_send_(lua_State *L, lluv_handle_t *handle, struct sockaddr *sa, uv_buf_t *buf, size_t n){
+  int err; lluv_req_t *req;
+
+  if(lua_gettop(L) == 6){
+    int ctx;
+    lluv_check_callable(L, -2);
+    ctx = luaL_ref(L, LLUV_LUA_REGISTRY);
+    req = lluv_req_new(L, UV_UDP_SEND, handle);
+    lluv_req_ref(L, req); /* string/table */
+    req->ctx = ctx;
+  }
+  else{
+    if(lua_gettop(L) == 4)
+      lua_settop(L, 5);
+    else
+      lluv_check_args_with_cb(L, 5);
+
+    req = lluv_req_new(L, UV_UDP_SEND, handle);
+    lluv_req_ref(L, req); /* string/table */
+  }
+
+  err = uv_udp_send(LLUV_R(req, udp_send), LLUV_H(handle, uv_udp_t), buf, n, sa, lluv_on_udp_send_cb);
+
+  return lluv_return_req(L, handle, req, err);
+}
+
+static int lluv_udp_send_t(lua_State *L, lluv_handle_t  *handle, struct sockaddr *sa){
+  int i, n = lua_rawlen(L, 4);
+  uv_buf_t *buf;
+
+  assert(lua_type(L, 4) == LUA_TTABLE);
+
+  luaL_argcheck(L, n > 0, 4, "Empty array not supported");
+
+  buf = (uv_buf_t*)lluv_alloca(sizeof(uv_buf_t) * n);
+  if(!buf){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, ENOMEM, NULL); 
+  }
+
+  for(i = 0; i < n; ++i){
+    size_t len; const char *str;
+    lua_rawgeti(L, 4, i + 1);
+    str = luaL_checklstring(L, -1, &len);
+    buf[i] = uv_buf_init((char*)str, len);
+    lua_pop(L, 1);
+  }
+
+  return lluv_udp_send_(L, handle, sa, buf, n);
+}
+
 static int lluv_udp_send(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
-  size_t len; const char *str = luaL_checklstring(L, 4, &len);
-  uv_buf_t buf = uv_buf_init((char*)str, len);
-  lluv_req_t *req;
 
   if(err < 0){
     int top = lua_gettop(L);
@@ -178,18 +225,14 @@ static int lluv_udp_send(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  if(lua_gettop(L) == 4)
-    lua_settop(L, 5);
-  else
-    lluv_check_args_with_cb(L, 5);
-
-  req = lluv_req_new(L, UV_UDP_SEND, handle);
-
-  lluv_req_ref(L, req); /* string */
-
-  err = uv_udp_send(LLUV_R(req, udp_send), LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa, lluv_on_udp_send_cb);
-
-  return lluv_return_req(L, handle, req, err);
+  if(lua_type(L, 4) == LUA_TTABLE){
+    return lluv_udp_send_t(L, handle, (struct sockaddr*)&sa);
+  }
+  else{
+    size_t len; const char *str = luaL_checklstring(L, 4, &len);
+    uv_buf_t buf = uv_buf_init((char*)str, len);
+    return lluv_udp_send_(L, handle, (struct sockaddr*)&sa, &buf, 1);
+  }
 }
 
 //}
