@@ -24,6 +24,8 @@
 
 #define LLUV_ERROR_NAME LLUV_PREFIX" Error"
 static const char *LLUV_ERROR = LLUV_ERROR_NAME;
+static const char *LLUV_ERR_UV_NAME = "LIBUV";
+static const char *LLUV_ERR_LIB_NAME = "LLUV";
 
 //{ Error object
 
@@ -61,7 +63,11 @@ static lluv_error_t *lluv_check_error(lua_State *L, int i){
 
 static int lluv_err_category(lua_State *L){
   lluv_error_t *err = lluv_check_error(L,1);
-  lua_pushinteger(L, err->cat);
+
+  if(err->cat == LLUV_ERR_UV) lua_pushstring(L, LLUV_ERR_UV_NAME);
+  else if(err->cat == LLUV_ERR_LIB) lua_pushstring(L, LLUV_ERR_LIB);
+  else lua_pushinteger(L, err->cat);
+
   return 1;
 }
 
@@ -91,20 +97,28 @@ static int lluv_err_ext(lua_State *L){
 
 static int lluv_err_tostring(lua_State *L){
   lluv_error_t *err = lluv_check_error(L,1);
+  const char *cat = 0;
+  int n = 2;
+
+  if(err->cat == LLUV_ERR_LIB)     cat = LLUV_ERR_LIB;
+  else if(err->cat == LLUV_ERR_UV) cat = LLUV_ERR_UV_NAME;
+
+  if(cat) lua_pushfstring(L, "[%s]", cat);
+  else    lua_pushfstring(L, "[%d]", err->cat);
+
+  lua_pushfstring(L, "[%s] %s (%d)",
+    uv_err_name(err->no),
+    uv_strerror(err->no),
+    err->no
+  );
+
   if(err->ext[0]){
-    lua_pushfstring(L, "[%s] %s (%d) - %s",
-      uv_err_name(err->no),
-      uv_strerror(err->no),
-      err->no, err->ext
-    );
+    lua_pushfstring(L, " - %s", err->no, err->ext);
+    n += 1;
   }
-  else{
-    lua_pushfstring(L, "[%s] %s (%d)",
-      uv_err_name(err->no),
-      uv_strerror(err->no),
-      err->no
-    );
-  }
+
+  lua_concat(L, n);
+
   return 1;
 }
 
@@ -129,9 +143,21 @@ LLUV_INTERNAL int lluv_fail(lua_State *L, lluv_flags_t flags, int error_category
 }
 
 static int lluv_error_new(lua_State *L){
-  int tp = luaL_checkint(L, 1);
-  int no = luaL_checkint(L, 2);
+  int tp, no = luaL_checkint(L, 2);
   const char *ext = lua_tostring(L, 3);
+
+  if(lua_isnumber(L, 1)){
+    tp = luaL_checkint(L, 1);
+  }
+  else{
+    const char* str = luaL_checkstring(L, 1);
+    if(strcmp(str, LLUV_ERR_UV_NAME) == 0) tp = LLUV_ERR_UV;
+    else if(strcmp(str, LLUV_ERR_LIB_NAME) == 0) tp = LLUV_ERR_LIB;
+    else{
+      lua_pushfstring(L, "Unknown error category: %s", str);
+      return lua_error(L);
+    }
+  }
 
   //! @todo checks error type value
 

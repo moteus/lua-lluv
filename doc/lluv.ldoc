@@ -378,9 +378,15 @@ do
 
 --- Get the error category.
 -- 
--- @treturn number number of error category (uv.ERROR_XXX constants e.g. uv.ERROR_UV)
+-- @treturn string|number error category `LIBUV`/`LLUV` or number for other categories
 --
 function category                   () end
+
+--- Get the error category.
+-- 
+-- @treturn string|number error category `LIBUV`/`LLUV` or number for other categories
+--
+function cat                        () end
 
 --- Get the number value of error.
 -- 
