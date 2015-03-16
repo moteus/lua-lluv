@@ -39,6 +39,7 @@ local ut = require "lluv.utils"
 local va = require "vararg"
 
 local EOL = "\r\n"
+local WAIT = {}
 
 local REQ_STORE      = 0 -- single line response
 local REQ_RETR       = 1 -- line + data response
@@ -124,16 +125,264 @@ local function make_inc(cmd, key, value, noreply)
 end
 
 -------------------------------------------------------------------
+local MMCStream = ut.class() do
+
+function MMCStream:__init(_self)
+  self._buffer = ut.Buffer.new(EOL)
+  self._queue  = ut.Queue.new()
+  self._self   = _self -- first arg for callbacks
+
+  return self
+end
+
+function MMCStream:execute()
+  local req = self._queue:peek()
+
+  if not req then -- unexpected reply
+    local err = Error("EPROTO", data)
+    return self:halt(err)
+  end
+
+  while req do
+    if req.type == REQ_STORE then
+      local ret = self:_on_store(req)
+      if ret == WAIT then return end
+    elseif req.type == REQ_RETR then
+      local ret = self:_on_retr(req)
+      if ret == WAIT then return end
+    else
+      assert(false, "unknown request type :" .. tostring(req.type))
+    end
+
+    req = self._queue:peek()
+  end
+end
+
+function MMCStream:_on_store(req)
+  local line = self._buffer:read_line()
+  if not line then return WAIT end
+
+  assert(self._queue:pop() == req)
+
+  if STORE_RESP[line] then
+    return ocall(req.cb, self._self, nil, line)
+  end
+
+  local res, value = split_first(line, " ", true)
+  if SERVER_ERRORS[res] then
+    return ocall(req.cb, self._self, Error(res, value))
+  end
+
+  -- for increment/decrement line is just data
+  return ocall(req.cb, self._self, nil, line)
+end
+
+function MMCStream:_on_retr(req)
+  if not req.len then -- we wait next value
+    local line = self._buffer:read_line()
+    if not line then return WAIT end
+
+    if line == "END" then -- no more data
+      assert(self._queue:pop() == req)
+
+      if req.multi then   return ocall(req.cb, self._self, nil, req.res) end
+      if not req.res then return ocall(req.cb, self._self, nil, nil) end
+      return ocall(req.cb, self._self, nil, req.res[1].data, req.res[1].flags, req.res[1].cas)
+    end
+
+    local res, key, flags, len, cas = usplit(line, " ", true)
+    if res == "VALUE" then
+      req.key   = key
+      req.len   = tonumber(len) + #EOL
+      req.flags = tonumber(flags) or 0
+      req.cas   = cas ~= "" and cas or nil
+    elseif SERVER_ERRORS[res] then
+      assert(self._queue:pop() == req)
+      return ocall(req.cb, self._self, Error(res, line))
+    else
+      local err = Error("EPROTO", line)
+      self:halt(err)
+    end
+  end
+
+  assert(req.len)
+
+  local data = self._buffer:read_n(req.len)
+  if not data then return WAIT end
+  
+  if not req.res then req.res = {} end
+  req.res[#req.res + 1] = { data = string.sub(data, 1, -3); flags = req.flags; cas = req.cas; key = req.key; }
+  req.len = nil
+end
+
+function MMCStream:append(data)
+  self._buffer:append(data)
+  return self
+end
+
+function MMCStream:request(data, type, cb)
+  if not self:_on_request(data, cb) then
+    return
+  end
+
+  local req
+  if type == REQ_RETR_MULTI then
+    req = {type = REQ_RETR, cb=cb, multi = true}
+  else
+    req = {type = type, cb=cb}
+  end
+
+  self._queue:push(req)
+
+  return self._self
+end
+
+function MMCStream:on_request(handler)
+  self._on_request = handler
+  return self
+end
+
+function MMCStream:on_halt(handler)
+  self._on_halt = handler
+  return self
+end
+
+function MMCStream:halt(err)
+  self:reset(err)
+  if self._on_halt then self:_on_halt(err) end
+  return
+end
+
+function MMCStream:reset(err)
+  while true do
+    local task = self._queue:pop()
+    if not task then break end
+    task[CB](self, err)
+  end
+  self._buffer:reset()
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
+local MMCCommands = ut.class() do
+
+function MMCCommands:__init(stream)
+  self._stream = stream
+  return self
+end
+
+function MMCCommands:_send(data, type, cb)
+  return self._stream:request(data, type, cb)
+end
+
+-- (key, data, [exptime[, flags[, noreply]]])
+function MMCCommands:_set(cmd, ...)
+  local cb, key, data, exptime, flags, noreply = cb_args(...)
+  return self:_send(
+    make_store(cmd, key, data, exptime, flags, noreply),
+    REQ_STORE, cb
+  )
+end
+
+function MMCCommands:set(...)     return self:_set("set", ...)     end
+
+function MMCCommands:add(...)     return self:_set("add", ...)     end
+
+function MMCCommands:replace(...) return self:_set("replace", ...) end
+
+function MMCCommands:append(...)  return self:_set("append", ...)  end
+
+function MMCCommands:prepend(...) return self:_set("prepend", ...) end
+
+-- (key, data, [exptime[, flags[, noreply]]])
+function MMCCommands:cas(...)
+  local cb, key, data, cas, exptime, flags, noreply = cb_args(...)
+  return self:_send(
+    make_store("cas", key, data, exptime, flags, noreply, cas),
+    REQ_STORE, cb
+  )
+end
+
+function MMCCommands:get(key, cb)
+  return self:_send(
+    make_retr("get", key),
+    REQ_RETR, cb
+  )
+end
+
+function MMCCommands:gets(key, cb)
+  return self:_send(
+    make_retr("gets", key),
+    REQ_RETR, cb
+  )
+end
+
+-- (key[, noreply])
+function MMCCommands:delete(...)
+  local cb, key, noreply = cb_args(...)
+  return self:_send(
+    make_change("delete", key, noreply),
+    REQ_STORE, cb
+  )
+end
+
+-- (key[, value[, noreply]])
+function MMCCommands:increment(...)
+  local cb, key, value, noreply = cb_args(...)
+  value = value or 1
+  return self:_send(
+    make_inc("incr", key, value, noreply),
+    REQ_STORE, cb
+  )
+end
+
+-- (key[, value[, noreply]])
+function MMCCommands:decrement(...)
+  local cb, key, value, noreply = cb_args(...)
+  value = value or 1
+  return self:_send(
+    make_inc("decr", key, value, noreply),
+    REQ_STORE, cb
+  )
+end
+
+-- (key, value[, noreply])
+function MMCCommands:touch(...)
+  local cb, key, value, noreply = cb_args(...)
+  assert(value)
+  return self:_send(
+    make_inc("touch", key, value, noreply),
+    REQ_STORE, cb
+  )
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
 local Connection = class() do
 
 function Connection:__init(server)
   server = server or "127.0.0.1"
 
   local host, port = split_first(server, ":")
-  self._host  = host
-  self._port  = port or "11211"
-  self._buff  = ut.Buffer.new(EOL) -- pending data
-  self._queue = ut.Queue.new()     -- pending requests
+  self._host       = host
+  self._port       = port or "11211"
+  self._stream     = MMCStream.new(self)
+  self._commander  = MMCCommands.new(self._stream)
+
+  self._stream:on_request(function(s, data, cb)
+    return self._cnn:write(data, function(cli, err)
+      if err then self._stream:halt(err) end
+    end)
+  end)
+
+  self._stream:on_halt(function(s, err)
+    self:close(err)
+    ocall(self.on_error, self, err)
+  end)
 
   return self
 end
@@ -151,17 +400,11 @@ function Connection:open(cb)
       return ocall(cb, self, err)
     end
 
-    cli.data = self
     self._cnn = cli
-    self._buff:reset()
-    self._queue:reset()
 
     cli:start_read(function(cli, err, data)
-      if err then
-        self:close(err)
-        return ocall(self.on_error, self, err)
-      end
-      return self:_read(data)
+      if err then return self._stream:halt(err) end
+      self._stream:append(data):execute()
     end)
 
     return ocall(cb, self)
@@ -171,198 +414,31 @@ end
 function Connection:close(err)
   if not self:connected() then return end
   self._cnn:close()
-  self._cnn = nil
-  self:_reset_queue(err)
+  self._stream:reset(err or Error(Error.ECONN))
+  self._stream, self._cnn = nil
 end
 
 function Connection:on_error(err) end
 
-function Connection:_reset_queue(err)
-  if not self._queue:peek() then return end
-  err = err or Error(Error.ECONN)
-  while true do
-    local req = self._queue:pop()
-    if not req then break end
-    ocall(req.cb, self, err)
-  end
-end
-
-local WAIT = {}
-
-function Connection:_read(data)
-  local req = self._queue:peek()
-  if not req then -- unexpected reply
-    self:close()
-    return ocall(self.on_error, self, Error("EPROTO", data))
-  end
-
-  self._buff:append(data)
-
-  while req do
-    if req.type == REQ_STORE then
-      local ret = self:_on_store(req)
-      if ret == WAIT then return end
-    elseif req.type == REQ_RETR then
-      local ret = self:_on_retr(req)
-      if ret == WAIT then return end
-    else
-      assert(false, "unknown request type :" .. tostring(req.type))
-    end
-
-    req = self._queue:peek()
-  end
-end
-
-function Connection:_on_store(req)
-  local line = self._buff:read_line()
-  if not line then return WAIT end
-  assert(self._queue:pop() == req)
-
-  if STORE_RESP[line] then
-    return ocall(req.cb, self, nil, line)
-  end
-
-  local res, value = split_first(line, " ", true)
-  if SERVER_ERRORS[res] then
-    return ocall(req.cb, self, Error(res, value))
-  end
-
-  -- for increment/decrement line is just data
-  return ocall(req.cb, self, nil, line)
-end
-
-function Connection:_on_retr(req)
-  if not req.len then -- we wait next value
-    local line = self._buff:read_line()
-    if not line then return WAIT end
-
-    if line == "END" then -- no more data
-      assert(self._queue:pop() == req)
-
-      if req.multi then   return ocall(req.cb, self, nil, req.res) end
-      if not req.res then return ocall(req.cb, self, nil, nil) end
-      return ocall(req.cb, self, nil, req.res[1].data, req.res[1].flags, req.res[1].cas)
-    end
-
-    local res, key, flags, len, cas = usplit(line, " ", true)
-    if res == "VALUE" then
-      req.key   = key
-      req.len   = tonumber(len) + #EOL
-      req.flags = tonumber(flags) or 0
-      req.cas   = cas ~= "" and cas or nil
-    elseif SERVER_ERRORS[res] then
-      assert(self._queue:pop() == req)
-      return ocall(req.cb, self, Error(res, line))
-    else
-      self:close()
-      return ocall(self.on_error, self, Error("EPROTO", line))
+do -- export commands
+  local function cmd(name)
+    Connection[name] = function(self, ...)
+      return self._commander[name](self._commander, ...)
     end
   end
 
-  assert(req.len)
-
-  local data = self._buff:read_n(req.len)
-  if not data then return WAIT end
-  
-  if not req.res then req.res = {} end
-  req.res[#req.res + 1] = { data = string.sub(data, 1, -3); flags = req.flags; cas = req.cas; key = req.key; }
-  req.len = nil
-end
-
-function Connection:_send(data, type, cb)
-  write_with_cb(self._cnn, data, function(cli, err)
-    if err then self:close(err) end
-  end)
-
-  local req
-  if type == REQ_RETR_MULTI then
-    req = {type = REQ_RETR, cb=cb, multi = true}
-  else
-    req = {type = type, cb=cb}
-  end
-  self._queue:push(req)
-  return self
-end
-
--- (key, data, [exptime[, flags[, noreply]]])
-function Connection:_set(cmd, ...)
-  local cb, key, data, exptime, flags, noreply = cb_args(...)
-  return self:_send(
-    make_store(cmd, key, data, exptime, flags, noreply),
-    REQ_STORE, cb
-  )
-end
-
-function Connection:set(...)     return self:_set("set", ...)     end
-
-function Connection:add(...)     return self:_set("add", ...)     end
-
-function Connection:replace(...) return self:_set("replace", ...) end
-
-function Connection:append(...)  return self:_set("append", ...)  end
-
-function Connection:prepend(...) return self:_set("prepend", ...) end
-
--- (key, data, [exptime[, flags[, noreply]]])
-function Connection:cas(...)
-  local cb, key, data, cas, exptime, flags, noreply = cb_args(...)
-  return self:_send(
-    make_store("cas", key, data, exptime, flags, noreply, cas),
-    REQ_STORE, cb
-  )
-end
-
-function Connection:get(key, cb)
-  return self:_send(
-    make_retr("get", key),
-    REQ_RETR, cb
-  )
-end
-
-function Connection:gets(key, cb)
-  return self:_send(
-    make_retr("gets", key),
-    REQ_RETR, cb
-  )
-end
-
--- (key[, noreply])
-function Connection:delete(...)
-  local cb, key, noreply = cb_args(...)
-  return self:_send(
-    make_change("delete", key, noreply),
-    REQ_STORE, cb
-  )
-end
-
--- (key[, value[, noreply]])
-function Connection:increment(...)
-  local cb, key, value, noreply = cb_args(...)
-  value = value or 1
-  return self:_send(
-    make_inc("incr", key, value, noreply),
-    REQ_STORE, cb
-  )
-end
-
--- (key[, value[, noreply]])
-function Connection:decrement(...)
-  local cb, key, value, noreply = cb_args(...)
-  value = value or 1
-  return self:_send(
-    make_inc("decr", key, value, noreply),
-    REQ_STORE, cb
-  )
-end
-
--- (key, value[, noreply])
-function Connection:touch(...)
-  local cb, key, value, noreply = cb_args(...)
-  assert(value)
-  return self:_send(
-    make_inc("touch", key, value, noreply),
-    REQ_STORE, cb
-  )
+  cmd"set"
+  cmd"add"
+  cmd"replace"
+  cmd"append"
+  cmd"prepend"
+  cmd"cas"
+  cmd"get"
+  cmd"gets"
+  cmd"delete"
+  cmd"increment"
+  cmd"decrement"
+  cmd"touch"
 end
 
 end
