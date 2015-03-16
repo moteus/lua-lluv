@@ -63,13 +63,13 @@ local class       = ut.class
 local usplit      = ut.usplit
 local split_first = ut.split_first
 
-local Error = ut.Errors{
+local Error = ut.Errors("MEMCACHED", {
   { EPROTO           = "Protocol error"                 },
   { ERROR            = "Unsupported command name"       },
   { CLIENT_ERROR     = "Invalid command arguments"      },
   { SERVER_ERROR     = "Server error"                   },
   { ECONN            = "Problem with server connection" },
-}
+})
 
 local function write_with_cb(cli, data, cb)
   cli:write(data, cb)

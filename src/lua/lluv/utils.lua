@@ -619,7 +619,8 @@ end
 -------------------------------------------------------------------
 
 -------------------------------------------------------------------
-local MakeErrors = function(errors)
+local MakeErrors = function(cat, errors)
+  assert(type(cat)    == "string")
   assert(type(errors) == "table")
 
   local numbers  = {} -- errno => name
@@ -654,6 +655,10 @@ local MakeErrors = function(errors)
     return self
   end
 
+  function Error:cat()
+    return cat
+  end
+
   function Error:name()
     return numbers[self._no]
   end
@@ -671,11 +676,10 @@ local MakeErrors = function(errors)
   end
 
   function Error:__tostring()
+    local msg = string.format("[%s][%s] %s (%d)", self:cat(), self:name(), self:msg(), self:no())
     local ext = self:ext()
-    if ext then
-      return string.format("[%s] %s (%d) - %s", self:name(), self:msg(), self:no(), ext)
-    end
-    return string.format("[%s] %s (%d)", self:name(), self:msg(), self:no())
+    if ext then msg = msg .. " - " .. ext end
+    return msg
   end
 
   end

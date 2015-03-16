@@ -77,13 +77,13 @@ local is_5xx = is_xxx(5)
 
 local function is_err(n) return is_4xx(n) or is_5xx(n) end
 
-local Error = ut.Errors{
+local Error = ut.Errors("FTP", {
   { EPROTO = "Protocol error" },
   { ESTATE = "Can not perform commant in this state" },
   { ECBACK = "Error while calling callback function" },
   { EREADY = "Ftp client not ready" },
   { ECONN  = "Problem with server connection" },
-}
+})
 local EPROTO = Error.EPROTO
 local ECBACK = Error.ECBACK
 local EREADY = Error.EREADY
