@@ -169,6 +169,25 @@ function BaseSock:close()
   return true
 end
 
+function BaseSock:shutdown()
+  if not self._sock then return nil, self._err end
+
+  local terminated
+  self._sock:shutdown(function(cli, err)
+    if terminated then return end
+    if err then return self:_on_io_error(err) end
+    return self:_resume(true)
+  end)
+
+  local ok, err = self:_yield()
+  terminated = true
+
+  if not ok then
+    return nil, self._err
+  end
+  return ok, err
+end
+
 end
 ----------------------------------------------------------------------------
 
