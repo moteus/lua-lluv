@@ -1,9 +1,9 @@
 package = "lluv"
-version = "scm-0"
+version = "0.1.1-2"
 
 source = {
-  url = "https://github.com/moteus/lua-lluv/archive/master.zip",
-  dir = "lua-lluv-master",
+  url = "https://github.com/moteus/lua-lluv/archive/v0.1.1.zip",
+  dir = "lua-lluv-0.1.1",
 }
 
 description = {
