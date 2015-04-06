@@ -18,6 +18,7 @@ luarocks install lluv --server=https://rocks.moonscript.org/dev
  * [lluv-ssl](https://github.com/moteus/lua-lluv-ssl) - SSL/TLS sockets for lluv library
  * [lluv-websocket](https://github.com/moteus/lua-lluv-websocket) - Websocket sockets for lluv library
  * [lluv-redis](https://github.com/moteus/lua-lluv-redis) - Redis client for lluv library
+ * [lua-gntp](https://github.com/moteus/lua-gntp) - lluv connector to Growl notification system
 
 ### Example
 
