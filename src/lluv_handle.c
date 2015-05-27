@@ -135,11 +135,10 @@ LLUV_INTERNAL lluv_handle_t* lluv_handle_byptr(uv_handle_t *h){
 static int lluv_find_handle(lua_State *L, uv_handle_t *h){
   lua_rawgetp(L, LLUV_LUA_REGISTRY, LLUV_HANDLES_SET);
   lua_pushnil(L);
-  while(lua_next(L, -2) != 0){
+  while(lua_next(L, -2) != 0){/*handle => UserValue*/
     lluv_handle_t *handle;
 
-    assert(lua_isboolean(L, -1));
-    assert(lua_toboolean(L, -1));
+    assert(lluv_check_handle(L, -2, 0));
     lua_pop(L, 1);
 
     handle = (lluv_handle_t*)lua_touserdata(L, -1);
