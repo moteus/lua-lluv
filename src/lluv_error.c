@@ -113,7 +113,7 @@ static int lluv_err_tostring(lua_State *L){
   );
 
   if(err->ext[0]){
-    lua_pushfstring(L, " - %s", err->no, err->ext);
+    lua_pushfstring(L, " - %s", err->ext);
     n += 1;
   }
 
