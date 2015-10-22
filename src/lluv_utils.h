@@ -98,6 +98,8 @@ LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int
 
 LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names);
 
+LLUV_INTERNAL unsigned int lluv_opt_af_flags(lua_State *L, int idx, unsigned int d);
+
 LLUV_INTERNAL void lluv_push_status(lua_State *L, int status);
 
 LLUV_INTERNAL void lluv_push_timeval(lua_State *, const uv_timeval_t *tv);

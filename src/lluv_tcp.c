@@ -25,9 +25,24 @@ LLUV_INTERNAL int lluv_tcp_index(lua_State *L){
 }
 
 LLUV_IMPL_SAFE_(lluv_tcp_create){
-  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_stream_create(L, UV_TCP, safe_flag | INHERITE_FLAGS(loop));
-  int err = uv_tcp_init(loop->handle, LLUV_H(handle, uv_tcp_t));
+  lluv_loop_t   *loop   = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle;
+  int err;
+
+#if LLUV_UV_VER_GE(1,7,0)
+  unsigned int flags = lluv_opt_af_flags(L, loop ? 2 : 1, AF_UNSPEC);
+#endif
+
+  if(!loop) loop = lluv_default_loop(L);
+
+  handle = lluv_stream_create(L, UV_TCP, safe_flag | INHERITE_FLAGS(loop));
+
+#if LLUV_UV_VER_GE(1,7,0)
+  err = uv_tcp_init_ex(loop->handle, LLUV_H(handle, uv_tcp_t), flags);
+#else
+  err = uv_tcp_init(loop->handle, LLUV_H(handle, uv_tcp_t));
+#endif
+
   if(err < 0){
     lluv_handle_cleanup(L, handle, -1);
     return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
@@ -222,6 +237,12 @@ static const struct luaL_Reg lluv_tcp_methods[] = {
 
 static const lluv_uv_const_t lluv_tcp_constants[] = {
   { UV_TCP_IPV6ONLY,   "TCP_IPV6ONLY"   },
+
+#if LLUV_UV_VER_GE(1,7,0)
+  {AF_UNSPEC,          "AF_UNSPEC"      },
+  {AF_INET,            "AF_INET"        },
+  {AF_INET6,           "AF_INET6"       },
+#endif
 
   { 0, NULL }
 };

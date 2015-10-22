@@ -350,6 +350,22 @@ LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d
   return lua_error(L);
 }
 
+LLUV_INTERNAL unsigned int lluv_opt_af_flags(lua_State *L, int idx, unsigned int d){
+  static const lluv_uv_const_t FLAGS[] = {
+    {AF_UNSPEC,    "unspec"   },
+    {AF_INET,      "inet"     },
+    {AF_INET6,     "inet6"    },
+
+    {0, NULL}
+  };
+
+  if(lua_type(L, idx) == LUA_TSTRING){
+    return lluv_opt_named_const(L, idx, d, FLAGS);
+  }
+
+  return lluv_opt_flags_ui(L, idx, d, FLAGS);
+}
+
 LLUV_INTERNAL void lluv_push_timeval(lua_State *L, const uv_timeval_t *tv){
   lua_createtable(L, 0, 2);
   lua_pushinteger(L, tv->tv_sec);

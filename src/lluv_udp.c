@@ -25,9 +25,24 @@ LLUV_INTERNAL int lluv_udp_index(lua_State *L){
 }
 
 LLUV_IMPL_SAFE(lluv_udp_create){
-  lluv_loop_t   *loop   = lluv_opt_loop_ex(L, 1, LLUV_FLAG_OPEN);
-  lluv_handle_t *handle = lluv_handle_create(L, UV_UDP, safe_flag | INHERITE_FLAGS(loop));
-  int err = uv_udp_init(loop->handle, LLUV_H(handle, uv_udp_t));
+  lluv_loop_t   *loop   = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
+  lluv_handle_t *handle;
+  int err;
+
+#if LLUV_UV_VER_GE(1,7,0)
+  unsigned int flags = lluv_opt_af_flags(L, loop ? 2 : 1, AF_UNSPEC);
+#endif
+
+  if(!loop) loop = lluv_default_loop(L);
+
+  handle = lluv_handle_create(L, UV_UDP, safe_flag | INHERITE_FLAGS(loop));
+
+#if LLUV_UV_VER_GE(1,7,0)
+  err = uv_udp_init_ex(loop->handle, LLUV_H(handle, uv_udp_t), flags);
+#else
+  err = uv_udp_init(loop->handle, LLUV_H(handle, uv_udp_t));
+#endif
+
   if(err < 0){
     lluv_handle_cleanup(L, handle, -1);
     return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, (uv_errno_t)err, NULL);
