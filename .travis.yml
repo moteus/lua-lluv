@@ -1,5 +1,7 @@
 language: c
 
+sudo: false
+
 env:
   global:
     - LUAROCKS=2.2.0
@@ -14,21 +16,19 @@ branches:
     - master
 
 before_install:
-  # - sudo apt-get update
-  - bash .travis/setup_lua.sh
   - bash .travis/setup_uv.sh
-  - bash .travis/setup_ftp.sh
-  - sudo luarocks install lunitx
-  - sudo luarocks install luafilesystem --from=https://rocks.moonscript.org/dev
-  - sudo luarocks install ltn12 --from=https://rocks.moonscript.org/dev
-  - sudo luarocks install lua-path
-  - sudo luarocks install vararg
-  # - sudo pip install cpp-coveralls
+  - source .travis/setenv_lua.sh
 
 install:
-  - sudo luarocks make rockspecs/lluv-scm-0.rockspec UV_DIR=./libuv
+  - sudo luarocks make rockspecs/lluv-scm-0.rockspec UV_DIR=$TRAVIS_BUILD_DIR/libuv
 
-script: 
+before_script:
+  - luarocks install lunitx
+  - luarocks install luafilesystem
+  - luarocks install lua-path
+  # - sudo pip install cpp-coveralls
+
+script:
   - cd test
   - lua test-close.lua
   - lua test-active.lua
@@ -40,7 +40,6 @@ script:
   - lua test-data.lua
   - lua test-udp-send-ctx.lua
   - lua -e"require'lluv.utils'.self_test()"
-  - lua -e"require'lluv.ftp'.self_test('127.0.0.1', 'moteus', '123456')"
   - lunit.sh test-fs.lua
   - lunit.sh test-defer-error.lua
   - cd ./luasocket
