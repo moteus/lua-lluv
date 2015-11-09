@@ -20,13 +20,13 @@ before_install:
   - source .travis/setenv_lua.sh
 
 install:
-  - sudo luarocks make rockspecs/lluv-scm-0.rockspec UV_DIR=$TRAVIS_BUILD_DIR/libuv
+  - luarocks make rockspecs/lluv-scm-0.rockspec UV_DIR=$TRAVIS_BUILD_DIR/libuv
 
 before_script:
   - luarocks install lunitx
   - luarocks install luafilesystem
   - luarocks install lua-path
-  # - sudo pip install cpp-coveralls
+  # - pip install cpp-coveralls
 
 script:
   - cd test
