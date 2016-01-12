@@ -364,7 +364,7 @@ static int lluv_udp_set_membership(lua_State *L){
 
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   const char *multicast_addr = luaL_checkstring(L, 2);
-  const char *interface_addr = luaL_checkstring(L, 3);
+  const char *interface_addr = lua_isnoneornil(L,3)?NULL:luaL_checkstring(L, 3);
   uv_membership membership   = (uv_membership)lluv_opt_named_const(L, 4, UV_JOIN_GROUP, FLAGS);
 
   int err = uv_udp_set_membership(LLUV_H(handle, uv_udp_t), multicast_addr, interface_addr, membership);
