@@ -2,7 +2,7 @@
 --
 --  Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 --
---  Copyright (C) 2014 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+--  Copyright (C) 2014-2016 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 --
 --  Licensed according to the included 'LICENSE' document
 --
@@ -18,6 +18,8 @@
 --  - send may not detects closed socket
 --  - send do not wait until large data will be sended
 ----------------------------------------------------------------------------
+
+local trace -- = function(...) print(os.date("[LLS][%x %X]"), ...) end
 
 local uv = require "lluv"
 local ut = require "lluv.utils"
@@ -116,12 +118,24 @@ function BaseSock:_stop(op)
 end
 
 function BaseSock:_on_io_error(err)
-  if err then err = "closed" end
+  if trace then trace("BaseSock:_on_io_error", err, self:_waiting()) end
 
-  self._err = err
+  -- This function can be called to closed socket in case when
+  -- * we start write operation but write callback not called yet
+  -- * in this time we recv error in read operation
+  --   read callback invoke `_on_io_error` which set `_sock` to nil
+  -- * after that libuv invoke write callback with ECONNRESET error
+  --   and write callback call _on_io_error again
+  if not self._sock then return end
+
+  if err then
+    self._raw_err, err = err, "closed"
+    self._err = err
+  end
 
   self._sock:stop_read()
   self._sock:close(function()
+    if trace then trace("BaseSock:_on_io_error:close", self:_waiting()) end
     if self:_waiting() then
       self:_resume(nil, err)
     end
@@ -429,7 +443,6 @@ function UdpSock:_start_read()
   if self._read_started then return end
   self._read_started = true
   self._sock:start_recv(function(cli, err, data, flag, host, port)
-    print(cli, host, port)
     if err then return self:_on_io_error(err) end
 
     if data and self:_is_peer(host, port) then
