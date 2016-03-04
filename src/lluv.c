@@ -34,8 +34,8 @@
 
 #define LLUV_VERSION_MAJOR 0
 #define LLUV_VERSION_MINOR 1
-#define LLUV_VERSION_PATCH 4
-// #define LLUV_VERSION_COMMENT "dev"
+#define LLUV_VERSION_PATCH 5
+#define LLUV_VERSION_COMMENT "dev"
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
 static const char* LLUV_HANDLES  = LLUV_PREFIX" Handles";
