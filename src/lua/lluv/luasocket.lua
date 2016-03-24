@@ -151,6 +151,12 @@ function BaseSock:attach(co)
   return self
 end
 
+function BaseSock:interrupt(...)
+  if self._co and self:_waiting() and self._co ~= coroutine.running() then
+    self:_resume(nil, ...)
+  end
+end
+
 function BaseSock:settimeout(sec)
   if sec and (sec <= 0) then sec = nil end
   self._timeout = tonumber(sec)
