@@ -21,6 +21,7 @@ matrix:
 cache:
   directories:
     - here
+    - libuv
     - $HOME/.cache/pip
 
 branches:
