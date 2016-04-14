@@ -81,8 +81,11 @@ static void lluv_on_poll_start(uv_poll_t *arg, int status, int events){
 
 static int lluv_poll_start(lua_State *L){
   static const lluv_uv_const_t FLAGS[] = {
-    { UV_READABLE, "readable" },
-    { UV_WRITABLE, "writable" },
+    { UV_READABLE,   "readable"   },
+    { UV_WRITABLE,   "writable"   },
+#if LLUV_UV_VER_GE(1,9,0)
+    { UV_DISCONNECT, "disconnect" },
+#endif
 
     { 0, NULL }
   };
@@ -125,8 +128,11 @@ static const struct luaL_Reg lluv_poll_methods[] = {
 };
 
 static const lluv_uv_const_t lluv_poll_constants[] = {
-  { UV_READABLE, "READABLE" },
-  { UV_WRITABLE, "WRITABLE" },
+  { UV_READABLE,   "READABLE"   },
+  { UV_WRITABLE,   "WRITABLE"   },
+#if LLUV_UV_VER_GE(1,9,0)
+  { UV_DISCONNECT, "DISCONNECT" },
+#endif
 
   { 0, NULL }
 };
