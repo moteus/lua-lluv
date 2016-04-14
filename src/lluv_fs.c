@@ -82,7 +82,7 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_STAT:
     case UV_FS_LSTAT:
     case UV_FS_ACCESS:
-#if LLUV_UV_VER_GE(1,9,0)
+#if LLUV_UV_VER_GE(1,8,0)
     case UV_FS_REALPATH:
 #endif
       lua_pushvalue(L, LLUV_LOOP_INDEX);
@@ -141,7 +141,7 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_LINK:
     case UV_FS_SYMLINK:
     case UV_FS_CHOWN:
-#if LLUV_UV_VER_GE(1,9,0)
+#if LLUV_UV_VER_GE(1,8,0)
     case UV_FS_REALPATH:
 #endif
       lua_pushstring(L, req->path);
@@ -504,7 +504,7 @@ LLUV_IMPL_SAFE(lluv_fs_access) {
   LLUV_POST_FS();
 }
 
-#if LLUV_UV_VER_GE(1,9,0)
+#if LLUV_UV_VER_GE(1,8,0)
 
 LLUV_IMPL_SAFE(lluv_fs_realpath) {
   LLUV_CHECK_LOOP_FS()
@@ -953,7 +953,7 @@ static const struct luaL_Reg lluv_file_methods[] = {
 
 enum {
   LLUV_FS_FUNCTIONS_DUMMY = 16,
-  #if LLUV_UV_VER_GE(1,9,0)
+  #if LLUV_UV_VER_GE(1,8,0)
   LLUV_FS_FUNCTIONS_DUMMY_1,
   #endif
   LLUV_FS_FUNCTIONS_COUNT
@@ -978,21 +978,21 @@ enum {
   { "fs_open",     lluv_fs_open_##F     },  \
   { "fs_open_fd",  lluv_fs_open_fd_##F  },  \
 
-#define LLUV_FS_FUNCTIONS_1_9_0(F)          \
+#define LLUV_FS_FUNCTIONS_1_8_0(F)          \
   { "fs_realpath", lluv_fs_realpath_##F },  \
 
 static const struct luaL_Reg lluv_fs_functions[][LLUV_FS_FUNCTIONS_COUNT] = {
   {
     LLUV_FS_FUNCTIONS(unsafe)
-#if LLUV_UV_VER_GE(1,9,0)
-    LLUV_FS_FUNCTIONS_1_9_0(unsafe)
+#if LLUV_UV_VER_GE(1,8,0)
+    LLUV_FS_FUNCTIONS_1_8_0(unsafe)
 #endif
     {NULL,NULL}
   },
   {
     LLUV_FS_FUNCTIONS(safe)
-#if LLUV_UV_VER_GE(1,9,0)
-    LLUV_FS_FUNCTIONS_1_9_0(safe)
+#if LLUV_UV_VER_GE(1,8,0)
+    LLUV_FS_FUNCTIONS_1_8_0(safe)
 #endif
     {NULL,NULL}
   },
