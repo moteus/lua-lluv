@@ -259,30 +259,81 @@ static int lluv_hrtime(lua_State *L){
   return 1;
 }
 
+#if LLUV_UV_VER_GE(1,9,0)
+
+LLUV_IMPL_SAFE(lluv_os_get_passwd){
+  uv_passwd_t pwd;
+  int err = uv_os_get_passwd(&pwd);
+
+  if(err < 0){
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_newtable(L);
+  lutil_pushint64(L, pwd.uid); lua_setfield(L, -2, "uid");
+  lutil_pushint64(L, pwd.gid); lua_setfield(L, -2, "gid");
+  if(pwd.username){ lua_pushstring(L, pwd.username); lua_setfield(L, -2, "username"); }
+  if(pwd.shell   ){ lua_pushstring(L, pwd.shell   ); lua_setfield(L, -2, "shell"   ); }
+  if(pwd.homedir ){ lua_pushstring(L, pwd.homedir ); lua_setfield(L, -2, "homedir" ); }
+  uv_os_free_passwd(&pwd);
+
+  return 1;
+}
+
+#endif
+
 static const lluv_uv_const_t lluv_misc_constants[] = {
   { 0, NULL }
 };
 
-static const struct luaL_Reg lluv_misc_functions[] = {
-  { "version",             lluv_version             },
-  { "get_process_title",   lluv_get_process_title   },
-  { "set_process_title",   lluv_set_process_title   },
-  { "resident_set_memory", lluv_resident_set_memory },
-  { "uptime",              lluv_uptime              },
-  { "getrusage",           lluv_getrusage           },
-  { "cpu_info",            lluv_cpu_info            },
-  { "interface_addresses", lluv_interface_addresses },
-  { "exepath",             lluv_exepath             },
-  { "cwd",                 lluv_cwd                 },
-  { "chdir",               lluv_chdir               },
-  { "get_total_memory",    lluv_get_total_memory    },
-  { "get_free_memory",     lluv_get_free_memory     },
-  { "hrtime",              lluv_hrtime              },
+enum {
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY = 15,
+  #if LLUV_UV_VER_GE(1,9,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1,
+  #endif
+  LLUV_MISC_FUNCTIONS_COUNT
+};
 
-  {NULL,NULL}
+#define LLUV_MISC_FUNCTIONS(F)                         \
+  { "version",             lluv_version             }, \
+  { "get_process_title",   lluv_get_process_title   }, \
+  { "set_process_title",   lluv_set_process_title   }, \
+  { "resident_set_memory", lluv_resident_set_memory }, \
+  { "uptime",              lluv_uptime              }, \
+  { "getrusage",           lluv_getrusage           }, \
+  { "cpu_info",            lluv_cpu_info            }, \
+  { "interface_addresses", lluv_interface_addresses }, \
+  { "exepath",             lluv_exepath             }, \
+  { "cwd",                 lluv_cwd                 }, \
+  { "chdir",               lluv_chdir               }, \
+  { "get_total_memory",    lluv_get_total_memory    }, \
+  { "get_free_memory",     lluv_get_free_memory     }, \
+  { "hrtime",              lluv_hrtime              }, \
+
+#define LLUV_MISC_FUNCTIONS_1_9_0(F)                   \
+  { "os_get_passwd",       lluv_os_get_passwd_##F   }, \
+
+static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = {
+  {
+    LLUV_MISC_FUNCTIONS(unsafe)
+#if LLUV_UV_VER_GE(1,9,0)
+    LLUV_MISC_FUNCTIONS_1_9_0(unsafe)
+#endif
+    {NULL,NULL}
+  },
+  {
+    LLUV_MISC_FUNCTIONS(safe)
+#if LLUV_UV_VER_GE(1,9,0)
+    LLUV_MISC_FUNCTIONS_1_9_0(safe)
+#endif
+    {NULL,NULL}
+  },
 };
 
 LLUV_INTERNAL void lluv_misc_initlib(lua_State *L, int nup, int safe){
-  luaL_setfuncs(L, lluv_misc_functions, nup);
+  assert((safe == 0) || (safe == 1));
+
+  luaL_setfuncs(L, lluv_misc_functions[safe], nup);
+
   lluv_register_constants(L, lluv_misc_constants);
 }
