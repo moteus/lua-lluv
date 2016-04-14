@@ -82,6 +82,9 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_STAT:
     case UV_FS_LSTAT:
     case UV_FS_ACCESS:
+#if LLUV_UV_VER_GE(1,9,0)
+    case UV_FS_REALPATH:
+#endif
       lua_pushvalue(L, LLUV_LOOP_INDEX);
       return 1;
 
@@ -138,6 +141,9 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_LINK:
     case UV_FS_SYMLINK:
     case UV_FS_CHOWN:
+#if LLUV_UV_VER_GE(1,9,0)
+    case UV_FS_REALPATH:
+#endif
       lua_pushstring(L, req->path);
       return 1;
 
@@ -497,6 +503,20 @@ LLUV_IMPL_SAFE(lluv_fs_access) {
   err = uv_fs_access(loop->handle, &req->req, path, flags, cb);
   LLUV_POST_FS();
 }
+
+#if LLUV_UV_VER_GE(1,9,0)
+
+LLUV_IMPL_SAFE(lluv_fs_realpath) {
+  LLUV_CHECK_LOOP_FS()
+
+  const char *path = luaL_checkstring(L, ++argc);
+
+  LLUV_PRE_FS();
+  err = uv_fs_realpath(loop->handle, &req->req, path, cb);
+  LLUV_POST_FS();
+}
+
+#endif
 
 static int luv_check_open_flags(lua_State *L, int idx, const char *def){
   static const char *names[] = {
@@ -931,6 +951,14 @@ static const struct luaL_Reg lluv_file_methods[] = {
 
 //}
 
+enum {
+  LLUV_FS_FUNCTIONS_DUMMY = 16,
+  #if LLUV_UV_VER_GE(1,9,0)
+  LLUV_FS_FUNCTIONS_DUMMY_1,
+  #endif
+  LLUV_FS_FUNCTIONS_COUNT
+};
+
 #define LLUV_FS_FUNCTIONS(F)                \
   { "fs_unlink",   lluv_fs_unlink_##F   },  \
   { "fs_mkdtemp",  lluv_fs_mkdtemp_##F  },  \
@@ -950,13 +978,22 @@ static const struct luaL_Reg lluv_file_methods[] = {
   { "fs_open",     lluv_fs_open_##F     },  \
   { "fs_open_fd",  lluv_fs_open_fd_##F  },  \
 
-static const struct luaL_Reg lluv_fs_functions[][17] = {
+#define LLUV_FS_FUNCTIONS_1_9_0(F)          \
+  { "fs_realpath", lluv_fs_realpath_##F },  \
+
+static const struct luaL_Reg lluv_fs_functions[][LLUV_FS_FUNCTIONS_COUNT] = {
   {
     LLUV_FS_FUNCTIONS(unsafe)
+#if LLUV_UV_VER_GE(1,9,0)
+    LLUV_FS_FUNCTIONS_1_9_0(unsafe)
+#endif
     {NULL,NULL}
   },
   {
     LLUV_FS_FUNCTIONS(safe)
+#if LLUV_UV_VER_GE(1,9,0)
+    LLUV_FS_FUNCTIONS_1_9_0(safe)
+#endif
     {NULL,NULL}
   },
 };
