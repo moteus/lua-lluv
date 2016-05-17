@@ -385,15 +385,18 @@ LLUV_INTERNAL void lluv_push_timespec(lua_State *L, const uv_timespec_t *ts){
 LLUV_INTERNAL int lluv_return_req(lua_State *L, lluv_handle_t *handle, lluv_req_t *req, int err){
   if(err < 0){
     lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+    lua_rawgeti(L, LLUV_LUA_REGISTRY, req->ctx);
     lluv_req_free(L, req);
-    if(lua_isnil(L, -1)){
-      lua_pop(L, 1);
+    if(lua_isnil(L, -2)){
+      lua_pop(L, 2);
       return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
     }
 
-    lua_pushvalue(L, 1);
+    lua_pushvalue(L, 1); // push self
+    lua_insert(L, -2);   // move self as first arg
     lluv_error_create(L, LLUV_ERR_UV, err, NULL);
-    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+    lua_insert(L, -2);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 3);
   }
 
   lua_settop(L, 1);
