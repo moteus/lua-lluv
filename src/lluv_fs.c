@@ -141,9 +141,6 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
     case UV_FS_LINK:
     case UV_FS_SYMLINK:
     case UV_FS_CHOWN:
-#if LLUV_UV_VER_GE(1,8,0)
-    case UV_FS_REALPATH:
-#endif
       lua_pushstring(L, req->path);
       return 1;
 
@@ -174,6 +171,9 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
       return 1;
 
     case UV_FS_READLINK:
+#if LLUV_UV_VER_GE(1,8,0)
+    case UV_FS_REALPATH:
+#endif
       lua_pushstring(L, (char*)req->ptr);
       return 1;
 
