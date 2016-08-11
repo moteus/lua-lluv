@@ -70,7 +70,7 @@ local function syslog_msg(msg)
 end
 
 uv.udp()
-  :bind("127.0.0.1", "514")
+  :bind("*", "514")
   :start_recv(function(srv, err, data)
     if err then return end
     print(syslog_msg(data))

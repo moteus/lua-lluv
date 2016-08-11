@@ -294,15 +294,25 @@ local Buffer = class() do
 
 -- eol should ends with specific char.
 
+local function split_first_ex(str, sep, plain)
+  local e, e2 = string.find(str, sep, nil, plain)
+  if e then
+    return string.sub(str, 1, e - 1), string.sub(str, e2 + 1), e2 - e + 1
+  end
+  return str
+end
+
 function Buffer:__init(eol, eol_is_rex)
   self._eol       = eol or "\n"
   self._eol_plain = not eol_is_rex
-  self._lst = List.new()
+  self._lst       = List.new()
+  self._size      = 0
   return self
 end
 
 function Buffer:reset()
   self._lst:reset()
+  self._size = 0
   return self
 end
 
@@ -319,6 +329,7 @@ end
 function Buffer:append(data)
   if #data > 0 then
     self._lst:push_back(data)
+    self._size = self._size + #data
   end
   return self
 end
@@ -326,6 +337,7 @@ end
 function Buffer:prepend(data)
   if #data > 0 then
     self._lst:push_front(data)
+    self._size = self._size + #data
   end
   return self
 end
@@ -354,10 +366,10 @@ function Buffer:read_line(eol, eol_is_rex)
 
     for i = i, 1, -1 do t[#t + 1] = lst:pop_front() end
 
-    local line, tail
+    local line, tail, eol_len
 
     -- try find EOL in last chunk
-    if plain or (eol == ch) then line, tail = split_first(t[#t], eol, true) end
+    if plain or (eol == ch) then line, tail, eol_len = split_first_ex(t[#t], eol, true) end
 
     if eol == ch then assert(tail) end
 
@@ -367,7 +379,10 @@ function Buffer:read_line(eol, eol_is_rex)
 
       if #tail > 0 then lst:push_front(tail) end
 
-      return table.concat(t)
+      line = table.concat(t)
+      self._size = self._size - (#line + eol_len)
+
+      return line
     end
 
     -- we need concat whole string and then split
@@ -375,12 +390,16 @@ function Buffer:read_line(eol, eol_is_rex)
     -- e.g. for LuaSockets pattern `\r*\n` it work with one iteration but still we need
     -- concat->split because of case such {"aaa\r", "\n"}
 
-    line, tail = split_first(table.concat(t), eol, plain)
+    line, tail, eol_len = split_first_ex(table.concat(t), eol, plain)
 
     if tail then -- we found EOL
       if #tail > 0 then lst:push_front(tail) end
+      self._size = self._size - (#line + eol_len)
       return line
     end
+
+    t[1] = line
+    for i = 2, #t do t[i] = nil end
   end
 end
 
@@ -390,12 +409,15 @@ function Buffer:read_all()
   while not lst:empty() do
     t[#t + 1] = self._lst:pop_front()
   end
+  self._size = 0
   return table.concat(t)
 end
 
 function Buffer:read_some()
   if self._lst:empty() then return end
-  return self._lst:pop_front()
+  local chunk = self._lst:pop_front()
+  if chunk then self._size = self._size - #chunk end
+  return chunk
 end
 
 function Buffer:read_n(n)
@@ -426,6 +448,9 @@ function Buffer:read_n(n)
       end
 
       t[#t + 1] = data
+
+      self._size = self._size - n
+
       return table.concat(t)
     end
 
@@ -448,6 +473,10 @@ function Buffer:empty()
   return self._lst:empty()
 end
 
+function Buffer:size()
+  return self._size
+end
+
 function Buffer:next_line(data, eol)
   eol = eol or self._eol or "\n"
   if data then self:append(data) end
@@ -459,69 +488,117 @@ function Buffer:next_n(data, n)
   return self:read_n(n)
 end
 
+function Buffer:_validate_internal_state()
+  local size = 0
+  self._lst:find(function(s) size = size + #s end)
+  assert(size == self._size, string.format('expected size %d got %d', self._size, size))
+end
+
 function Buffer.self_test(EOL)
-  
+
+  local b = Buffer.new("\r\n", true)
+
+  b:append("a")         b:_validate_internal_state()
+  b:append("\n")        b:_validate_internal_state()
+  b:append("\n")        b:_validate_internal_state()
+  b:append("\r")        b:_validate_internal_state()
+  b:append("\n123")     b:_validate_internal_state()
+  assert('a\n\n' == b:read_line())
+
+  b:_validate_internal_state()
+
   local b = Buffer.new("\r\n")
-  
-  b:append("a\r")
-  b:append("\nb")
-  b:append("\r\n")
-  b:append("c\r\nd\r\n")
-  
+
+  b:append("a\r")        b:_validate_internal_state()
+  b:append("\nb")        b:_validate_internal_state()
+  b:append("\r\n")       b:_validate_internal_state()
+  b:append("c\r\nd\r\n") b:_validate_internal_state()
+
   assert("a" == b:read_line())
+  b:_validate_internal_state()
   assert("b" == b:read_line())
+  b:_validate_internal_state()
   assert("c" == b:read_line())
+  b:_validate_internal_state()
   assert("d" == b:read_line())
-  
+  b:_validate_internal_state()
+
   local b = Buffer:new(EOL)
   local eol = b:eol()
 
   -- test next_xxx
   assert("aaa" == b:next_line("aaa" .. eol .. "bbb"))
+  b:_validate_internal_state()
 
   assert("bbbccc" == b:next_line("ccc" .. eol .. "ddd" .. eol))
+  b:_validate_internal_state()
 
   assert("ddd" == b:next_line(eol))
+  b:_validate_internal_state()
 
   assert("" == b:next_line(""))
+  b:_validate_internal_state()
 
   assert(nil == b:next_line(""))
+  b:_validate_internal_state()
 
   assert(nil == b:next_line("aaa"))
+  b:_validate_internal_state()
 
   assert("aaa" == b:next_n("123456", 3))
+  b:_validate_internal_state()
 
   assert(nil == b:next_n("", 8))
+  b:_validate_internal_state()
 
   assert("123"== b:next_n("", 3))
+  b:_validate_internal_state()
 
   assert("456" == b:next_n(nil, 3))
+  b:_validate_internal_state()
 
   b:reset()
+  b:_validate_internal_state()
 
   assert(nil == b:next_line("aaa|bbb"))
+  b:_validate_internal_state()
 
   assert("aaa" == b:next_line(nil, "|"))
+  b:_validate_internal_state()
 
   b:reset()
+  b:_validate_internal_state()
 
   b:set_eol("\r*\n", true)
    :append("aaa\r\r\n\r\nbbb\nccc")
+  b:_validate_internal_state()
   assert("aaa" == b:read_line())
+  b:_validate_internal_state()
   assert("" == b:read_line())
+  b:_validate_internal_state()
   assert("bbb" == b:read_line())
+  b:_validate_internal_state()
   assert(nil == b:read_line())
+  b:_validate_internal_state()
   -- assert("ccc" == b:read_line("$", true))
 
   b:reset()
+  b:_validate_internal_state()
   b:append("aaa\r\r")
+  b:_validate_internal_state()
   b:append("\r\r")
+  b:_validate_internal_state()
   assert(nil == b:read_line())
+  b:_validate_internal_state()
   b:append("\nbbb\n")
+  b:_validate_internal_state()
   assert("aaa" == b:read_line())
+  b:_validate_internal_state()
   assert("bbb" == b:read_line())
+  b:_validate_internal_state()
 
   b:reset()
+  b:_validate_internal_state()
   b:set_eol("\n\0")
 
   b:append("aaa")
