@@ -18,6 +18,164 @@
 #include <memory.h>
 #include <assert.h>
 
+#ifdef _WIN32
+#include <io.h> 
+#else
+#include <unistd.h>
+#endif
+
+#define LLUV_OS_HANDLE_NAME LLUV_PREFIX" OS Handle"
+static const char *LLUV_OS_HANDLE = LLUV_OS_HANDLE_NAME;
+
+typedef struct lluv_os_handle_tag{
+  lluv_flags_t flags;
+  int fd;
+} lluv_os_handle_t;
+
+static lluv_os_handle_t* lluv_check_os_handle(lua_State *L, int idx){
+  lluv_os_handle_t *handle = (lluv_os_handle_t *)lutil_checkudatap (L, idx, LLUV_OS_HANDLE);
+  luaL_argcheck (L, handle != NULL, idx, LLUV_OS_HANDLE_NAME" expected");
+
+  luaL_argcheck (L, IS(handle, LLUV_FLAG_OPEN), idx, LLUV_OS_HANDLE_NAME" closed");
+
+  return handle;
+}
+
+#ifdef _WIN32
+
+#define IS_VALID_HANDLE(v) (((v) != (HANDLE)0) && ((v) != (HANDLE)-2)&& ((v) != INVALID_HANDLE_VALUE))
+
+static DWORD lluv_duplicate_handle(HANDLE handle, HANDLE* dup) {
+  if(!IS_VALID_HANDLE(handle)){
+    *dup = INVALID_HANDLE_VALUE;
+    return ERROR_INVALID_HANDLE;
+  }
+  else{
+    HANDLE current_process = GetCurrentProcess();
+    BOOL ret = DuplicateHandle(current_process, handle, current_process, dup, 0, TRUE, DUPLICATE_SAME_ACCESS);
+
+    if(!ret){
+      *dup = INVALID_HANDLE_VALUE;
+      return GetLastError();
+    }
+  }
+
+  return ERROR_SUCCESS;
+}
+
+#else
+
+#define IS_VALID_HANDLE(v) (((v) != -1))
+
+static int lluv_duplicate_handle(int oldfd, int* newfd) {
+  if(!IS_VALID_HANDLE(oldfd)){
+    *newfd = -1;
+    return EBADF;
+  }
+
+  *newfd = dup(oldfd);
+
+  if(!IS_VALID_HANDLE(*newfd)){
+    *newfd = -1;
+    return EBADF;
+  }
+
+  return 0;
+}
+
+#endif
+
+LLUV_IMPL_SAFE(lluv_os_handle_new){
+  lluv_os_handle_t *h;
+  int dublicate = lua_toboolean(L, 2);
+
+#ifdef _WIN32
+  HANDLE newfd, handle = (HANDLE)lutil_checkint64(L, 1);
+  if(dublicate){
+    DWORD err = lluv_duplicate_handle(handle, &newfd);
+    if(err){
+      //! @todo return error.
+      return 0;
+    }
+    if(newfd == INVALID_HANDLE_VALUE){
+      //! @todo return error.
+      return 0;
+    }
+    handle = newfd;
+  }
+#else
+  int newfd, handle = luaL_checkinteger(L, 1);
+  if(dublicate){
+    int err = lluv_duplicate_handle(handle, &newfd);
+    if(err){
+      //! @todo return error.
+      return 0;
+    }
+    handle = newfd;
+  }
+#endif
+
+  h = lutil_newudatap(L, lluv_os_handle_t, LLUV_OS_HANDLE);
+  h->flags = LLUV_FLAG_OPEN;
+
+#ifdef _WIN32
+  h->fd = _open_osfhandle((intptr_t)handle, 0);
+#else
+  h->fd = handle;
+#endif
+
+  return 1;
+}
+
+static int lluv_os_handle_fd(lua_State *L){
+  lluv_os_handle_t *handle = lluv_check_os_handle(L, 1);
+
+  lutil_pushint64(L, handle->fd);
+  return 1;
+}
+
+static int lluv_os_handle_to_s(lua_State *L){
+  lluv_os_handle_t *handle = (lluv_os_handle_t *)lutil_checkudatap (L, 1, LLUV_OS_HANDLE);
+  luaL_argcheck (L, handle != NULL, 1, LLUV_OS_HANDLE_NAME" expected");
+
+  lua_pushfstring(L, LLUV_OS_HANDLE_NAME" - %p (%p)", (void*)((intptr_t)handle->fd), handle);
+
+  if(!IS(handle, LLUV_FLAG_OPEN)){
+    lua_pushliteral(L, " (closed)");
+    lua_concat(L, 2);
+  }
+
+  return 1;
+}
+
+static int lluv_os_handle_close(lua_State *L){
+  lluv_os_handle_t *handle = (lluv_os_handle_t *)lutil_checkudatap (L, 1, LLUV_OS_HANDLE);
+  luaL_argcheck (L, handle != NULL, 1, LLUV_OS_HANDLE_NAME" expected");
+
+  if(IS(handle, LLUV_FLAG_OPEN)){
+#ifdef _WIN32
+    _close(handle->fd);
+#else
+    close(handle->fd);
+#endif
+    UNSET(handle, LLUV_FLAG_OPEN);
+    handle->fd = 0;
+  }
+
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
+static const struct luaL_Reg lluv_os_handle_methods[] = {
+  { "fd",                                 lluv_os_handle_fd                        },
+  { "getfd",                              lluv_os_handle_fd                        },
+  { "close",                              lluv_os_handle_close                     },
+  { "__gc",                               lluv_os_handle_close                     },
+  { "__tostring",                         lluv_os_handle_to_s                      },
+
+  {NULL,NULL}
+};
+
 #define LLUV_PROCESS_NAME LLUV_PREFIX" Process"
 static const char *LLUV_PROCESS = LLUV_PROCESS_NAME;
 
@@ -194,7 +352,13 @@ static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
       uv_stdio_flags flags = 0;
 
       if(opt_exists(L, -1, "fd")){
-        opt->stdio[i].data.fd = (int)opt_get_int64 (L, -1, "fd",  0, "stdio.fd option must be a number" );
+        if(lutil_isudatap(L, -1, LLUV_OS_HANDLE)){
+          lluv_os_handle_t *h = lluv_check_os_handle(L, -1);
+          opt->stdio[i].data.fd = h->fd;
+        }
+        else{
+          opt->stdio[i].data.fd = (int)opt_get_int64 (L, -1, "fd",  0, "stdio.fd option must be a number or OS handle object" );
+        }
         flags = UV_INHERIT_FD;
       }
       else if(opt_exists(L, -1, "stream")){
@@ -224,9 +388,16 @@ static void opt_get_stdio(lua_State *L, int idx, uv_process_options_t *opt){
       opt->stdio[i].flags = UV_INHERIT_FD;
     }
     else if(lua_isuserdata(L, -1)){
-      lluv_handle_t *handle = lluv_check_stream(L, -1, LLUV_FLAG_OPEN);
-      opt->stdio[i].data.stream = LLUV_H(handle, uv_stream_t);
-      opt->stdio[i].flags = UV_INHERIT_STREAM;
+      if(lutil_isudatap(L, -1, LLUV_OS_HANDLE)){
+        lluv_os_handle_t *h = lluv_check_os_handle(L, -1);
+        opt->stdio[i].data.fd = h->fd;
+        opt->stdio[i].flags = UV_INHERIT_FD;
+      }
+      else{
+        lluv_handle_t *handle = lluv_check_stream(L, -1, LLUV_FLAG_OPEN);
+        opt->stdio[i].data.stream = LLUV_H(handle, uv_stream_t);
+        opt->stdio[i].flags = UV_INHERIT_STREAM;
+      }
     }
     else{
       lua_pushstring(L, "stdio element must be table, stream or number");
@@ -415,11 +586,12 @@ static const lluv_uv_const_t lluv_process_constants[] = {
 };
 
 #define LLUV_FUNCTIONS(F)                                        \
+  {"os_handle", lluv_os_handle_new_##F},                         \
   {"spawn", lluv_process_spawn_##F},                             \
   {"kill", lluv_pid_kill_##F},                                   \
   {"disable_stdio_inheritance", lluv_disable_stdio_inheritance}, \
 
-static const struct luaL_Reg lluv_functions[][4] = {
+static const struct luaL_Reg lluv_functions[][5] = {
   {
     LLUV_FUNCTIONS(unsafe)
 
@@ -435,6 +607,11 @@ static const struct luaL_Reg lluv_functions[][4] = {
 LLUV_INTERNAL void lluv_process_initlib(lua_State *L, int nup, int safe){
   lutil_pushnvalues(L, nup);
   if(!lutil_createmetap(L, LLUV_PROCESS, lluv_process_methods, nup))
+    lua_pop(L, nup);
+  lua_pop(L, 1);
+
+  lutil_pushnvalues(L, nup);
+  if(!lutil_createmetap(L, LLUV_OS_HANDLE, lluv_os_handle_methods, nup))
     lua_pop(L, nup);
   lua_pop(L, 1);
 
