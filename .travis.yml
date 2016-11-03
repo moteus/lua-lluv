@@ -43,6 +43,7 @@ before_script:
   - luarocks show luafilesystem || luarocks install luafilesystem
   - luarocks show lua-path      || luarocks install lua-path
   - luarocks show vararg-lua    || luarocks install vararg-lua
+  - luarocks show luasocket     || luarocks install luasocket
 
 script:
   - cd test
@@ -55,6 +56,7 @@ script:
   - lua test-gc-tcp.lua
   - lua test-data.lua
   - lua test-udp-send-ctx.lua
+  - lua test-os-handle.lua
   - lua -e"require'lluv.utils'.self_test()"
   - lunit.sh test-fs.lua
   - lunit.sh test-defer-error.lua
