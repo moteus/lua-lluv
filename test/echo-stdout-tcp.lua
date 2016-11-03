@@ -61,7 +61,7 @@ local FILE_TYPES = {
 
 local function PrintFileType(h)
   local t = ffi.C.GetFileType(h)
-  io.stdout:write(FILE_TYPES[t] or 'FILE_TYPE: ' .. tostring(t), '\n')
+  io.stderr:write(FILE_TYPES[t] or 'FILE_TYPE: ' .. tostring(t), '\n')
 end
 
 local stdout = ffi.C.GetStdHandle(STD_OUTPUT_HANDLE)
