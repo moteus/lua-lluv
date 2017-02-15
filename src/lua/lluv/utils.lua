@@ -197,6 +197,60 @@ function List:find(fn, pos)
   end
 end
 
+function List:remove(pos)
+  local s = self:size()
+
+  if pos < 0 then pos = s + pos + 1 end
+
+  if pos <= 0 or pos > s then return end
+
+  local offset = self._first + pos - 1
+
+  local v = self._t[offset]
+
+  if pos < s / 2 then
+    for i = offset, self._first, -1 do
+      self._t[i] = self._t[i-1]
+    end
+    self._first = self._first + 1
+  else
+    for i = offset, self._last do
+      self._t[i] = self._t[i+1]
+    end
+    self._last = self._last - 1
+  end
+
+  return v
+end
+
+function List:insert(pos, v)
+  assert(v ~= nil)
+
+  local s = self:size()
+
+  if pos < 0 then pos = s + pos + 1 end
+
+  if pos <= 0 or pos > (s + 1) then return end
+
+  local offset = self._first + pos - 1
+
+  if pos < s / 2 then
+    for i = self._first, offset do
+      self._t[i-1] = self._t[i]
+    end
+    self._t[offset - 1] = v
+    self._first = self._first - 1
+  else
+    for i = self._last, offset, - 1 do
+      self._t[i + 1] = self._t[i]
+    end
+    self._t[offset] = v
+    self._last = self._last + 1
+  end
+
+  return self
+end
+
 function List.self_test()
   local q = List:new()
 
@@ -261,6 +315,58 @@ function List.self_test()
   assert(2 == q:find(1, 2))
   assert(nil == q:find(1, 3))
 
+  q:reset() :push_back('a') :push_back('b') :push_back('c') :push_back('d')
+  assert('b' == q:remove(2))
+  assert('a' == q:pop_front())
+  assert('c' == q:pop_front())
+  assert('d' == q:pop_front())
+  assert(nil == q:pop_front())
+
+  q:reset() :push_front('a') :push_front('b') :push_front('c') :push_front('d')
+  assert('b' == q:remove(3))
+  assert('a' == q:pop_back())
+  assert('c' == q:pop_back())
+  assert('d' == q:pop_back())
+  assert(nil == q:pop_back())
+
+  q:reset() :push_back('a') :push_back('b') :push_back('c') :push_back('d')
+  assert('b' == q:remove(-3))
+  assert('a' == q:pop_front())
+  assert('c' == q:pop_front())
+  assert('d' == q:pop_front())
+  assert(nil == q:pop_front())
+
+  q:reset() :push_front('a') :push_front('b') :push_front('c') :push_front('d')
+  assert('b' == q:remove(-2))
+  assert('a' == q:pop_back())
+  assert('c' == q:pop_back())
+  assert('d' == q:pop_back())
+  assert(nil == q:pop_back())
+
+  q:reset() :push_front('a') :push_front('b') :push_front('c') :push_front('d')
+  assert(nil == q:remove(0))
+  assert(nil == q:remove(q:size() + 1))
+  assert(nil == q:remove(-q:size() - 1))
+  assert('a' == q:pop_back())
+  assert('b' == q:pop_back())
+  assert('c' == q:pop_back())
+  assert('d' == q:pop_back())
+
+  q:reset() :push_front('a') :push_front('b') :push_front('c') :push_front('d')
+  assert('a' == q:remove(-1))
+  assert('d' == q:remove(1))
+
+  q:reset() :push_front('a')
+  assert(q == q:insert(1, 'b'))
+  assert('a' == q:pop_back())
+  assert('b' == q:pop_back())
+
+  q:reset() :push_back('a') :push_back('b') :push_back('c')
+  assert(q == q:insert(-1, '$'))
+  assert('a' == q:pop_front())
+  assert('b' == q:pop_front())
+  assert('$' == q:pop_front())
+  assert('c' == q:pop_front())
 end
 
 end
