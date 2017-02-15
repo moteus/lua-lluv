@@ -9,9 +9,14 @@ lua-lluv
 
 ##Install
 
+Stable version
+```
+luarocks install lluv
+```
+
 Current master
 ```
-luarocks install lluv --server=https://rocks.moonscript.org/dev
+luarocks install --server=http://luarocks.org/dev lluv
 ```
 
 ###Related projects
