@@ -30,6 +30,7 @@ luarocks install --server=http://luarocks.org/dev lluv
  * [lluv-gsmmodem](https://github.com/moteus/lua-lluv-gsmmodem) - Control GSM modem connected to serial port using AT commands.
  * [lua-gntp](https://github.com/moteus/lua-gntp) - lluv connector to Growl notification system
  * [lluv-esl](https://github.com/moteus/lua-lluv-esl) - FreeSWITCH ESL implementation for lluv library
+ * [lluv-curl](https://github.com/moteus/lua-lluv-curl) - Make asyncronus requests using libuv and libcurl
 
 ### Example
 
