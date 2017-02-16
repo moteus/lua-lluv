@@ -9,7 +9,12 @@
 --  This file is part of lua-lluv library.
 --
 ------------------------------------------------------------------
-
+--
+-- Known limitations
+--  * does not suppot `text` mode. 
+--  * file:read does not support `*n` pattern
+--  * file:write supports only strings
+--
 --! @usage
 -- ut.corun(function()
 --   local f = cofs.open('test.txt', 'rb+')
@@ -40,11 +45,14 @@ local EOF = uv.error(uv.ERROR_UV, uv.EOF)
 
 local EOL = "\n"
 
+local BUFFER_SIZE = 4096
+
 local File = ut.class() do
 
 function File:__init()
-  self._co  = assert(coroutine.running())
-  self._buf = uv.buffer(10)
+  self._co   = assert(coroutine.running())
+  self._buf  = uv.buffer(BUFFER_SIZE)
+  self._wait = false
 
   return self
 end
@@ -53,8 +61,14 @@ function File:_resume(...)
   return co_resume(self._co, ...)
 end
 
+local function yield_ret(self, ...)
+  self._wait = false
+  return ...
+end
+
 function File:_yield(...)
-  return coroutine.yield(...)
+  self._wait = true
+  return yield_ret(self, coroutine.yield(...))
 end
 
 function File:attach(co)
@@ -63,7 +77,7 @@ function File:attach(co)
 end
 
 function File:interrupt(...)
-  if self._co and self._co ~= coroutine.running() then
+  if self._co and self._wait and self._co ~= coroutine.running() then
     self:_resume(nil, ...)
   end
 end
@@ -96,12 +110,6 @@ function File:open(path, mode)
   if not fd then return nil, err end
 
   self._fd, self._pos = fd, 0
-
-  self._stat, err = self:stat()
-  if not self._stat then
-    self:close()
-    return nil, err
-  end
 
   return self
 end
@@ -284,18 +292,23 @@ function File:seek(whence, offset)
   return self._pos
 end
 
-function File:stat()
+local function call_fs(self, fn, ...)
+  local args, n = {...}, select('#', ...) + 1
+
   local terminated
 
-  self._fd:stat(function(file, err, ...)
+  args[n] = function(file, err, ...)
     if terminated then return end
 
     if err then return self:_resume(nil, err) end
 
     self:_resume(...)
-  end)
+  end
+
+  fn(self._fd, unpack(args, 1, n))
 
   local ok, err = self:_yield()
+
   terminated = true
 
   if not ok then return nil, err end
@@ -303,17 +316,60 @@ function File:stat()
   return ok
 end
 
---! @todo
--- sync
--- datasync
--- truncate
--- chown
--- chmod
--- utime
+function File:stat()
+  return call_fs(self, self._fd.stat)
+end
+
+function File:sync()
+  return call_fs(self, self._fd.sync)
+end
+
+function File:datasync()
+  return call_fs(self, self._fd.datasync)
+end
+
+function File:truncate(offset)
+  return call_fs(self, self._fd.truncate, offset or 0)
+end
+
+function File:chown(uid, gid)
+  return call_fs(self, self._fd.chown, uid, gid)
+end
+
+function File:chmod(mod)
+  return call_fs(self, self._fd.chmod, mod)
+end
+
+function File:utime(atime, mtime)
+  return call_fs(self, self._fd.utime, atime, mtime)
+end
 
 end
 
 local cofs = {}
+
+local function call_fs(fn, ...)
+  local co = coroutine.running()
+
+  local args, n = {...}, select('#', ...) + 1
+
+  local terminated
+
+  args[n] = function(loop, err, ...)
+    if terminated then return end
+
+    if err then return co_resume(co, nil, err) end
+
+    co_resume(co, ...)
+  end
+
+  fn(path, unpack(args, 1, n))
+
+  local ok, err = co_yield()
+  terminated = true
+
+  return ok, err
+end
 
 function cofs.open(...)
   local file = File.new()
@@ -321,171 +377,59 @@ function cofs.open(...)
 end
 
 function cofs.unlink(path)
-  local co = coroutine.running()
-
-  uv.fs_unlink(path, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_unlink, path)
 end
 
 function cofs.mkdtemp(path)
-  local co = coroutine.running()
-
-  uv.fs_mkdtemp(path, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_mkdtemp, path)
 end
 
 function cofs.mkdir(path, mode)
-  local co = coroutine.running()
-
-  uv.fs_mkdir(path, mode or 0, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_mkdir, path)
 end
 
 function cofs.rmdir(path)
-  local co = coroutine.running()
-
-  uv.fs_rmdir(path, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_rmdir, path)
 end
 
 function cofs.scandir(path, flags)
-  local co = coroutine.running()
-
-  uv.fs_scandir(path, flags or 0, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_scandir, path, flags)
 end
 
 function cofs.stat(path)
-  local co = coroutine.running()
-
-  uv.fs_stat(path, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_stat, path)
 end
 
 function cofs.lstat(path)
-  local co = coroutine.running()
-
-  uv.fs_lstat(path, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_lstat, path)
 end
 
 function cofs.rename(path, new)
-  local co = coroutine.running()
-
-  uv.fs_rename(path, new, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_scandir, path, new)
 end
 
 function cofs.chmod(path, mode)
-  local co = coroutine.running()
-
-  uv.fs_chmod(path, mode, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_chmod, path, mode)
 end
 
 function cofs.utime(path, atime, mtime)
-  local co = coroutine.running()
-
-  uv.fs_utime(path, atime, mtime, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_utime, path, atime, mtime)
 end
 
 function cofs.symlink(path, new)
-  local co = coroutine.running()
-
-  uv.fs_symlink(path, new, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_symlink, path, new)
 end
 
 function cofs.readlink(path)
-  local co = coroutine.running()
-
-  uv.fs_readlink(path, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_readlink, path)
 end
 
 function cofs.chown(path, uid, gid)
-  local co = coroutine.running()
-
-  uv.fs_chown(path, uid, gid, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_chown, path, uid, gid)
 end
 
 function cofs.access(path, flags)
-  local co = coroutine.running()
-
-  uv.fs_access(path, flags, function(loop, err, ...)
-    if err then return co_resume(co, nil, err) end
-
-    co_resume(co, ...)
-  end)
-
-  return co_yield()
+  return call_fs(uv.fs_access, path, flags)
 end
 
 return cofs
