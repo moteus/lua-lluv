@@ -805,7 +805,7 @@ static int lluv_file_readb(lua_State* L) {
 
   LLUV_PRE_FILE();
   {
-    uv_buf_t ubuf = uv_buf_init(&base[offset], length);
+    uv_buf_t ubuf = lluv_buf_init(&base[offset], length);
 
     lua_pushvalue(L, 2);
     lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);
@@ -871,7 +871,7 @@ static int lluv_file_write(lua_State* L) {
 
   LLUV_PRE_FILE();
   {
-    uv_buf_t ubuf = uv_buf_init((char*)&str[offset], length);
+    uv_buf_t ubuf = lluv_buf_init((char*)&str[offset], length);
     
     lua_pushvalue(L, 2); /*string or buffer*/
     lua_rawsetp(L, LLUV_LUA_REGISTRY, &req->req);

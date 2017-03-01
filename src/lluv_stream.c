@@ -328,7 +328,7 @@ static int lluv_stream_stop_read(lua_State *L){
 static int lluv_stream_try_write(lua_State *L){
   lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
   size_t len; const char *str = luaL_checklstring(L, 2, &len);
-  int err; uv_buf_t buf = uv_buf_init((char*)str, len);
+  int err; uv_buf_t buf = lluv_buf_init((char*)str, len);
 
   lluv_check_none(L, 3);
 
@@ -418,7 +418,7 @@ static int lluv_stream_write_t(lua_State *L, lluv_handle_t  *handle){
     size_t len; const char *str;
     lua_rawgeti(L, 2, i + 1);
     str = luaL_checklstring(L, -1, &len);
-    buf[i] = uv_buf_init((char*)str, len);
+    buf[i] = lluv_buf_init((char*)str, len);
     lua_pop(L, 1);
   }
 
@@ -432,7 +432,7 @@ static int lluv_stream_write(lua_State *L){
   }
   else{
     size_t len; const char *str = luaL_checklstring(L, 2, &len);
-    uv_buf_t buf = uv_buf_init((char*)str, len);
+    uv_buf_t buf = lluv_buf_init((char*)str, len);
     return lluv_stream_write_(L, handle, &buf, 1);
   }
 }
@@ -449,7 +449,7 @@ static int lluv_stream_write2(lua_State *L){
     lua_insert(L, 3);
   }
   str = luaL_checklstring(L, 3, &len);
-  buf = uv_buf_init((char*)str, len);
+  buf = lluv_buf_init((char*)str, len);
 
   if(lua_gettop(L) == 3)
     lua_settop(L, 4);

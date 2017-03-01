@@ -103,7 +103,7 @@ LLUV_INTERNAL void lluv_push_status(lua_State *L, int status){
 }
 
 LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, uv_buf_t *buf){
-//  *buf = uv_buf_init(malloc(suggested_size), suggested_size);
+//  *buf = lluv_buf_init(malloc(suggested_size), suggested_size);
   lluv_handle_t *handle = lluv_handle_byptr(h);
   lluv_loop_t     *loop = lluv_loop_by_handle(h);
 
@@ -112,7 +112,7 @@ LLUV_INTERNAL void lluv_alloc_buffer_cb(uv_handle_t* h, size_t suggested_size, u
     buf->base = loop->buffer; buf->len = loop->buffer_size;
   }
   else{
-    *buf = uv_buf_init(lluv_alloc(handle->L, suggested_size), suggested_size);
+    *buf = lluv_buf_init(lluv_alloc(handle->L, suggested_size), suggested_size);
   }
 }
 
@@ -448,4 +448,11 @@ LLUV_INTERNAL int lluv_new_weak_table(lua_State*L, const char *mode){
   lua_setmetatable(L,-2);
   assert((top+1) == lua_gettop(L));
   return 1;
+}
+
+LLUV_INTERNAL uv_buf_t lluv_buf_init(char* base, size_t len) {
+  uv_buf_t buf;
+  buf.base = base;
+  buf.len = len;
+  return buf;
 }

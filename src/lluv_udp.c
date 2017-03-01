@@ -143,7 +143,7 @@ static int lluv_udp_try_send(lua_State *L){
   lluv_handle_t *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
   struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
   size_t len; const char *str = luaL_checklstring(L, 4, &len);
-  uv_buf_t buf = uv_buf_init((char*)str, len);
+  uv_buf_t buf = lluv_buf_init((char*)str, len);
 
   if(err < 0){
     lua_settop(L, 3);
@@ -209,7 +209,7 @@ static int lluv_udp_send_t(lua_State *L, lluv_handle_t  *handle, struct sockaddr
     size_t len; const char *str;
     lua_rawgeti(L, 4, i + 1);
     str = luaL_checklstring(L, -1, &len);
-    buf[i] = uv_buf_init((char*)str, len);
+    buf[i] = lluv_buf_init((char*)str, len);
     lua_pop(L, 1);
   }
 
@@ -245,7 +245,7 @@ static int lluv_udp_send(lua_State *L){
   }
   else{
     size_t len; const char *str = luaL_checklstring(L, 4, &len);
-    uv_buf_t buf = uv_buf_init((char*)str, len);
+    uv_buf_t buf = lluv_buf_init((char*)str, len);
     return lluv_udp_send_(L, handle, (struct sockaddr*)&sa, &buf, 1);
   }
 }

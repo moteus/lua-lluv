@@ -114,6 +114,8 @@ LLUV_INTERNAL int lluv_return(lua_State *L, lluv_handle_t *handle, int cb, int e
 
 LLUV_INTERNAL int lluv_new_weak_table(lua_State*L, const char *mode);
 
+LLUV_INTERNAL uv_buf_t lluv_buf_init(char* base, size_t len);
+
 typedef unsigned char lluv_flag_t;
 
 #define lluv_flags_t unsigned char
