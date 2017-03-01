@@ -32,6 +32,7 @@ luarocks install --server=http://luarocks.org/dev lluv
  * [lluv-esl](https://github.com/moteus/lua-lluv-esl) - FreeSWITCH ESL implementation for lluv library
  * [lluv-curl](https://github.com/moteus/lua-lluv-curl) - Make asyncronus requests using libuv and libcurl
  * [lluv-pg](https://github.com/moteus/lua-lluv-pg) - PostgreSQL client for lluv library
+ * [lluv-busted](https://github.com/moteus/lua-lluv-busted) - Support async tests for lluv library using [busted](https://github.com/Olivine-Labs/busted) 
 
 ### Example
 
