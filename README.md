@@ -19,7 +19,7 @@ Current master
 luarocks install --server=http://luarocks.org/dev lluv
 ```
 
-### elated projects
+### Related projects
  * [lluv-ssl](https://github.com/moteus/lua-lluv-ssl) - SSL/TLS sockets for lluv library
  * [lluv-websocket](https://github.com/moteus/lua-lluv-websocket) - Websocket sockets for lluv library
  * [lluv-redis](https://github.com/moteus/lua-lluv-redis) - Redis client for lluv library
