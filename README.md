@@ -33,6 +33,7 @@ luarocks install --server=http://luarocks.org/dev lluv
  * [lluv-curl](https://github.com/moteus/lua-lluv-curl) - Make asyncronus requests using libuv and libcurl
  * [lluv-pg](https://github.com/moteus/lua-lluv-pg) - PostgreSQL client for lluv library
  * [lluv-busted](https://github.com/moteus/lua-lluv-busted) - Support async tests for lluv library using [busted](https://github.com/Olivine-Labs/busted) 
+ * [lluv-qless](https://github.com/moteus/lua-lluv-qless) - Binding for [qless](https://github.com/seomoz/qless-core) - queue / pipeline management system
 
 ### Example
 
