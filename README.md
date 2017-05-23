@@ -3,11 +3,11 @@ lua-lluv
 [![Licence](http://img.shields.io/badge/Licence-MIT-brightgreen.svg)](LICENSE)
 [![Build Status](https://travis-ci.org/moteus/lua-lluv.svg?branch=master)](https://travis-ci.org/moteus/lua-lluv)
 
-##Lua low level binding to [libuv](https://github.com/libuv/libuv)
+## Lua low level binding to [libuv](https://github.com/libuv/libuv)
 
 ## Compatible with libuv>=1.0.0
 
-##Install
+## Install
 
 Stable version
 ```
@@ -19,7 +19,7 @@ Current master
 luarocks install --server=http://luarocks.org/dev lluv
 ```
 
-###Related projects
+### Related projects
  * [lluv-ssl](https://github.com/moteus/lua-lluv-ssl) - SSL/TLS sockets for lluv library
  * [lluv-websocket](https://github.com/moteus/lua-lluv-websocket) - Websocket sockets for lluv library
  * [lluv-redis](https://github.com/moteus/lua-lluv-redis) - Redis client for lluv library
@@ -33,6 +33,7 @@ luarocks install --server=http://luarocks.org/dev lluv
  * [lluv-curl](https://github.com/moteus/lua-lluv-curl) - Make asyncronus requests using libuv and libcurl
  * [lluv-pg](https://github.com/moteus/lua-lluv-pg) - PostgreSQL client for lluv library
  * [lluv-busted](https://github.com/moteus/lua-lluv-busted) - Support async tests for lluv library using [busted](https://github.com/Olivine-Labs/busted) 
+ * [lluv-qless](https://github.com/moteus/lua-lluv-qless) - Binding for [qless](https://github.com/seomoz/qless-core) - queue / pipeline management system
 
 ### Example
 
