@@ -33,17 +33,17 @@ before_install:
   - pip install --user hererocks
   - hererocks here -r^ --$LUA
   - export PATH=$PATH:$PWD/here/bin
-  - luarocks show lluv || bash .travis/setup_uv.sh
+  - luarocks show lluv > /dev/null 2>&1 || bash .travis/setup_uv.sh
 
 install:
   - luarocks make rockspecs/lluv-scm-0.rockspec UV_DIR=$TRAVIS_BUILD_DIR/libuv
 
 before_script:
-  - luarocks show lunitx        || luarocks install lunitx
-  - luarocks show luafilesystem || luarocks install luafilesystem
-  - luarocks show lua-path      || luarocks install lua-path
-  - luarocks show vararg-lua    || luarocks install vararg-lua
-  - luarocks show luasocket     || luarocks install luasocket
+  - luarocks show lunitx        > /dev/null 2>&1 || luarocks install lunitx
+  - luarocks show luafilesystem > /dev/null 2>&1 || luarocks install luafilesystem
+  - luarocks show lua-path      > /dev/null 2>&1 || luarocks install lua-path
+  - luarocks show vararg-lua    > /dev/null 2>&1 || luarocks install vararg-lua
+  - luarocks show luasocket     > /dev/null 2>&1 || luarocks install luasocket
 
 script:
   - cd test
