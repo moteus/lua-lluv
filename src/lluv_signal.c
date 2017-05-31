@@ -77,6 +77,25 @@ static int lluv_signal_start(lua_State *L){
   return lluv_return(L, handle, LLUV_START_CB(handle), err);
 }
 
+#if LLUV_UV_VER_GE(1,12,0)
+
+static int lluv_signal_start_oneshot(lua_State *L){
+  lluv_handle_t *handle = lluv_check_signal(L, 1, LLUV_FLAG_OPEN);
+  int signum = luaL_checkint(L, 2);
+  int err;
+
+  lluv_check_args_with_cb(L, 3);
+  LLUV_START_CB(handle) = luaL_ref(L, LLUV_LUA_REGISTRY);
+
+  err = uv_signal_start_oneshot(LLUV_H(handle, uv_signal_t), lluv_on_signal_start, signum);
+
+  if(err >= 0) lluv_handle_lock(L, handle, LLUV_LOCK_START);
+
+  return lluv_return(L, handle, LLUV_START_CB(handle), err);
+}
+
+#endif
+
 static int lluv_signal_stop(lua_State *L){
   lluv_handle_t *handle = lluv_check_signal(L, 1, LLUV_FLAG_OPEN);
   int err = uv_signal_stop(LLUV_H(handle, uv_signal_t));
@@ -109,8 +128,11 @@ LLUV_IMPL_SAFE(lluv_signal_default){
 }
 
 static const struct luaL_Reg lluv_signal_methods[] = {
-  { "start",      lluv_signal_start      },
-  { "stop",       lluv_signal_stop       },
+#if LLUV_UV_VER_GE(1,12,0)
+  { "start_oneshot",  lluv_signal_start_oneshot  },
+#endif
+  { "start",          lluv_signal_start          },
+  { "stop",           lluv_signal_stop           },
 
   {NULL,NULL}
 };
