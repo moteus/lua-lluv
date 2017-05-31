@@ -259,6 +259,40 @@ static int lluv_hrtime(lua_State *L){
   return 1;
 }
 
+#if LLUV_UV_VER_GE(1,6,0)
+
+LLUV_IMPL_SAFE(lluv_os_homedir){
+  char temp[255];
+  size_t size = sizeof(temp);
+  char *buf = &temp[0];
+
+  int err = uv_os_homedir(buf, &size);
+
+  if (err == UV_ENOBUFS) {
+    buf = lluv_alloc(L, size);
+    if(buf){
+      err = uv_os_homedir(buf, &size);
+    }
+  }
+
+  if(err < 0){
+    if(buf && buf != &temp[0]){
+      lluv_free(L, buf);
+    }
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushlstring(L, buf, size);
+
+  if(buf && buf != &temp[0]){
+    lluv_free(L, buf);
+  }
+
+  return 1;
+}
+
+#endif
+
 #if LLUV_UV_VER_GE(1,9,0)
 
 LLUV_IMPL_SAFE(lluv_os_get_passwd){
@@ -282,6 +316,109 @@ LLUV_IMPL_SAFE(lluv_os_get_passwd){
 
 #endif
 
+#if LLUV_UV_VER_GE(1,12,0)
+
+LLUV_IMPL_SAFE(lluv_os_gethostname){
+  char temp[255];
+  size_t size = sizeof(temp);
+  char *buf = &temp[0];
+
+  int err = uv_os_gethostname(buf, &size);
+
+  if (err == UV_ENOBUFS) {
+    buf = lluv_alloc(L, size);
+    if(buf){
+      err = uv_os_gethostname(buf, &size);
+    }
+  }
+
+  if(err < 0){
+    if(buf && buf != &temp[0]){
+      lluv_free(L, buf);
+    }
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushlstring(L, buf, size);
+
+  if(buf && buf != &temp[0]){
+    lluv_free(L, buf);
+  }
+
+  return 1;
+}
+
+// UV_EXTERN int uv_os_getenv(const char* name, char* buffer, size_t* size);
+// UV_EXTERN int uv_os_setenv(const char* name, const char* value);
+// UV_EXTERN int uv_os_unsetenv(const char* name);
+
+LLUV_IMPL_SAFE(lluv_os_getenv){
+  char temp[255];
+  size_t size = sizeof(temp);
+  char *buf = &temp[0];
+  const char *name = luaL_checkstring(L, 1);
+
+  int err = uv_os_getenv(name, buf, &size);
+
+  if (err == UV_ENOBUFS) {
+    buf = lluv_alloc(L, size);
+    if(buf){
+      err = uv_os_getenv(name, buf, &size);
+    }
+  }
+
+  if(err < 0){
+    if(buf && buf != &temp[0]){
+      lluv_free(L, buf);
+    }
+    if(err == UV_ENOENT){
+      lua_pushnil(L);
+      return 1;
+    }
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushlstring(L, buf, size);
+
+  if(buf && buf != &temp[0]){
+    lluv_free(L, buf);
+  }
+
+  return 1;
+}
+
+LLUV_IMPL_SAFE(lluv_os_setenv){
+  const char *name  = luaL_checkstring(L, 1);
+  const char *value = luaL_checkstring(L, 2);
+
+  int err = uv_os_setenv(name, value);
+
+  if(err < 0){
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushboolean(L, 1);
+
+  return 1;
+}
+
+LLUV_IMPL_SAFE(lluv_os_unsetenv){
+  const char *name  = luaL_checkstring(L, 1);
+
+  int err = uv_os_unsetenv(name);
+
+  if(err < 0){
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushboolean(L, 1);
+
+  return 1;
+}
+
+#endif
+
+
 static const lluv_uv_const_t lluv_misc_constants[] = {
   { 0, NULL }
 };
@@ -289,7 +426,16 @@ static const lluv_uv_const_t lluv_misc_constants[] = {
 enum {
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY = 15,
   #if LLUV_UV_VER_GE(1,9,0)
-  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1,
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_9_0_1,
+  #endif
+  #if LLUV_UV_VER_GE(1,6,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_6_0_1,
+  #endif
+  #if LLUV_UV_VER_GE(1,12,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_12_0_1,
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_12_0_2,
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_12_0_3,
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_12_0_4,
   #endif
   LLUV_MISC_FUNCTIONS_COUNT
 };
@@ -310,21 +456,42 @@ enum {
   { "get_free_memory",     lluv_get_free_memory     }, \
   { "hrtime",              lluv_hrtime              }, \
 
+#define LLUV_MISC_FUNCTIONS_1_6_0(F)                   \
+  { "os_homedir",          lluv_os_homedir_##F      }, \
+
 #define LLUV_MISC_FUNCTIONS_1_9_0(F)                   \
   { "os_get_passwd",       lluv_os_get_passwd_##F   }, \
+
+#define LLUV_MISC_FUNCTIONS_1_12_0(F)                  \
+  { "os_gethostname",      lluv_os_gethostname_##F  }, \
+  { "os_getenv",           lluv_os_getenv_##F       }, \
+  { "os_setenv",           lluv_os_setenv_##F       }, \
+  { "os_unsetenv",         lluv_os_unsetenv_##F     }, \
 
 static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = {
   {
     LLUV_MISC_FUNCTIONS(unsafe)
+#if LLUV_UV_VER_GE(1,6,0)
+    LLUV_MISC_FUNCTIONS_1_6_0(unsafe)
+#endif
 #if LLUV_UV_VER_GE(1,9,0)
     LLUV_MISC_FUNCTIONS_1_9_0(unsafe)
+#endif
+#if LLUV_UV_VER_GE(1,12,0)
+    LLUV_MISC_FUNCTIONS_1_12_0(unsafe)
 #endif
     {NULL,NULL}
   },
   {
     LLUV_MISC_FUNCTIONS(safe)
+#if LLUV_UV_VER_GE(1,6,0)
+    LLUV_MISC_FUNCTIONS_1_6_0(safe)
+#endif
 #if LLUV_UV_VER_GE(1,9,0)
     LLUV_MISC_FUNCTIONS_1_9_0(safe)
+#endif
+#if LLUV_UV_VER_GE(1,12,0)
+    LLUV_MISC_FUNCTIONS_1_12_0(safe)
 #endif
     {NULL,NULL}
   },
