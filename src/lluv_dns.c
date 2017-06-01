@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2016 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2017 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -107,7 +107,6 @@ static void lluv_on_getnameinfo(uv_getnameinfo_t* arg, int status, const char* h
   }
 
   lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_req_free(L, req);
   assert(!lua_isnil(L, -1));
 
   lluv_loop_pushself(L, loop);
@@ -115,36 +114,19 @@ static void lluv_on_getnameinfo(uv_getnameinfo_t* arg, int status, const char* h
   if(hostname)lua_pushstring(L, hostname); else lua_pushnil(L);
   if(service) lua_pushstring(L, service);  else lua_pushnil(L);
 
+  lluv_req_free(L, req);
+
   LLUV_LOOP_CALL_CB(L, loop, 4);
 
   LLUV_CHECK_LOOP_CB_INVARIANT(L);
 }
 
-static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrinfo* res){
-  lluv_req_t  *req   = lluv_req_byptr((uv_req_t*)arg);
-  lluv_loop_t *loop  = lluv_loop_byptr(arg->loop);
-  lua_State   *L     = loop->L;
+static void lluv_push_addrinfo(lua_State *L, struct addrinfo* res){
   struct addrinfo* a = res;
   int i = 0;
 
-  LLUV_CHECK_LOOP_CB_INVARIANT(L);
-
-  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
-  lluv_req_free(L, req);
-  assert(!lua_isnil(L, -1));
-
-  lluv_loop_pushself(L, loop);
-
-  if(status < 0){
-    uv_freeaddrinfo(res);
-    lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
-    LLUV_LOOP_CALL_CB(L, loop, 2);
-    LLUV_CHECK_LOOP_CB_INVARIANT(L);
-    return;
-  }
-
-  lua_pushnil(L);
   lua_newtable(L);
+
   for(a = res; a; a = a->ai_next){
     char buf[INET6_ADDRSTRLEN + 1];
     int port;
@@ -192,6 +174,32 @@ static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrin
 
     lua_rawseti(L, -2, ++i);
   }
+}
+
+static void lluv_on_getaddrinfo(uv_getaddrinfo_t* arg, int status, struct addrinfo* res){
+  lluv_req_t  *req   = lluv_req_byptr((uv_req_t*)arg);
+  lluv_loop_t *loop  = lluv_loop_byptr(arg->loop);
+  lua_State   *L     = loop->L;
+
+  LLUV_CHECK_LOOP_CB_INVARIANT(L);
+
+  lua_rawgeti(L, LLUV_LUA_REGISTRY, req->cb);
+  lluv_req_free(L, req);
+  assert(!lua_isnil(L, -1));
+
+  lluv_loop_pushself(L, loop);
+
+  if(status < 0){
+    uv_freeaddrinfo(res);
+    lluv_error_create(L, LLUV_ERR_UV, (uv_errno_t)status, NULL);
+    LLUV_LOOP_CALL_CB(L, loop, 2);
+    LLUV_CHECK_LOOP_CB_INVARIANT(L);
+    return;
+  }
+
+  lua_pushnil(L);
+
+  lluv_push_addrinfo(L, res);
 
   uv_freeaddrinfo(res);
   LLUV_LOOP_CALL_CB(L, loop, 3);
@@ -236,6 +244,7 @@ LLUV_IMPL_SAFE(lluv_getaddrinfo){
     const char *node;
     const char *service = NULL;
     lluv_req_t *req; int err;
+    int no_callback = 0;
     struct addrinfo hints;
 
     memset(&hints, 0, sizeof(hints));
@@ -267,13 +276,34 @@ LLUV_IMPL_SAFE(lluv_getaddrinfo){
       lua_getfield(L, hi, "flags");
       hints.ai_flags = lluv_opt_flags_ui(L, -1, 0, FLAGS);
       lua_pop(L, 1);
+
+      no_callback = lua_isnoneornil(L, argc + 4);
     }
+    else {
+      no_callback = lua_isnoneornil(L, argc + 3);
+    }
+
+#if LLUV_UV_VER_GE(1,3,0)
+    if(no_callback){
+      req = lluv_req_new(L, UV_GETADDRINFO, NULL);
+      err = uv_getaddrinfo(loop->handle, LLUV_R(req, getaddrinfo), NULL, node, service, &hints);
+      lua_settop(L, 0);
+      if(err < 0){
+        lluv_req_free(L, req);
+        return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+      }
+      lluv_push_addrinfo(L, LLUV_R(req, getaddrinfo)->addrinfo);
+      uv_freeaddrinfo(LLUV_R(req, getaddrinfo)->addrinfo);
+      lluv_req_free(L, req);
+      return 1;
+    }
+#endif
 
     lluv_check_args_with_cb(L, argc + 4);
     req = lluv_req_new(L, UV_GETADDRINFO, NULL);
 
     err = uv_getaddrinfo(loop->handle, LLUV_R(req, getaddrinfo), lluv_on_getaddrinfo, node, service, &hints);
-    
+
     lua_settop(L, 0);
     lluv_loop_pushself(L, loop);
 
@@ -282,6 +312,8 @@ LLUV_IMPL_SAFE(lluv_getaddrinfo){
 }
 
 LLUV_IMPL_SAFE(lluv_getnameinfo){
+#define ARGN(n) (argc + n)
+
   static const lluv_uv_const_t FLAGS[] = {
     { NI_NOFQDN,        "nofqdn"       },
     { NI_NUMERICHOST,   "numerichost"  },
@@ -299,16 +331,17 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
     struct sockaddr_storage sa;
     int err; unsigned int flags = 0;
     lluv_req_t *req;
+    int has_callback = lua_isfunction(L, -1);
 
-    if(!lua_isnumber(L, argc + 2)){
+    // Push port number
+    if(!lua_isnumber(L, ARGN(2))){
       lua_pushinteger(L, 0);
-      lua_insert(L, argc + 2);
+      lua_insert(L, ARGN(2));
     }
 
-    err = lluv_check_addr(L, argc + 1, &sa);
+    err = lluv_check_addr(L, ARGN(1), &sa);
     if(err < 0){
-      int top = lua_gettop(L);
-      if(!lua_isfunction(L, top)){
+      if(!has_callback){
         return lluv_fail(L, safe_flag | loop->flags, LLUV_ERR_UV, err, lua_tostring(L, argc + 1));
       }
       lluv_loop_pushself(L, loop);
@@ -317,11 +350,32 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
       lluv_loop_pushself(L, loop);
       return 1;
     }
-    
-    if(!lua_isfunction(L, argc + 3))
-      flags = lluv_opt_flags_ui(L, 4, 0, FLAGS);
+    // ARG 1 - Address
+    // ARG 2 - Port
 
-    lluv_check_args_with_cb(L, argc + 4);
+    if(!lua_isfunction(L, ARGN(3))){
+      flags = lluv_opt_flags_ui(L, ARGN(3), 0, FLAGS);
+    }
+
+#if LLUV_UV_VER_GE(1,3,0)
+    if(!has_callback){
+      uv_getnameinfo_t *ni;
+      req = lluv_req_new(L, UV_GETNAMEINFO, NULL);
+      err = uv_getnameinfo(loop->handle, LLUV_R(req, getnameinfo), NULL, (struct sockaddr*)&sa, flags);
+      if(err < 0){
+        lluv_req_free(L, req);
+        return lluv_fail(L, loop->flags, LLUV_ERR_UV, err, NULL);
+      }
+      ni = LLUV_R(req, getnameinfo);
+      lua_settop(L, 0);
+      lua_pushstring(L, LLUV_R(req, getnameinfo)->host);
+      lua_pushstring(L, LLUV_R(req, getnameinfo)->service);
+      lluv_req_free(L, req);
+      return 2;
+    }
+#endif
+
+    lluv_check_args_with_cb(L, ARGN(4));
     req = lluv_req_new(L, UV_GETNAMEINFO, NULL);
 
     err = uv_getnameinfo(loop->handle, LLUV_R(req, getnameinfo), lluv_on_getnameinfo, (struct sockaddr*)&sa, flags);
@@ -330,6 +384,7 @@ LLUV_IMPL_SAFE(lluv_getnameinfo){
     lluv_loop_pushself(L, loop);
     return lluv_return_loop_req(L, loop, req, err);
   }
+#undef ARGN
 }
 
 static const lluv_uv_const_t lluv_dns_constants[] = {

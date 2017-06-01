@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2016 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2017 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -328,7 +328,9 @@ LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int
     }
     return flags;
   }
-  lua_pushstring(L, "Unsupported flag type");
+  lua_pushstring(L, "Unsupported flag type: ");
+  lua_pushstring(L, lua_typename(L, idx));
+  lua_concat(L, 2);
   return lua_error(L);
 }
 
@@ -346,7 +348,9 @@ LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d
     lua_pushfstring(L, "Unknown constant: `%s`", key);
     return lua_error(L);
   }
-  lua_pushstring(L, "Unsupported constant type");
+  lua_pushstring(L, "Unsupported constant type: ");
+  lua_pushstring(L, lua_typename(L, idx));
+  lua_concat(L, 2);
   return lua_error(L);
 }
 
