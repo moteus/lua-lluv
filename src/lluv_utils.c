@@ -467,3 +467,59 @@ uv_os_sock_t lluv_check_os_sock(lua_State *L, int idx){
   }
   return (uv_os_sock_t)lutil_checkint64(L, idx);
 }
+
+void lluv_push_os_fd(lua_State *L, uv_os_fd_t fd){
+#if !defined(_WIN32)
+  lutil_pushint64(L, (uint64_t)fd);
+#else
+  LLUV_ASSERT_SAME_SIZE(uv_os_fd_t, uv_os_sock_t);
+  lluv_push_os_socket(L, (uv_os_sock_t)fd);
+#endif
+}
+
+void lluv_push_os_socket(lua_State *L, uv_os_sock_t fd) {
+#if !defined(_WIN32)
+  lutil_pushint64(L, (uint64_t)fd);
+#else /*_WIN32*/
+  /* Assumes that compiler can optimize constant conditions. MSVC do this. */
+
+  /*On Lua 5.3 lua_Integer type can be represented exactly*/
+#if LUA_VERSION_NUM >= 503
+  if (sizeof(uv_os_sock_t) <= sizeof(lua_Integer)) {
+    lua_pushinteger(L, (lua_Integer)fd);
+    return;
+  }
+#endif
+
+#if defined(LUA_NUMBER_DOUBLE) || defined(LUA_NUMBER_FLOAT)
+  /*! @todo test DBL_MANT_DIG, FLT_MANT_DIG */
+
+  if (sizeof(lua_Number) == 8) { /*we have 53 bits for integer*/
+    if ((sizeof(uv_os_sock_t) <= 6)) {
+      lua_pushnumber(L, (lua_Number)fd);
+      return;
+    }
+
+    if(((UINT_PTR)fd & 0x1FFFFFFFFFFFFF) == (UINT_PTR)fd)
+      lua_pushnumber(L, (lua_Number)fd);
+    else
+      lua_pushlightuserdata(L, (void*)fd);
+
+    return;
+  }
+
+  if (sizeof(lua_Number) == 4) { /*we have 24 bits for integer*/
+    if (((UINT_PTR)fd & 0xFFFFFF) == (UINT_PTR)fd)
+      lua_pushnumber(L, (lua_Number)fd);
+    else
+      lua_pushlightuserdata(L, (void*)fd);
+    return;
+  }
+#endif
+
+  lutil_pushint64(L, fd);
+  if (lluv_check_os_sock(L, -1) != fd)
+    lua_pushlightuserdata(L, (void*)fd);
+
+#endif /*_WIN32*/
+}

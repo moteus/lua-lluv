@@ -420,7 +420,7 @@ static int lluv_handle_fileno(lua_State *L){
   if(err<0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
-  lutil_pushint64(L, (uint64_t)fd);
+  lluv_push_os_fd(L, fd);
   return 1;
 }
 

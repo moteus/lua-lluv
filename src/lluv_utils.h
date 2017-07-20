@@ -49,6 +49,14 @@ typedef struct lluv_loop_tag lluv_loop_t;
 
 extern const char *LLUV_MEMORY_ERROR_MARK;
 
+#define LLUV_CONCAT_STATIC_ASSERT_IMPL_(x, y) LLUV_CONCAT1_STATIC_ASSERT_IMPL_ (x, y)
+#define LLUV_CONCAT1_STATIC_ASSERT_IMPL_(x, y) x##y
+#define LLUV_STATIC_ASSERT(expr) typedef char LLUV_CONCAT_STATIC_ASSERT_IMPL_(static_assert_failed_at_line_, __LINE__) [(expr) ? 1 : -1]
+
+#define LLUV_ASSERT_SAME_SIZE(a, b) LLUV_STATIC_ASSERT( sizeof(a) == sizeof(b) )
+#define LLUV_ASSERT_SAME_OFFSET(a, am, b, bm) LLUV_STATIC_ASSERT( (offsetof(a,am)) == (offsetof(b,bm)) )
+#define LLUV_ASSERT_SAME_FIELD_SIZE(a, am, b, bm) LLUV_ASSERT_SAME_SIZE(((a*)0)->am, ((b*)0)->bm)
+
 typedef struct lluv_uv_const_tag{
   ssize_t     code;
   const char *name;
@@ -117,6 +125,10 @@ LLUV_INTERNAL int lluv_new_weak_table(lua_State*L, const char *mode);
 LLUV_INTERNAL uv_buf_t lluv_buf_init(char* base, size_t len);
 
 LLUV_INTERNAL uv_os_sock_t lluv_check_os_sock(lua_State *L, int idx);
+
+LLUV_INTERNAL void lluv_push_os_socket(lua_State *L, uv_os_sock_t fd);
+
+LLUV_INTERNAL void lluv_push_os_fd(lua_State *L, uv_os_fd_t fd);
 
 typedef unsigned char lluv_flag_t;
 
