@@ -40,7 +40,7 @@ LLUV_IMPL_SAFE(lluv_poll_create){
 
 LLUV_IMPL_SAFE(lluv_poll_create_socket){
   lluv_loop_t *loop  = lluv_opt_loop(L, 1, LLUV_FLAG_OPEN);
-  uv_os_sock_t socket = (uv_os_sock_t)lutil_checkint64(L, loop ? 2 : 1);
+  uv_os_sock_t socket = lluv_check_os_sock(L, loop ? 2 : 1);
   lluv_handle_t *handle; int err;
 
   if(!loop) loop = lluv_default_loop(L);

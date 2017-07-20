@@ -147,7 +147,7 @@ static int lluv_tcp_bind(lua_State *L){
 
 static int lluv_tcp_open(lua_State *L){
   lluv_handle_t  *handle = lluv_check_tcp(L, 1, LLUV_FLAG_OPEN);
-  uv_os_sock_t sock = (uv_os_sock_t)lutil_checkint64(L, 2);
+  uv_os_sock_t sock = lluv_check_os_sock(L, 2);
   int err = uv_tcp_open(LLUV_H(handle, uv_tcp_t), sock);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);

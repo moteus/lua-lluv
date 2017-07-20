@@ -460,3 +460,10 @@ LLUV_INTERNAL uv_buf_t lluv_buf_init(char* base, size_t len) {
   buf.len = len;
   return buf;
 }
+
+uv_os_sock_t lluv_check_os_sock(lua_State *L, int idx){
+  if(lua_islightuserdata(L, idx)){
+    return (uv_os_sock_t)lua_touserdata(L, idx);
+  }
+  return (uv_os_sock_t)lutil_checkint64(L, idx);
+}

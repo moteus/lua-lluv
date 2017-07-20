@@ -59,7 +59,7 @@ static lluv_handle_t* lluv_check_udp(lua_State *L, int idx, lluv_flags_t flags){
 
 static int lluv_udp_open(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
-  uv_os_sock_t sock = (uv_os_sock_t)lutil_checkint64(L, 2);
+  uv_os_sock_t sock = lluv_check_os_sock(L, 2);
   int err = uv_udp_open(LLUV_H(handle, uv_udp_t), sock);
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
