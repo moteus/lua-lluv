@@ -517,7 +517,7 @@ void lluv_push_os_socket(lua_State *L, uv_os_sock_t fd) {
   }
 #endif
 
-  lutil_pushint64(L, fd);
+  lutil_pushint64(L, (uint64_t)fd);
   if (lluv_check_os_sock(L, -1) != fd)
     lua_pushlightuserdata(L, (void*)fd);
 

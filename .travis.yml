@@ -57,6 +57,7 @@ script:
   - lua test-data.lua
   - lua test-udp-send-ctx.lua
   - lua test-os-handle.lua
+  - lua test-os-socket.lua
   - lua test-env.lua
   - lua -e"require'lluv.utils'.self_test()"
   - lunit.sh test-fs.lua
