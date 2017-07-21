@@ -99,6 +99,25 @@ local function class_self_test()
 end
 
 -------------------------------------------------------------------
+local Class = {} do
+
+setmetatable(Class, {__call = function(_, ...) return class(...) end})
+
+local function super(class, self, method, ...)
+  if class.__base and class.__base[method] then
+    return class.__base[method](self, ...)
+  end
+  if method == '__init' then return self end
+end
+
+function Class.super(class)
+  return function(...) return super(class, ...) end
+end
+
+end
+-------------------------------------------------------------------
+
+-------------------------------------------------------------------
 local corun do
 
 local uv = require "lluv"
@@ -895,7 +914,7 @@ return {
   List        = List;
   Errors      = MakeErrors;
   DeferQueue  = DeferQueue;
-  class       = class;
+  class       = Class;
   split_first = split_first;
   split       = split;
   usplit      = usplit;

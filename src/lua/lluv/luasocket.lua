@@ -213,11 +213,12 @@ end
 
 ----------------------------------------------------------------------------
 local TcpSock = ut.class(BaseSock) do
+local super = ut.class.super(TcpSock)
 
 local MAX_ACCEPT_COUNT = 10
 
 function TcpSock:__init(s)
-  assert(TcpSock.__base.__init(self))
+  self = assert(super(self, '__init'))
 
   self._buf   = assert(ut.Buffer.new("\r*\n", true))
 
@@ -427,9 +428,10 @@ end
 
 ----------------------------------------------------------------------------
 local UdpSock = ut.class(BaseSock) do
+local super = ut.class.super(UdpSock)
 
 function UdpSock:__init(s)
-  assert(UdpSock.__base.__init(self))
+  self = assert(super(self, '__init'))
 
   self._buf   = assert(ut.Queue.new())
 
