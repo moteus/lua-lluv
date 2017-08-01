@@ -59,6 +59,7 @@ script:
   - lua test-os-handle.lua
   - lua test-os-socket.lua
   - lua test-env.lua
+  - lua test-error-handler.lua
   - lua -e"require'lluv.utils'.self_test()"
   - lunit.sh test-fs.lua
   - lunit.sh test-defer-error.lua
