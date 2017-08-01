@@ -13,5 +13,8 @@ uv.run(function(msg)
 end)
 
 if not pass then
+	print('Fail!')
 	os.exit(-1)
 end
+
+print('Done!')

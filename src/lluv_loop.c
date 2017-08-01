@@ -327,10 +327,6 @@ static int lluv_loop_to_s(lua_State *L){
   return 1;
 }
 
-static int lluv_dummy_traceback(lua_State *L){
-  return 1;
-}
-
 static int lluv_loop_run_impl(lua_State *L){
   lluv_loop_t* loop = lluv_check_loop(L, LLUV_LOOP_INDEX, 0);
   uv_run_mode  mode = (uv_run_mode)luaL_checkinteger(L, 1);
@@ -391,7 +387,7 @@ static int lluv_loop_run(lua_State *L){
 
   if(!lua_isfunction(L,3)){
     lua_pop(L, 1);
-    lua_pushcfunction(L, lluv_dummy_traceback);
+    lua_pushnil(L);
   }
 
                                               /* loop, mode, err */

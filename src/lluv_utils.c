@@ -55,9 +55,25 @@ LLUV_INTERNAL void lluv_free(lua_State* L, void *ptr){
 }
 
 LLUV_INTERNAL int lluv_lua_call(lua_State* L, int narg, int nret){
-  int error_handler = lua_isnil(L, LLUV_ERROR_HANDLER_INDEX) ? 0 : LLUV_ERROR_HANDLER_INDEX;
-  int ret = lua_pcall(L, narg, nret, error_handler);
- 
+  int ret, error_handler = lua_isnil(L, LLUV_ERROR_HANDLER_INDEX) ? 0 : LLUV_ERROR_HANDLER_INDEX;
+
+  // On Lua it is possible use upvalueindex directly. (Tested On Lua 5.1-5.3)
+  // But it is fail on LuaJIT.
+  // But Lua manual says `In the current implementation, this index cannot be a pseudo-index`
+  // May be use runtime check for LuaJIT?
+
+  if(error_handler){
+    lua_pushvalue(L, error_handler);
+    error_handler = lua_absindex(L, -(narg+2));
+    lua_insert(L, error_handler);
+  }
+
+  ret = lua_pcall(L, narg, nret, error_handler);
+
+  if(error_handler){
+    lua_remove(L, error_handler);
+  }
+
   if(!ret) return 0;
 
   if(ret == LUA_ERRMEM) lua_pushlightuserdata(L, (void*)LLUV_MEMORY_ERROR_MARK);
