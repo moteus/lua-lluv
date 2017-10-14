@@ -353,7 +353,7 @@ LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int
 LLUV_INTERNAL unsigned int lluv_opt_flags_ui_2(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names){
   if(lua_type(L, idx) == LUA_TSTRING){
     const lluv_uv_const_t *name;
-    const char key = lua_tostring(L, idx);
+    const char *key = lua_tostring(L, idx);
     for(name = names; name->name; ++name){
       if(0 == strcmp(name->name, key)){
         return name->code;
@@ -362,7 +362,7 @@ LLUV_INTERNAL unsigned int lluv_opt_flags_ui_2(lua_State *L, int idx, unsigned i
     lua_pushfstring(L, "Unknown flag: `%s`", key);
     return lua_error(L);
   }
-  return lluv_opt_flags_ui(L, idx, d, names)
+  return lluv_opt_flags_ui(L, idx, d, names);
 }
 
 LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names){
