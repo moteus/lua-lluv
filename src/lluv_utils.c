@@ -345,7 +345,7 @@ LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int
     return flags;
   }
   lua_pushstring(L, "Unsupported flag type: ");
-  lua_pushstring(L, lua_typename(L, idx));
+  lua_pushstring(L, lua_typename(L, lua_type(L, idx)));
   lua_concat(L, 2);
   return lua_error(L);
 }
