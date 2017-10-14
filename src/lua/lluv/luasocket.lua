@@ -173,6 +173,12 @@ function BaseSock:getsockname()
   return self._sock:getsockname()
 end
 
+function BaseSock:getpeername()
+  if not self._sock then return nil, self._err end
+
+  return self._sock:getpeername()
+end
+
 function BaseSock:getfd()
   if not self._sock then return -1 end
   return self._sock:fileno()
