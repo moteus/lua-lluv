@@ -137,6 +137,24 @@ it("unlink async bad file", function()
   assert_true(run_flag)
 end)
 
+it("access without flag", function()
+  assert(path.exists(TEST_FILE))
+  assert_true(uv.fs_access(TEST_FILE))
+  assert_equal(0, uv.run())
+end)
+
+it("access with string flag", function()
+  assert(path.exists(TEST_FILE))
+  assert_true(uv.fs_access(TEST_FILE, 'read'))
+  assert_equal(0, uv.run())
+end)
+
+it("access with array flag", function()
+  assert(path.exists(TEST_FILE))
+  assert_true(uv.fs_access(TEST_FILE, {'read', 'write'}))
+  assert_equal(0, uv.run())
+end)
+
 end
 
 RUN()

@@ -104,6 +104,9 @@ LLUV_INTERNAL void lluv_register_constants(lua_State* L, const lluv_uv_const_t* 
 
 LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names);
 
+/* allows pass flag name as string */
+LLUV_INTERNAL unsigned int lluv_opt_flags_ui_2(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names);
+
 LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names);
 
 LLUV_INTERNAL unsigned int lluv_opt_af_flags(lua_State *L, int idx, unsigned int d);

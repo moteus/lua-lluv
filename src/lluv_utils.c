@@ -350,6 +350,21 @@ LLUV_INTERNAL unsigned int lluv_opt_flags_ui(lua_State *L, int idx, unsigned int
   return lua_error(L);
 }
 
+LLUV_INTERNAL unsigned int lluv_opt_flags_ui_2(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names){
+  if(lua_type(L, idx) == LUA_TSTRING){
+    const lluv_uv_const_t *name;
+    const char key = lua_tostring(L, idx);
+    for(name = names; name->name; ++name){
+      if(0 == strcmp(name->name, key)){
+        return name->code;
+      }
+    }
+    lua_pushfstring(L, "Unknown flag: `%s`", key);
+    return lua_error(L);
+  }
+  return lluv_opt_flags_ui(L, idx, d, names)
+}
+
 LLUV_INTERNAL ssize_t lluv_opt_named_const(lua_State *L, int idx, unsigned int d, const lluv_uv_const_t* names){
   if(lua_isnoneornil(L, idx)) return d;
   if(lua_isnumber(L, idx)) return (lua_Integer)lutil_checkint64(L, idx);
@@ -379,11 +394,7 @@ LLUV_INTERNAL unsigned int lluv_opt_af_flags(lua_State *L, int idx, unsigned int
     {0, NULL}
   };
 
-  if(lua_type(L, idx) == LUA_TSTRING){
-    return lluv_opt_named_const(L, idx, d, FLAGS);
-  }
-
-  return lluv_opt_flags_ui(L, idx, d, FLAGS);
+  return lluv_opt_flags_ui_2(L, idx, d, FLAGS);
 }
 
 LLUV_INTERNAL void lluv_push_timeval(lua_State *L, const uv_timeval_t *tv){
