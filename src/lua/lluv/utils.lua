@@ -418,7 +418,18 @@ end
 local Buffer = class() do
 
 -- eol should ends with specific char.
+-- `\r*\n` is valid, but `\r\n?` is not.
 
+-- leave separator as part of first string
+local function split_first_eol(str, sep, plain)
+  local e, e2 = string.find(str, sep, nil, plain)
+  if e then
+    return string.sub(str, 1, e2), string.sub(str, e2 + 1), 0
+  end
+  return str
+end
+
+-- returns separator length as third return value
 local function split_first_ex(str, sep, plain)
   local e, e2 = string.find(str, sep, nil, plain)
   if e then
@@ -467,7 +478,7 @@ function Buffer:prepend(data)
   return self
 end
 
-function Buffer:read_line(eol, eol_is_rex)
+local function read_line(self, split_line, eol, eol_is_rex)
   local plain
 
   if eol then plain = not eol_is_rex
@@ -494,7 +505,7 @@ function Buffer:read_line(eol, eol_is_rex)
     local line, tail, eol_len
 
     -- try find EOL in last chunk
-    if plain or (eol == ch) then line, tail, eol_len = split_first_ex(t[#t], eol, true) end
+    if plain or (eol == ch) then line, tail, eol_len = split_line(t[#t], eol, true) end
 
     if eol == ch then assert(tail) end
 
@@ -515,7 +526,7 @@ function Buffer:read_line(eol, eol_is_rex)
     -- e.g. for LuaSockets pattern `\r*\n` it work with one iteration but still we need
     -- concat->split because of case such {"aaa\r", "\n"}
 
-    line, tail, eol_len = split_first_ex(table.concat(t), eol, plain)
+    line, tail, eol_len = split_line(table.concat(t), eol, plain)
 
     if tail then -- we found EOL
       if #tail > 0 then lst:push_front(tail) end
@@ -526,6 +537,14 @@ function Buffer:read_line(eol, eol_is_rex)
     t[1] = line
     for i = 2, #t do t[i] = nil end
   end
+end
+
+function Buffer:read_line(eol, eol_is_rex)
+  return read_line(self, split_first_ex, eol, eol_is_rex)
+end
+
+function Buffer:read_line_eol(eol, eol_is_rex)
+  return read_line(self, split_first_eol, eol, eol_is_rex)
 end
 
 function Buffer:read_all()
@@ -589,6 +608,8 @@ function Buffer:read(pat, ...)
 
   if pat == "*l" then return self:read_line(...) end
 
+  if pat == "*L" then return self:read_line_eol(...) end
+
   if pat == "*a" then return self:read_all() end
 
   return self:read_n(pat)
@@ -632,6 +653,17 @@ function Buffer.self_test(EOL)
 
   b:_validate_internal_state()
 
+  local b = Buffer.new("\r\n", true)
+
+  b:append("a")         b:_validate_internal_state()
+  b:append("\n")        b:_validate_internal_state()
+  b:append("\n")        b:_validate_internal_state()
+  b:append("\r")        b:_validate_internal_state()
+  b:append("\n123")     b:_validate_internal_state()
+  assert('a\n\n\r\n' == b:read_line_eol())
+
+  b:_validate_internal_state()
+
   local b = Buffer.new("\r\n")
 
   b:append("a\r")        b:_validate_internal_state()
@@ -646,6 +678,29 @@ function Buffer.self_test(EOL)
   assert("c" == b:read_line())
   b:_validate_internal_state()
   assert("d" == b:read_line())
+  b:_validate_internal_state()
+
+  local b = Buffer.new("\r\n")
+
+  b:append("a\r")        b:_validate_internal_state()
+  b:append("\nb")        b:_validate_internal_state()
+  b:append("\r\n")       b:_validate_internal_state()
+  b:append("c\r\nd\r\n") b:_validate_internal_state()
+  b:append("\r\n\r\n")   b:_validate_internal_state()
+
+  assert("a\r\n" == b:read_line_eol())
+  b:_validate_internal_state()
+  assert("b\r\n" == b:read_line_eol())
+  b:_validate_internal_state()
+  assert("c\r\n" == b:read_line_eol())
+  b:_validate_internal_state()
+  assert("d\r\n" == b:read_line_eol())
+  b:_validate_internal_state()
+  assert("\r\n" == b:read_line_eol())
+  b:_validate_internal_state()
+  assert("\r\n" == b:read_line_eol())
+  b:_validate_internal_state()
+  assert(nil == b:read_line_eol())
   b:_validate_internal_state()
 
   local b = Buffer:new(EOL)
