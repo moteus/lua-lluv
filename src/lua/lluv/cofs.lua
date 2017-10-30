@@ -57,6 +57,17 @@ function File:__init()
   return self
 end
 
+function File:__tostring()
+  local hash
+  if self._fd then
+    hash = string.match(tostring(self._fd), '%((.-)%)$')
+  else
+    hash = 'close'
+  end
+
+  return string.format('Lua-UV cofs.file (%s)', hash)
+end
+
 function File:_resume(...)
   return co_resume(self._co, ...)
 end
@@ -430,6 +441,12 @@ end
 
 function cofs.access(path, flags)
   return call_fs(uv.fs_access, path, flags)
+end
+
+function cofs.type(f)
+  if getmetatable(f) ~= File then return nil end
+  if f._fd then return 'file' end
+  return 'closed file'
 end
 
 return cofs
