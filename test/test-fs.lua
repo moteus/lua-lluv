@@ -172,6 +172,8 @@ local it = setmetatable(_ENV or _M, {__call = function(self, describe, fn)
   self["test " .. describe] = fn
 end})
 
+local TEST_DATA = '12345\r\n67890'
+
 local file, err
 
 function setup()
@@ -189,9 +191,8 @@ end
 
 it('open file', function()
   ut.corun(function()
-    run_flag = true
     file, err = assert(fs.open(TEST_FILE, 'rb'))
-    local data = assert_equal(TEST_DATA, file:read('*a'))
+    assert_equal(TEST_DATA, file:read('*a'))
     assert(file:close())
   end)
 
@@ -224,6 +225,34 @@ it('file object to string', function()
     assert_match('file %([%xx]+%)$', tostring(file))
     assert(file:close())
     assert_match('file %(closed%)$', tostring(file))
+  end)
+
+  assert_equal(0, uv.run())
+end)
+
+it('should read line in text mode', function()
+  local f = assert(io.open(TEST_FILE, 'r'))
+  local line = f:read('*l')
+  f:close()
+
+  ut.corun(function()
+    file, err = assert(fs.open(TEST_FILE, 'r'))
+    assert_equal(line, file:read('*l'))
+    assert(file:close())
+  end)
+
+  assert_equal(0, uv.run())
+end)
+
+it('should read line in binary mode', function()
+  local f = assert(io.open(TEST_FILE, 'rb'))
+  local line = f:read('*l')
+  f:close()
+
+  ut.corun(function()
+    file, err = assert(fs.open(TEST_FILE, 'rb'))
+    assert_equal(line, file:read('*l'))
+    assert(file:close())
   end)
 
   assert_equal(0, uv.run())

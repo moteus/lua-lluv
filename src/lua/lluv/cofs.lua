@@ -11,8 +11,9 @@
 ------------------------------------------------------------------
 --
 -- Known limitations
---  * does not suppot `text` mode. 
---  * file:read does not support `*n` pattern
+--  * `text` mode supports only for `*l` pattern.
+--           Any other patterns works only as binary
+--  * file:read does not support `*n` pattern (convert string to number)
 --  * file:write supports only strings
 --
 --! @usage
@@ -25,6 +26,8 @@
 
 local uv = require "lluv"
 local ut = require "lluv.utils"
+
+local is_windows = (string.sub(package.config, 1, 1) == '\\')
 
 local unpack = unpack or table.unpack
 
@@ -43,7 +46,9 @@ end
 
 local EOF = uv.error(uv.ERROR_UV, uv.EOF)
 
-local EOL = "\n"
+local TEXT_EOL   = is_windows and "\r\n" or "\n"
+
+local BINARY_EOL = "\n"
 
 local BUFFER_SIZE = 4096
 
@@ -95,6 +100,8 @@ end
 
 function File:open(path, mode)
   local terminated
+
+  self._eol = string.find(mode, 'b', nil, true) and BINARY_EOL or TEXT_EOL
 
   -- uv suppots only binary mode
   mode = mode:gsub('[bt]', '')
@@ -199,13 +206,13 @@ function File:read_line(keep)
     if chunk == '' then return res end
 
     res = res .. chunk
-    local i = string.find(res, EOL, nil, true)
+    local i = string.find(res, self._eol, nil, true)
 
     if i then
-      local rest_size = #res - (i - 1 + #EOL)
+      local rest_size = #res - (i - 1 + #self._eol)
       self._pos = self._pos - rest_size
 
-      if keep then i = i + #EOL end
+      if keep then i = i + #self._eol end
       return string.sub(res, 1, i - 1)
     end
   end
