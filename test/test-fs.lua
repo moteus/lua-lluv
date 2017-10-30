@@ -40,7 +40,8 @@ local function gc_collect(n)
   for i = 1, n or 5 do collectgarbage('collect') end
 end
 
-local select, ipairs, string = select, ipairs, string
+local select, ipairs, string, jit = select, ipairs, string, jit
+local _VERSION = _VERSION
 
 local ENABLE = true
 
@@ -283,12 +284,33 @@ it('lines should works', function()
   for line in io.lines(TEST_FILE)do lines[#lines + 1] = line end
 
   local l1, l2 = {}, {}
-  ut.corun(function()
-    file, err = assert(fs.open(TEST_FILE, 'r'))
-    for line in file:lines()do l1[#l1 + 1] = line end
-    assert(file:close())
-    for line in fs.lines(TEST_FILE)do l2[#l2 + 1] = line end
-  end)
+  if jit or _VERSION ~= 'Lua 5.1' then
+    ut.corun(function()
+      file, err = assert(fs.open(TEST_FILE, 'r'))
+      for line in file:lines() do l1[#l1 + 1] = line end
+      assert(file:close())
+      for line in fs.lines(TEST_FILE)do l2[#l2 + 1] = line end
+    end)
+  else
+    -- Lua 5.1 does not allows yield from iterator
+    ut.corun(function()
+      file, err = assert(fs.open(TEST_FILE, 'r'))
+      local iter, state = file:lines()
+      while true do
+          local line = iter(state)
+          if not line then break end
+          l1[#l1 + 1] = line
+      end
+      assert(file:close())
+
+      local iter, state = fs.lines(TEST_FILE)
+      while true do
+          local line = iter(state)
+          if not line then break end
+          l2[#l2 + 1] = line
+      end
+    end)
+  end
 
   assert_equal(0, uv.run())
 

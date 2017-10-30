@@ -15,6 +15,7 @@
 --           Any other patterns works only as binary
 --  * file:read does not support `*n` pattern (convert string to number)
 --  * file:write supports only strings
+--  * file:lines/fs.lines does not works on Lua 5.1 (yield from iterator)
 --
 --! @usage
 -- ut.corun(function()
