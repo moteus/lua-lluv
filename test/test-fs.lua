@@ -40,7 +40,7 @@ local function gc_collect(n)
   for i = 1, n or 5 do collectgarbage('collect') end
 end
 
-local select = select
+local select, ipairs, string = select, ipairs, string
 
 local ENABLE = true
 
@@ -256,6 +256,50 @@ it('should read line in binary mode', function()
   end)
 
   assert_equal(0, uv.run())
+end)
+
+it('should return nil on eof', function()
+  local f = assert(io.open(TEST_FILE, 'r'))
+  local line1 = f:read('*l')
+  local line2 = f:read('*l')
+  local line3 = f:read('*l')
+  f:close()
+
+  ut.corun(function()
+    file, err = assert(fs.open(TEST_FILE, 'r'))
+    assert_equal(line1, file:read('*l'))
+    assert_equal(line2, file:read('*l'))
+    assert_equal(line3, file:read('*l'))
+    assert(file:close())
+  end)
+
+  assert_equal(0, uv.run())
+end)
+
+it('lines should works', function()
+  local f = assert(io.open(TEST_FILE, 'r'))
+
+  local lines = {}
+  for line in io.lines(TEST_FILE)do lines[#lines + 1] = line end
+
+  local l1, l2 = {}, {}
+  ut.corun(function()
+    file, err = assert(fs.open(TEST_FILE, 'r'))
+    for line in file:lines()do l1[#l1 + 1] = line end
+    assert(file:close())
+    for line in fs.lines(TEST_FILE)do l2[#l2 + 1] = line end
+  end)
+
+  assert_equal(0, uv.run())
+
+  assert_equal(#lines, #l1)
+  assert_equal(#lines, #l2)
+
+  for i, line in ipairs(lines) do
+    local format = '%.2d - %s'
+    assert_equal(string.format(format, i, line), string.format(format, i, tostring(l1[i])))
+    assert_equal(string.format(format, i, line), string.format(format, i, tostring(l2[i])))
+  end
 end)
 
 end

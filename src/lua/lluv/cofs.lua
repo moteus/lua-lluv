@@ -163,7 +163,7 @@ function File:_read_some(n)
 
     if err then return self:_resume(nil, err) end
 
-    if size == 0 then return self:_resume('') end
+    if size == 0 then return self:_resume() end
 
     self._pos = self._pos + size
     self:_resume(buffer:to_s(size))
@@ -185,7 +185,10 @@ function File:read_n(n)
   local res = {}
   while n > 0 do
     local chunk, err = self:_read_some(math.min(chunk_size, n))
-    if not chunk then return nil, err, table.concat(res) end
+    if not chunk then
+      if err then return nil, err, table.concat(res) end
+      break
+    end
     if #chunk == 0 then break end
     n = n - #chunk
     res[#res + 1] = chunk
@@ -202,7 +205,11 @@ function File:read_line(keep)
   local res = ''
   while true do
     local chunk, err = self:_read_some()
-    if not chunk then return nil, err end
+    if not chunk then
+      if err then return nil, err end
+      if #res > 0 then return res end
+      return nil -- EOF
+    end
     if chunk == '' then return res end
 
     res = res .. chunk
@@ -241,6 +248,14 @@ function File:read(p, ...)
   until not p
 
   return unpack(res, 1, i - 1)
+end
+
+local function lines(self)
+  return self:read_line()
+end
+
+function File:lines()
+  return lines, self
 end
 
 function File:write_string(str)
@@ -454,6 +469,18 @@ function cofs.type(f)
   if getmetatable(f) ~= File then return nil end
   if f._fd then return 'file' end
   return 'closed file'
+end
+
+local function lines(file)
+  local line = file:read_line()
+  if not line then file:close() end
+  return line
+end
+
+function cofs.lines(f)
+  local file, err = cofs.open(f, 'r')
+  if not file then error(tostring(err), 2) end
+  return lines, file
 end
 
 return cofs
