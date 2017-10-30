@@ -11,7 +11,12 @@ local TEST_CASE  = assert(lunit.TEST_CASE)
 local skip       = lunit.skip or function() end
 
 local uv   = require "lluv"
+local ut   = require "lluv.utils"
+local fs   = require "lluv.cofs"
 local path = require "path"
+local io   = require "io"
+
+local tostring = tostring
 
 local TEST_FILE = "./test.txt"
 local BAD_FILE  = "./test.bad"
@@ -29,6 +34,10 @@ end
 
 local function rmfile(P)
   path.remove(P)
+end
+
+local function gc_collect(n)
+  for i = 1, n or 5 do collectgarbage('collect') end
 end
 
 local select = select
@@ -152,6 +161,71 @@ end)
 it("access with array flag", function()
   assert(path.exists(TEST_FILE))
   assert_true(uv.fs_access(TEST_FILE, {'read', 'write'}))
+  assert_equal(0, uv.run())
+end)
+
+end
+
+local _ENV = TEST_CASE'cofs' if ENABLE then
+
+local it = setmetatable(_ENV or _M, {__call = function(self, describe, fn)
+  self["test " .. describe] = fn
+end})
+
+local file, err
+
+function setup()
+  mkfile(TEST_FILE, TEST_DATA)
+end
+
+function teardown()
+  if file and file._fd then file._fd:close() end
+  file, err = nil
+
+  gc_collect()
+
+  rmfile(TEST_FILE)
+end
+
+it('open file', function()
+  ut.corun(function()
+    run_flag = true
+    file, err = assert(fs.open(TEST_FILE, 'rb'))
+    local data = assert_equal(TEST_DATA, file:read('*a'))
+    assert(file:close())
+  end)
+
+  assert_equal(0, uv.run())
+end)
+
+it('type function', function()
+  ut.corun(function()
+    file, err = assert(fs.open(TEST_FILE, 'rb'))
+    assert_equal('file', fs.type(file))
+    assert(file:close())
+    assert_equal('closed file', fs.type(file))
+  end)
+
+  assert_function(fs.type)
+  assert_nil(fs.type(1))
+  assert_nil(fs.type(' '))
+  assert_nil(fs.type(nil))
+  assert_nil(fs.type({}))
+  local f = assert(io.open(TEST_FILE, 'rb'))
+  f:close()
+  assert_nil(fs.type(f))
+
+  assert_equal(0, uv.run())
+end)
+
+it('file object to string', function()
+  ut.corun(function()
+    file, err = assert(fs.open(TEST_FILE, 'rb'))
+    assert_match('file %([%xx]+%)$', tostring(file))
+    assert(file:close())
+    assert_match('file %(closed%)$', tostring(file))
+  end)
+
   assert_equal(0, uv.run())
 end)
 

@@ -62,7 +62,7 @@ function File:__tostring()
   if self._fd then
     hash = string.match(tostring(self._fd), '%((.-)%)$')
   else
-    hash = 'close'
+    hash = 'closed'
   end
 
   return string.format('Lua-UV cofs.file (%s)', hash)
