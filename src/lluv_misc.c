@@ -418,6 +418,16 @@ LLUV_IMPL_SAFE(lluv_os_unsetenv){
 
 #endif
 
+#if LLUV_UV_VER_GE(1,16,0)
+
+LLUV_IMPL_SAFE(lluv_os_getppid){
+  uv_pid_t ppid = uv_os_getppid();
+  lutil_pushint64(L, ppid);
+  return 1;
+}
+
+#endif
+
 
 static const lluv_uv_const_t lluv_misc_constants[] = {
   { 0, NULL }
@@ -468,6 +478,9 @@ enum {
   { "os_setenv",           lluv_os_setenv_##F       }, \
   { "os_unsetenv",         lluv_os_unsetenv_##F     }, \
 
+#define LLUV_MISC_FUNCTIONS_1_16_0(F)                  \
+  { "os_getppid",          lluv_os_getppid_##F      }, \
+
 static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = {
   {
     LLUV_MISC_FUNCTIONS(unsafe)
@@ -479,6 +492,9 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #endif
 #if LLUV_UV_VER_GE(1,12,0)
     LLUV_MISC_FUNCTIONS_1_12_0(unsafe)
+#endif
+#if LLUV_UV_VER_GE(1,16,0)
+    LLUV_MISC_FUNCTIONS_1_16_0(unsafe)
 #endif
     {NULL,NULL}
   },
@@ -492,6 +508,9 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #endif
 #if LLUV_UV_VER_GE(1,12,0)
     LLUV_MISC_FUNCTIONS_1_12_0(safe)
+#endif
+#if LLUV_UV_VER_GE(1,16,0)
+    LLUV_MISC_FUNCTIONS_1_16_0(safe)
 #endif
     {NULL,NULL}
   },
