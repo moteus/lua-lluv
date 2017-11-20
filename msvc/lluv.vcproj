@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="windows-1251"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="lluv"
 	ProjectGUID="{F35B315F-92DB-4143-A4C7-0B5AFDD48A33}"
 	RootNamespace="lluv"
@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;f:\e\Projects\lua-windows-environment\libs\libuv\1.12.0\include&quot;;&quot;$(LUA_DIR)\include&quot;"
+				AdditionalIncludeDirectories="$(UV_DIR)\include;$(LUA_DIR)\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;LLUV_EXPORTS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -63,7 +63,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="ws2_32.lib libuv.lib lua5.1.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="&quot;f:\e\Projects\lua-windows-environment\libs\libuv\1.12.0\Win32\v100\dynamic&quot;;&quot;$(LUA_DIR)\lib&quot;"
+				AdditionalLibraryDirectories="$(UV_DIR)\lib;$(LUA_DIR)\lib"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="1"

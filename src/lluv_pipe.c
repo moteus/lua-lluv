@@ -105,7 +105,7 @@ static int lluv_pipe_bind(lua_State *L){
     lluv_error_create(L, LLUV_ERR_UV, err, addr);
     lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
   }
-  else{
+  else if(lua_isfunction(L, top)){
     lua_pushvalue(L, 1);
     lua_pushnil(L);
     lua_pushvalue(L, 2);
