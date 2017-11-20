@@ -59,6 +59,37 @@ static int lluv_pipe_open(lua_State *L){
   return 1;
 }
 
+#if LLUV_UV_VER_GE(1, 16, 0)
+
+static int lluv_pipe_chmod(lua_State *L){
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_READABLE, "read"     },
+    { UV_READABLE, "readable" },
+    { UV_WRITABLE, "write"    },
+    { UV_WRITABLE, "writable" },
+
+    { 0, NULL }
+  };
+
+  lluv_handle_t *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
+  int flags = UV_READABLE, err;
+
+  if(!lua_isnoneornil(L, 2)){
+    flags = lluv_opt_flags_ui_2(L, 2, flags, FLAGS);
+  }
+
+  lua_settop(L, 1);
+
+  err = uv_pipe_chmod(LLUV_H(handle, uv_pipe_t), flags);
+  if(err < 0){
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
+  }
+
+  return 1;
+}
+
+#endif
+
 static int lluv_pipe_bind(lua_State *L){
   lluv_handle_t *handle = lluv_check_pipe(L, 1, LLUV_FLAG_OPEN);
   const char      *addr = luaL_checkstring(L, 2);
@@ -195,6 +226,9 @@ static const struct luaL_Reg lluv_pipe_methods[] = {
   { "pending_instances", lluv_pipe_pending_instances },
   { "pending_count",     lluv_pipe_pending_count     },
   { "pending_type",      lluv_pipe_pending_type      },
+#if LLUV_UV_VER_GE(1, 16, 0)
+  { "chmod",             lluv_pipe_chmod             },
+#endif
 
   {NULL,NULL}
 };
