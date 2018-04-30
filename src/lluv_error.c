@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2016 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2018 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -10,14 +10,6 @@
 
 #include "lluv_error.h"
 #include <assert.h>
-
-#if (LLUV_UV_VER_GE(1,20,0)) && (!defined UV__ERR)
-#  if EDOM > 0
-#    define UV__ERR(x) (-(x))
-#  else
-#    define UV__ERR(x) (x)
-#  endif
-#endif
 
 #ifdef _MSC_VER
 #  define str_n_len strnlen
@@ -180,7 +172,7 @@ static lluv_uv_const_t lluv_error_constants[] = {
   { LLUV_ERR_UV,         "ERROR_UV"         },
 
   /* error codes */
-#define XX(N,M) {UV__##N, #N },
+#define XX(N,M) {UV_##N, #N },
   UV_ERRNO_MAP(XX)
 #undef  XX
 
