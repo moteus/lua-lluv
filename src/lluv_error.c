@@ -11,6 +11,14 @@
 #include "lluv_error.h"
 #include <assert.h>
 
+#if (LLUV_UV_VER_GE(1,20,0)) && (!defined UV__ERR)
+#  if EDOM > 0
+#    define UV__ERR(x) (-(x))
+#  else
+#    define UV__ERR(x) (x)
+#  endif
+#endif
+
 #ifdef _MSC_VER
 #  define str_n_len strnlen
 #else
