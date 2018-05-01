@@ -495,18 +495,38 @@ static int lluv_stream_set_blocking(lua_State *L){
   return 1;
 }
 
+static int lluv_stream_get_write_queue_size(lua_State *L){
+  lluv_handle_t *handle = lluv_check_stream(L, 1, LLUV_FLAG_OPEN);
+  size_t queue_size;
+
+  lua_settop(L, 1);
+
+#if LLUV_UV_VER_GE(1,19,0)
+  queue_size = uv_stream_get_write_queue_size(LLUV_H(handle, uv_stream_t));
+#else
+  queue_size = LLUV_H(handle, uv_stream_t)->write_queue_size;
+#endif
+
+  lutil_pushint64(L, queue_size);
+
+  return 1;
+}
+
+UV_EXTERN size_t uv_stream_get_write_queue_size(const uv_stream_t* stream);
+
 static const struct luaL_Reg lluv_stream_methods[] = {
-  { "shutdown",     lluv_stream_shutdown      },
-  { "listen",       lluv_stream_listen        },
-  { "accept",       lluv_stream_accept        },
-  { "start_read",   lluv_stream_start_read    },
-  { "stop_read",    lluv_stream_stop_read     },
-  { "try_write",    lluv_stream_try_write     },
-  { "write",        lluv_stream_write         },
-  { "write2",       lluv_stream_write2        },
-  { "readable",     lluv_stream_is_readable   },
-  { "writable",     lluv_stream_is_writable   },
-  { "set_blocking", lluv_stream_set_blocking  },
+  { "shutdown",             lluv_stream_shutdown              },
+  { "listen",               lluv_stream_listen                },
+  { "accept",               lluv_stream_accept                },
+  { "start_read",           lluv_stream_start_read            },
+  { "stop_read",            lluv_stream_stop_read             },
+  { "try_write",            lluv_stream_try_write             },
+  { "write",                lluv_stream_write                 },
+  { "write2",               lluv_stream_write2                },
+  { "readable",             lluv_stream_is_readable           },
+  { "writable",             lluv_stream_is_writable           },
+  { "set_blocking",         lluv_stream_set_blocking          },
+  { "get_write_queue_size", lluv_stream_get_write_queue_size  },
   
   {NULL,NULL}
 };

@@ -441,6 +441,34 @@ static int lluv_udp_set_ttl(lua_State *L){
   return 1;
 }
 
+static int lluv_udp_get_send_queue_size(lua_State *L){
+  lluv_handle_t *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  size_t queue_size;
+
+#if LLUV_UV_VER_GE(1,19,0)
+  queue_size = uv_udp_get_send_queue_size(LLUV_H(handle, uv_udp_t));
+#else
+  queue_size = LLUV_H(handle, uv_udp_t)->send_queue_size;
+#endif
+
+  lutil_pushint64(L, queue_size);
+  return 1;
+}
+
+static int lluv_udp_get_send_queue_count(lua_State *L){
+  lluv_handle_t *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  size_t queue_count;
+
+#if LLUV_UV_VER_GE(1,19,0)
+  queue_count = uv_udp_get_send_queue_count(LLUV_H(handle, uv_udp_t));
+#else
+  queue_count = LLUV_H(handle, uv_udp_t)->send_queue_count;
+#endif
+
+  lutil_pushint64(L, queue_count);
+  return 1;
+}
+
 static const struct luaL_Reg lluv_udp_methods[] = {
   { "open",                     lluv_udp_open                    },
   { "bind",                     lluv_udp_bind                    },
@@ -455,6 +483,8 @@ static const struct luaL_Reg lluv_udp_methods[] = {
   { "set_multicast_interface",  lluv_udp_set_multicast_interface },
   { "set_broadcast",            lluv_udp_set_broadcast           },
   { "set_ttl",                  lluv_udp_set_ttl                 },
+  { "get_send_queue_size",      lluv_udp_get_send_queue_size     },
+  { "get_send_queue_count",     lluv_udp_get_send_queue_count    },
 
   {NULL,NULL}
 };
