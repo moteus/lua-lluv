@@ -426,15 +426,6 @@ LLUV_IMPL_SAFE(lluv_os_getppid){
   return 1;
 }
 
-/*
-UV_EXTERN int uv_if_indextoname(unsigned int ifindex,
-                                char* buffer,
-                                size_t* size);
-UV_EXTERN int uv_if_indextoiid(unsigned int ifindex,
-                               char* buffer,
-                               size_t* size);
-*/
-
 LLUV_IMPL_SAFE(lluv_if_indextoname){
   int idx = luaL_checkinteger(L, 1);
 
@@ -508,6 +499,15 @@ LLUV_IMPL_SAFE(lluv_if_indextoiid){
 }
 #endif
 
+#if LLUV_UV_VER_GE(1,18,0)
+
+LLUV_IMPL_SAFE(lluv_os_getpid){
+  uv_pid_t ppid = uv_os_getpid();
+  lutil_pushint64(L, ppid);
+  return 1;
+}
+
+#endif
 
 static const lluv_uv_const_t lluv_misc_constants[] = {
   { 0, NULL }
@@ -531,6 +531,9 @@ enum {
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_16_0_1,
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_16_0_2,
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_16_0_3,
+  #endif
+  #if LLUV_UV_VER_GE(1,18,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_18_0_1,
   #endif
   LLUV_MISC_FUNCTIONS_COUNT
 };
@@ -568,6 +571,9 @@ enum {
   { "if_indextoname",      lluv_if_indextoname_##F  }, \
   { "if_indextoiid",       lluv_if_indextoiid_##F   }, \
 
+#define LLUV_MISC_FUNCTIONS_1_18_0(F)                  \
+  { "os_getpid",           lluv_os_getpid_##F       }, \
+
 static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = {
   {
     LLUV_MISC_FUNCTIONS(unsafe)
@@ -582,6 +588,9 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #endif
 #if LLUV_UV_VER_GE(1,16,0)
     LLUV_MISC_FUNCTIONS_1_16_0(unsafe)
+#endif
+#if LLUV_UV_VER_GE(1,18,0)
+    LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
 #endif
     {NULL,NULL}
   },
