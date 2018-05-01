@@ -85,6 +85,9 @@ static int lluv_push_fs_result_object(lua_State* L, lluv_fs_request_t* lreq) {
 #if LLUV_UV_VER_GE(1,8,0)
     case UV_FS_REALPATH:
 #endif
+#if LLUV_UV_VER_GE(1,14,0)
+    case UV_FS_COPYFILE:
+#endif
       lua_pushvalue(L, LLUV_LOOP_INDEX);
       return 1;
 
@@ -208,6 +211,12 @@ static int lluv_push_fs_result(lua_State* L, lluv_fs_request_t* lreq) {
       lua_pushstring(L, req->path);
       return 2;
     }
+
+#if LLUV_UV_VER_GE(1,14,0)
+    case UV_FS_COPYFILE:
+      lua_pushboolean(L, req->result == 0);
+      return 1;
+#endif
 
     default:
       fprintf(stderr, "UNKNOWN FS TYPE %d\n", req->fs_type);
@@ -513,6 +522,36 @@ LLUV_IMPL_SAFE(lluv_fs_realpath) {
 
   LLUV_PRE_FS();
   err = uv_fs_realpath(loop->handle, &req->req, path, cb);
+  LLUV_POST_FS();
+}
+
+#endif
+
+#if LLUV_UV_VER_GE(1,14,0)
+
+LLUV_IMPL_SAFE(lluv_fs_copyfile) {
+  static const lluv_uv_const_t FLAGS[] = {
+    { UV_FS_COPYFILE_EXCL,          "excl"        },
+#if LLUV_UV_VER_GE(1,20,0)
+    { UV_FS_COPYFILE_FICLONE,       "clone"       },
+    { UV_FS_COPYFILE_FICLONE_FORCE, "clone_force" },
+#endif
+
+    { 0, NULL }
+  };
+
+  LLUV_CHECK_LOOP_FS()
+
+  const char *path = luaL_checkstring(L, ++argc);
+  const char *dest = luaL_checkstring(L, ++argc);
+
+  int flags = 0;
+  if(lluv_arg_exists(L, argc + 1)){
+    flags = lluv_opt_flags_ui_2(L, ++argc, flags, FLAGS);
+  }
+
+  LLUV_PRE_FS();
+  err = uv_fs_copyfile(loop->handle, &req->req, path, dest, flags, cb);
   LLUV_POST_FS();
 }
 
@@ -956,6 +995,9 @@ enum {
   #if LLUV_UV_VER_GE(1,8,0)
   LLUV_FS_FUNCTIONS_DUMMY_1,
   #endif
+  #if LLUV_UV_VER_GE(1,14,0)
+  LLUV_FS_FUNCTIONS_DUMMY_2,
+  #endif
   LLUV_FS_FUNCTIONS_COUNT
 };
 
@@ -981,11 +1023,17 @@ enum {
 #define LLUV_FS_FUNCTIONS_1_8_0(F)          \
   { "fs_realpath", lluv_fs_realpath_##F },  \
 
+#define LLUV_FS_FUNCTIONS_1_14_0(F)         \
+  { "fs_copyfile", lluv_fs_copyfile_##F },  \
+
 static const struct luaL_Reg lluv_fs_functions[][LLUV_FS_FUNCTIONS_COUNT] = {
   {
     LLUV_FS_FUNCTIONS(unsafe)
 #if LLUV_UV_VER_GE(1,8,0)
     LLUV_FS_FUNCTIONS_1_8_0(unsafe)
+#endif
+#if LLUV_UV_VER_GE(1,14,0)
+    LLUV_FS_FUNCTIONS_1_14_0(unsafe)
 #endif
     {NULL,NULL}
   },
@@ -994,8 +1042,29 @@ static const struct luaL_Reg lluv_fs_functions[][LLUV_FS_FUNCTIONS_COUNT] = {
 #if LLUV_UV_VER_GE(1,8,0)
     LLUV_FS_FUNCTIONS_1_8_0(safe)
 #endif
+#if LLUV_UV_VER_GE(1,14,0)
+    LLUV_FS_FUNCTIONS_1_14_0(safe)
+#endif
     {NULL,NULL}
   },
+};
+
+static const lluv_uv_const_t lluv_fs_constants[] = {
+  { F_OK, "F_OK"  },
+  { R_OK, "R_OK"  },
+  { W_OK, "W_OK"  },
+  { X_OK, "X_OK"  },
+
+#if LLUV_UV_VER_GE(1,14,0)
+  { UV_FS_COPYFILE_EXCL,          "FS_COPYFILE_EXCL"          },
+#endif
+
+#if LLUV_UV_VER_GE(1,20,0)
+  { UV_FS_COPYFILE_FICLONE,       "FS_COPYFILE_FICLONE"       },
+  { UV_FS_COPYFILE_FICLONE_FORCE, "FS_COPYFILE_FICLONE_FORCE" },
+#endif
+
+  { 0, NULL }
 };
 
 LLUV_INTERNAL void lluv_fs_initlib(lua_State *L, int nup, int safe){
@@ -1008,4 +1077,5 @@ LLUV_INTERNAL void lluv_fs_initlib(lua_State *L, int nup, int safe){
   lua_pop(L, 1);
 
   luaL_setfuncs(L, lluv_fs_functions[safe], nup);
+  lluv_register_constants(L, lluv_fs_constants);
 }
