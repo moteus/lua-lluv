@@ -32,14 +32,14 @@
 #include "lluv_misc.h"
 #include "lluv_dns.h"
 
-#define LLUV_COPYRIGHT     "Copyright (C) 2014-2017 Alexey Melnichuk"
+#define LLUV_COPYRIGHT     "Copyright (C) 2014-2018 Alexey Melnichuk"
 #define LLUV_MODULE_NAME   "lluv"
 #define LLUV_LICENSE       "MIT"
 
 #define LLUV_VERSION_MAJOR 0
 #define LLUV_VERSION_MINOR 1
 #define LLUV_VERSION_PATCH 9
-#define LLUV_VERSION_COMMENT "dev"
+// #define LLUV_VERSION_COMMENT "dev"
 
 static const char* LLUV_REGISTRY = LLUV_PREFIX" Registry";
 static const char* LLUV_HANDLES  = LLUV_PREFIX" Handles";
