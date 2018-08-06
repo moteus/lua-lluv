@@ -27,6 +27,7 @@
 #include "lluv_fs_poll.h"
 #include "lluv_process.h"
 #include <assert.h>
+#include <string.h>
 
 static const char* LLUV_HANDLES_SET = LLUV_PREFIX" Handles set";
 static const char* LLUV_HANDLE_NIL_UD = LLUV_PREFIX" nil ud";
