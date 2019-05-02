@@ -55,11 +55,29 @@ local function slit_first_self_test()
   assert(s2 == nil)
 end
 
-local function class(base)
+local metamethods = {
+  '__call', '__tostring', '__concat', '__len', '__pairs', '__ipairs', '__add', '__sub', '__mul' , '__div', 
+  '__pow', '__mod', '__idiv', '__eq', '__lt', '__le', '__band', '__bor', '__bxor', '__bnot', '__bshl', '__bshr'
+}
+
+local function class(base, mt_list)
   local t = base and setmetatable({}, base) or {}
   t.__index = t
   t.__class = t
   t.__base  = base
+
+  if mt_list == true then
+    mt_list = metamethods
+  end
+
+  if mt_list then
+    for _, name in ipairs(mt_list) do
+      local method = rawget(base, name)
+      if method then
+        t[name] = method
+      end
+    end
+  end
 
   function t.new(...)
     local o = setmetatable({}, t)
@@ -81,21 +99,26 @@ local function class_self_test()
   function A:__init(a, b)
     assert(a == 1)
     assert(b == 2)
+    return self
+  end
+
+  function A:__tostring()
+    return 'A::tostring'
   end
 
   A:new(1, 2)
   A.new(1, 2)
 
-  local B = class(A)
+  local B = class(A, true)
 
   function B:__init(a,b,c)
     assert(self.__base == A)
-    A.__init(B, a, b)
     assert(c == 3)
+    return A.__init(self, a, b)
   end
 
   B:new(1, 2, 3)
-  B.new(1, 2, 3)
+  assert(tostring(B.new(1, 2, 3)) == 'A::tostring')
 end
 
 -------------------------------------------------------------------
