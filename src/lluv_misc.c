@@ -613,12 +613,12 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
     LLUV_MISC_FUNCTIONS_1_16_0(unsafe)
 #endif
 #if LLUV_UV_VER_GE(1,18,0)
-  LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
+    LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
 #endif
 #if LLUV_UV_VER_GE(1,28,0)
-  LLUV_MISC_FUNCTIONS_1_28_0(unsafe)
+    LLUV_MISC_FUNCTIONS_1_28_0(unsafe)
 #endif
-{NULL,NULL}
+  {NULL,NULL}
   },
   {
     LLUV_MISC_FUNCTIONS(safe)

@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2017 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2019 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -184,5 +184,7 @@ typedef unsigned char lluv_flag_t;
   static int N##_impl(lua_State *L, lluv_flags_t safe_flag)                              \
 
 #define UNUSED_ARG(arg) (void)arg
+
+void *lluv_debug_no_mem_allocator(void *ud, void *ptr, size_t osize, size_t nsize);
 
 #endif

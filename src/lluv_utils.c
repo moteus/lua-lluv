@@ -56,6 +56,7 @@ LLUV_INTERNAL void lluv_free(lua_State* L, void *ptr){
 
 LLUV_INTERNAL int lluv_lua_call(lua_State* L, int narg, int nret){
   int ret, error_handler = lua_isnil(L, LLUV_ERROR_HANDLER_INDEX) ? 0 : LLUV_ERROR_HANDLER_INDEX;
+  int top = lua_gettop(L);
 
   // On Lua it is possible use upvalueindex directly. (Tested On Lua 5.1-5.3)
   // But it is fail on LuaJIT.
@@ -76,7 +77,11 @@ LLUV_INTERNAL int lluv_lua_call(lua_State* L, int narg, int nret){
 
   if(!ret) return 0;
 
-  if(ret == LUA_ERRMEM) lua_pushlightuserdata(L, (void*)LLUV_MEMORY_ERROR_MARK);
+  if(ret == LUA_ERRMEM){
+    lua_settop(L, top - (narg + 1)); // not enouth memory message
+    lua_pushlightuserdata(L, (void*)LLUV_MEMORY_ERROR_MARK);
+  }
+
   lua_replace(L, LLUV_ERROR_MARK_INDEX);
   {
     lluv_loop_t* loop = lluv_opt_loop(L, LLUV_LOOP_INDEX, 0);
@@ -553,4 +558,13 @@ void lluv_push_os_socket(lua_State *L, uv_os_sock_t fd) {
     lua_pushlightuserdata(L, (void*)fd);
 
 #endif /*_WIN32*/
+}
+
+void *lluv_debug_no_mem_allocator(void *ud, void *ptr, size_t osize, size_t nsize){
+  (void)ud;  (void)osize; (void)nsize; (void)ptr;  /*not used*/
+
+  // here we really can not handle already allocated memory 
+  // because it may by different c-runtime. (e.g. Release vs Debug version of MSVC)
+
+  return NULL;
 }
