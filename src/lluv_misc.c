@@ -259,6 +259,23 @@ static int lluv_hrtime(lua_State *L){
   return 1;
 }
 
+#if LLUV_UV_VER_GE(1,28,0)
+
+LLUV_IMPL_SAFE(lluv_gettimeofday){
+  uv_timeval64_t tv = { 0 };
+  int err = uv_gettimeofday(&tv);
+
+  if (err < 0) {
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lutil_pushint64(L, tv.tv_sec);
+  lutil_pushint64(L, tv.tv_usec);
+  return 2;
+}
+
+#endif
+
 #if LLUV_UV_VER_GE(1,6,0)
 
 LLUV_IMPL_SAFE(lluv_os_homedir){
@@ -535,6 +552,9 @@ enum {
   #if LLUV_UV_VER_GE(1,18,0)
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_18_0_1,
   #endif
+  #if LLUV_UV_VER_GE(1,28,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_28_0_1,
+  #endif
   LLUV_MISC_FUNCTIONS_COUNT
 };
 
@@ -574,6 +594,9 @@ enum {
 #define LLUV_MISC_FUNCTIONS_1_18_0(F)                  \
   { "os_getpid",           lluv_os_getpid_##F       }, \
 
+#define LLUV_MISC_FUNCTIONS_1_28_0(F)                  \
+  { "gettimeofday",        lluv_gettimeofday_##F    }, \
+
 static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = {
   {
     LLUV_MISC_FUNCTIONS(unsafe)
@@ -590,9 +613,12 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
     LLUV_MISC_FUNCTIONS_1_16_0(unsafe)
 #endif
 #if LLUV_UV_VER_GE(1,18,0)
-    LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
+  LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
 #endif
-    {NULL,NULL}
+#if LLUV_UV_VER_GE(1,28,0)
+  LLUV_MISC_FUNCTIONS_1_28_0(unsafe)
+#endif
+{NULL,NULL}
   },
   {
     LLUV_MISC_FUNCTIONS(safe)
@@ -608,7 +634,13 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #if LLUV_UV_VER_GE(1,16,0)
     LLUV_MISC_FUNCTIONS_1_16_0(safe)
 #endif
-    {NULL,NULL}
+#if LLUV_UV_VER_GE(1,18,0)
+    LLUV_MISC_FUNCTIONS_1_18_0(safe)
+#endif
+#if LLUV_UV_VER_GE(1,28,0)
+    LLUV_MISC_FUNCTIONS_1_28_0(safe)
+#endif
+  {NULL,NULL}
   },
 };
 
