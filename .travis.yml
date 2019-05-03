@@ -50,6 +50,7 @@ script:
   - lua test-gc-tcp.lua
   - lua test-data.lua
   - lua test-udp-send-ctx.lua
+  - lua test-udp-connect.lua
   - lua test-os-handle.lua
   - lua test-os-socket.lua
   - lua test-env.lua

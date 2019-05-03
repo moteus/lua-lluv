@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2016 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2019 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -137,23 +137,141 @@ static int lluv_udp_bind(lua_State *L){
   return 1;
 }
 
+#if LLUV_UV_VER_GE(1,27,0)
+
+static int lluv_udp_connect(lua_State *L){
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  int is_disconnect = (lua_isnoneornil(L, 2) || lua_isfunction(L, 2)) ? 1 : 0;
+  struct sockaddr_storage sa; int err = is_disconnect ? 0 : lluv_check_addr(L, 2, &sa);
+  struct sockaddr_storage *psa = is_disconnect ? 0 : &sa;
+  int top = lua_gettop(L);
+
+  if(top > 4) lua_settop(L, top = 4);
+
+  if (err < 0) {
+    assert(psa);
+
+    lua_checkstack(L, 3);
+
+    lua_pushvalue(L, 2); lua_pushliteral(L, ":"); lua_pushvalue(L, 3); lua_concat(L, 3);
+
+    if (!lua_isfunction(L, top)) {
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    }
+
+    lluv_error_create(L, LLUV_ERR_UV, err, lua_tostring(L, -1));
+    lua_remove(L, -2);
+    lua_pushvalue(L, 1);
+    lua_insert(L, -2);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+    lua_settop(L, 1);
+    return 1;
+  }
+
+  err = uv_udp_connect(LLUV_H(handle, uv_udp_t), (struct sockaddr *)psa);
+
+  if (err < 0) {
+    const char *ip = 0;
+    if (psa) {
+      lua_checkstack(L, 3);
+      lua_pushvalue(L, 2); lua_pushliteral(L, ":"); lua_pushvalue(L, 3); lua_concat(L, 3);
+      ip = lua_tostring(L, -1);
+    }
+
+    if (!lua_isfunction(L, top)) {
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, ip);
+    }
+
+    lluv_error_create(L, LLUV_ERR_UV, err, ip);
+    if (ip) {
+      lua_remove(L, -2);
+    }
+    lua_pushvalue(L, 1);
+    lua_insert(L, -2);
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), 2);
+    lua_settop(L, 1);
+    return 1;
+  }
+
+  if(lua_isfunction(L, top)){
+    int n = 2;
+    lua_pushvalue(L, 1);
+    lua_pushnil(L);
+    if (psa) {
+      n += lluv_push_addr(L, psa);
+    }
+    lluv_loop_defer_call(L, lluv_loop_by_handle(&handle->handle), n);
+  }
+
+  lua_settop(L, 1);
+  return 1;
+}
+
+static int lluv_udp_getpeername(lua_State *L) {
+  lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
+  struct sockaddr_storage sa;
+  int size = sizeof(sa);
+
+  int err = uv_udp_getpeername(LLUV_H(handle, uv_udp_t), (struct sockaddr *)&sa, &size);
+
+  if (err < 0) {
+    return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, 0);
+  }
+
+  return lluv_push_addr(L, &sa);
+}
+#endif
+
 //{ Send
 
 static int lluv_udp_try_send(lua_State *L){
   lluv_handle_t *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
-  struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
-  size_t len; const char *str = luaL_checklstring(L, 4, &len);
-  uv_buf_t buf = lluv_buf_init((char*)str, len);
+  int top = lua_gettop(L);
+  int is_connected =
+#if LLUV_UV_VER_GE(1,27,0)
+    (top == 2) ? 1 :
+#endif
+    0;
+  struct sockaddr_storage sa; int err = is_connected ? 0 : lluv_check_addr(L, 2, &sa);
+  struct sockaddr_storage *psa = is_connected ? 0 : &sa;
+  int data_index = is_connected ? 2 : 4;
 
-  if(err < 0){
+  if (err < 0) {
     lua_settop(L, 3);
-    lua_pushliteral(L, ":");lua_insert(L, -2);lua_concat(L, 3);
+    lua_pushliteral(L, ":"); lua_insert(L, -2); lua_concat(L, 3);
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  lluv_check_none(L, 3);
+  if (lua_istable(L, data_index)) {
+    size_t i, n = lua_rawlen(L, data_index);
+    uv_buf_t *buf;
 
-  err = uv_udp_try_send(LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)&sa);
+    luaL_argcheck(L, n > 0, data_index, "Empty array not supported");
+
+    buf = (uv_buf_t*)lluv_alloca(sizeof(uv_buf_t) * n);
+    if (!buf) {
+      return lluv_fail(L, handle->flags, LLUV_ERR_UV, ENOMEM, NULL);
+    }
+
+    for (i = 0; i < n; ++i) {
+      size_t len; const char *str;
+      lua_rawgeti(L, data_index, i + 1);
+      str = luaL_checklstring(L, -1, &len);
+      buf[i] = lluv_buf_init((char*)str, len);
+      lua_pop(L, 1);
+    }
+    err = uv_udp_try_send(LLUV_H(handle, uv_udp_t), buf, n, (struct sockaddr*)psa);
+  }
+  else {
+    size_t len; const char *str;
+    uv_buf_t buf;
+
+    luaL_argcheck(L, lua_isstring(L, data_index), data_index, "String or array expected");
+    str = lua_tolstring(L, data_index, &len);
+    buf = lluv_buf_init((char*)str, len);
+    err = uv_udp_try_send(LLUV_H(handle, uv_udp_t), &buf, 1, (struct sockaddr*)psa);
+  }
+
   if(err < 0){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, NULL);
   }
@@ -166,10 +284,10 @@ static void lluv_on_udp_send_cb(uv_udp_send_t* arg, int status){
   lluv_on_stream_req_cb((uv_req_t*)arg, status);
 }
 
-static int lluv_udp_send_(lua_State *L, lluv_handle_t *handle, struct sockaddr *sa, uv_buf_t *buf, size_t n){
+static int lluv_udp_send_(lua_State *L, lluv_handle_t *handle, struct sockaddr *sa, uv_buf_t *buf, size_t n, int data_index){
   int err; lluv_req_t *req;
 
-  if(lua_gettop(L) == 6){
+  if(lua_gettop(L) == (data_index + 2)){
     int ctx;
     lluv_check_callable(L, -2);
     ctx = luaL_ref(L, LLUV_LUA_REGISTRY);
@@ -178,10 +296,10 @@ static int lluv_udp_send_(lua_State *L, lluv_handle_t *handle, struct sockaddr *
     req->ctx = ctx;
   }
   else{
-    if(lua_gettop(L) == 4)
-      lua_settop(L, 5);
+    if(lua_gettop(L) == data_index)
+      lua_settop(L, data_index + 1);
     else
-      lluv_check_args_with_cb(L, 5);
+      lluv_check_args_with_cb(L, data_index + 1);
 
     req = lluv_req_new(L, UV_UDP_SEND, handle);
     lluv_req_ref(L, req); /* string/table */
@@ -192,13 +310,14 @@ static int lluv_udp_send_(lua_State *L, lluv_handle_t *handle, struct sockaddr *
   return lluv_return_req(L, handle, req, err);
 }
 
-static int lluv_udp_send_t(lua_State *L, lluv_handle_t  *handle, struct sockaddr *sa){
-  int i, n = lua_rawlen(L, 4);
+static int lluv_udp_send_t(lua_State *L, lluv_handle_t  *handle, struct sockaddr *sa, int data_index){
+  int i;
+  size_t n = lua_rawlen(L, data_index);
   uv_buf_t *buf;
 
-  assert(lua_type(L, 4) == LUA_TTABLE);
+  assert(lua_type(L, data_index) == LUA_TTABLE);
 
-  luaL_argcheck(L, n > 0, 4, "Empty array not supported");
+  luaL_argcheck(L, n > 0, data_index, "Empty array not supported");
 
   buf = (uv_buf_t*)lluv_alloca(sizeof(uv_buf_t) * n);
   if(!buf){
@@ -207,18 +326,34 @@ static int lluv_udp_send_t(lua_State *L, lluv_handle_t  *handle, struct sockaddr
 
   for(i = 0; i < n; ++i){
     size_t len; const char *str;
-    lua_rawgeti(L, 4, i + 1);
+    lua_rawgeti(L, data_index, i + 1);
     str = luaL_checklstring(L, -1, &len);
     buf[i] = lluv_buf_init((char*)str, len);
     lua_pop(L, 1);
   }
 
-  return lluv_udp_send_(L, handle, sa, buf, n);
+  return lluv_udp_send_(L, handle, sa, buf, n, data_index);
 }
 
+// connected
+//   send(data)
+//   send(data, cb)
+//   send(data, cb, ctx)
+// disconnected
+//   send(addr, port, data)
+//   send(addr, port, data, cb)
+//   send(addr, port, data, cb, ctx)
 static int lluv_udp_send(lua_State *L){
   lluv_handle_t  *handle = lluv_check_udp(L, 1, LLUV_FLAG_OPEN);
-  struct sockaddr_storage sa; int err = lluv_check_addr(L, 2, &sa);
+  int top = lua_gettop(L);
+  int is_connected =
+#if LLUV_UV_VER_GE(1,27,0)
+    ((top == 2) || lua_isfunction(L, 3)) ? 1 :
+#endif
+    0;
+  struct sockaddr_storage sa; int err = is_connected ? 0 : lluv_check_addr(L, 2, &sa);
+  struct sockaddr_storage *psa = is_connected ? 0 : &sa;
+  int data_index = is_connected ? 2 : 4;
 
   if(err < 0){
     int top = lua_gettop(L);
@@ -240,13 +375,13 @@ static int lluv_udp_send(lua_State *L){
     return lluv_fail(L, handle->flags, LLUV_ERR_UV, err, lua_tostring(L, -1));
   }
 
-  if(lua_type(L, 4) == LUA_TTABLE){
-    return lluv_udp_send_t(L, handle, (struct sockaddr*)&sa);
+  if(lua_type(L, data_index) == LUA_TTABLE){
+    return lluv_udp_send_t(L, handle, (struct sockaddr*)psa, data_index);
   }
   else{
-    size_t len; const char *str = luaL_checklstring(L, 4, &len);
+    size_t len; const char *str = luaL_checklstring(L, data_index, &len);
     uv_buf_t buf = lluv_buf_init((char*)str, len);
-    return lluv_udp_send_(L, handle, (struct sockaddr*)&sa, &buf, 1);
+    return lluv_udp_send_(L, handle, (struct sockaddr*)psa, &buf, 1, data_index);
   }
 }
 
@@ -485,6 +620,10 @@ static const struct luaL_Reg lluv_udp_methods[] = {
   { "set_ttl",                  lluv_udp_set_ttl                 },
   { "get_send_queue_size",      lluv_udp_get_send_queue_size     },
   { "get_send_queue_count",     lluv_udp_get_send_queue_count    },
+#if LLUV_UV_VER_GE(1,27,0)
+  { "connect",                  lluv_udp_connect                 },
+  { "getpeername",              lluv_udp_getpeername             },
+#endif
 
   {NULL,NULL}
 };

@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2017 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2019 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -167,6 +167,10 @@ LLUV_INTERNAL int lluv_to_addr(lua_State *L, const char *addr, int port, struct 
     else{
       return UV_EINVAL;
     }
+  }
+
+  if ((port < 0) || (port > 65535)) {
+    return UV_EINVAL;
   }
 
   memset(sa, 0, sizeof(*sa));
