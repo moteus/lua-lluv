@@ -32,7 +32,7 @@
 #include "lluv_misc.h"
 #include "lluv_dns.h"
 
-#define LLUV_COPYRIGHT     "Copyright (C) 2014-2018 Alexey Melnichuk"
+#define LLUV_COPYRIGHT     "Copyright (C) 2014-2019 Alexey Melnichuk"
 #define LLUV_MODULE_NAME   "lluv"
 #define LLUV_LICENSE       "MIT"
 

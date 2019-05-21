@@ -1,7 +1,7 @@
 /******************************************************************************
 * Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
-* Copyright (C) 2014-2018 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+* Copyright (C) 2014-2019 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 *
 * Licensed according to the included 'LICENSE' document
 *
@@ -276,6 +276,27 @@ LLUV_IMPL_SAFE(lluv_gettimeofday){
 
 #endif
 
+#if LLUV_UV_VER_GE(1,25,0)
+
+LLUV_IMPL_SAFE(lluv_os_uname){
+  uv_utsname_t uname;
+  int err = uv_os_uname(&uname);
+
+  if (err < 0) {
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_newtable(L);
+  lua_pushstring(L, uname.sysname); lua_setfield(L, -2, "sysname");
+  lua_pushstring(L, uname.release); lua_setfield(L, -2, "release");
+  lua_pushstring(L, uname.version); lua_setfield(L, -2, "version");
+  lua_pushstring(L, uname.machine); lua_setfield(L, -2, "machine");
+
+  return 1;
+}
+
+#endif
+
 #if LLUV_UV_VER_GE(1,6,0)
 
 LLUV_IMPL_SAFE(lluv_os_homedir){
@@ -526,6 +547,16 @@ LLUV_IMPL_SAFE(lluv_os_getpid){
 
 #endif
 
+#if LLUV_UV_VER_GE(1,29,0)
+
+LLUV_IMPL_SAFE(lluv_get_constrained_memory){
+  uint64_t ret = uv_get_constrained_memory();
+  lutil_pushint64(L, ret);
+  return 1;
+}
+
+#endif
+
 static const lluv_uv_const_t lluv_misc_constants[] = {
   { 0, NULL }
 };
@@ -552,8 +583,14 @@ enum {
   #if LLUV_UV_VER_GE(1,18,0)
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_18_0_1,
   #endif
+  #if LLUV_UV_VER_GE(1,25,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_25_0_1,
+  #endif
   #if LLUV_UV_VER_GE(1,28,0)
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_28_0_1,
+  #endif
+  #if LLUV_UV_VER_GE(1,29,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_29_0_1,
   #endif
   LLUV_MISC_FUNCTIONS_COUNT
 };
@@ -594,8 +631,14 @@ enum {
 #define LLUV_MISC_FUNCTIONS_1_18_0(F)                  \
   { "os_getpid",           lluv_os_getpid_##F       }, \
 
+#define LLUV_MISC_FUNCTIONS_1_25_0(F)                  \
+  { "os_uname",            lluv_os_uname_##F        }, \
+
 #define LLUV_MISC_FUNCTIONS_1_28_0(F)                  \
   { "gettimeofday",        lluv_gettimeofday_##F    }, \
+
+#define LLUV_MISC_FUNCTIONS_1_29_0(F)                  \
+  { "get_constrained_memory", lluv_get_constrained_memory_##F }, \
 
 static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = {
   {
@@ -615,8 +658,14 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #if LLUV_UV_VER_GE(1,18,0)
     LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
 #endif
+#if LLUV_UV_VER_GE(1,25,0)
+    LLUV_MISC_FUNCTIONS_1_25_0(unsafe)
+#endif
 #if LLUV_UV_VER_GE(1,28,0)
     LLUV_MISC_FUNCTIONS_1_28_0(unsafe)
+#endif
+#if LLUV_UV_VER_GE(1,29,0)
+    LLUV_MISC_FUNCTIONS_1_29_0(unsafe)
 #endif
   {NULL,NULL}
   },
@@ -637,8 +686,14 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #if LLUV_UV_VER_GE(1,18,0)
     LLUV_MISC_FUNCTIONS_1_18_0(safe)
 #endif
+#if LLUV_UV_VER_GE(1,25,0)
+    LLUV_MISC_FUNCTIONS_1_25_0(safe)
+#endif
 #if LLUV_UV_VER_GE(1,28,0)
     LLUV_MISC_FUNCTIONS_1_28_0(safe)
+#endif
+#if LLUV_UV_VER_GE(1,29,0)
+    LLUV_MISC_FUNCTIONS_1_29_0(safe)
 #endif
   {NULL,NULL}
   },

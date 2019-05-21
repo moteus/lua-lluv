@@ -220,6 +220,7 @@ static int lluv_udp_getpeername(lua_State *L) {
 
   return lluv_push_addr(L, &sa);
 }
+
 #endif
 
 //{ Send
