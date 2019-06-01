@@ -462,10 +462,9 @@ local function split_first_ex(str, sep, plain)
 end
 
 function Buffer:__init(eol, eol_is_rex)
-  self._eol       = eol or "\n"
-  self._eol_plain = not eol_is_rex
   self._lst       = List.new()
   self._size      = 0
+  self:set_eol(eol or '\n')
   return self
 end
 
@@ -482,6 +481,9 @@ end
 function Buffer:set_eol(eol, eol_is_rex)
   self._eol       = assert(eol)
   self._eol_plain = not eol_is_rex
+  self._eol_char  = self._eol:sub(-1)
+  local ch = self._eol_char
+  self._eol_check = function(s) return not not string.find(s, ch, nil, true) end
   return self
 end
 
@@ -504,13 +506,19 @@ end
 local function read_line(self, split_line, eol, eol_is_rex)
   local plain
 
-  if eol then plain = not eol_is_rex
-  else eol, plain = self._eol, self._eol_plain end
+  local ch, check
+  if eol then
+    plain = not eol_is_rex
+    ch    = eol:sub(-1)
+    check = function(s) return not not string.find(s, ch, nil, true) end
+  else
+    eol   = self._eol
+    plain = self._eol_plain
+    ch    = self._eol_char
+    check = self._eol_check
+  end
 
   local lst = self._lst
-
-  local ch = eol:sub(-1)
-  local check = function(s) return not not string.find(s, ch, nil, true) end
 
   local t = {}
   while true do
@@ -528,7 +536,9 @@ local function read_line(self, split_line, eol, eol_is_rex)
     local line, tail, eol_len
 
     -- try find EOL in last chunk
-    if plain or (eol == ch) then line, tail, eol_len = split_line(t[#t], eol, true) end
+    if plain or (eol == ch) then
+      line, tail, eol_len = split_line(t[#t], eol, true)
+    end
 
     if eol == ch then assert(tail) end
 
@@ -536,7 +546,9 @@ local function read_line(self, split_line, eol, eol_is_rex)
       -- we can split just last chunk and concat
       t[#t] = line
 
-      if #tail > 0 then lst:push_front(tail) end
+      if #tail > 0 then
+        lst:push_front(tail)
+      end
 
       line = table.concat(t)
       self._size = self._size - (#line + eol_len)
@@ -595,16 +607,15 @@ function Buffer:read_n(n)
     return ""
   end
 
+  if self._size < n then
+    return
+  end
+
   local lst = self._lst
   local size, t = 0, {}
 
   while true do
     local chunk = lst:pop_front()
-
-    if not chunk then -- buffer too small
-      if #t > 0 then lst:push_front(table.concat(t)) end
-      return
-    end
 
     if (size + #chunk) >= n then
       assert(n > size)
@@ -647,9 +658,11 @@ function Buffer:size()
 end
 
 function Buffer:next_line(data, eol)
-  eol = eol or self._eol or "\n"
   if data then self:append(data) end
-  return self:read_line(eol, true)
+  if eol then
+    return self:read_line(eol, true)
+  end
+  return self:read_line()
 end
 
 function Buffer:next_n(data, n)
@@ -665,7 +678,7 @@ end
 
 function Buffer.self_test(EOL)
 
-  local b = Buffer.new("\r\n", true)
+  local b = Buffer.new("\r\n")
 
   b:append("a")         b:_validate_internal_state()
   b:append("\n")        b:_validate_internal_state()
@@ -676,7 +689,7 @@ function Buffer.self_test(EOL)
 
   b:_validate_internal_state()
 
-  local b = Buffer.new("\r\n", true)
+  local b = Buffer.new("\r\n")
 
   b:append("a")         b:_validate_internal_state()
   b:append("\n")        b:_validate_internal_state()
@@ -748,7 +761,7 @@ function Buffer.self_test(EOL)
   assert(nil == b:next_line("aaa"))
   b:_validate_internal_state()
 
-  assert("aaa" == b:next_n("123456", 3))
+  assert("aaa1" == b:next_n("1123456", 4))
   b:_validate_internal_state()
 
   assert(nil == b:next_n("", 8))
@@ -783,7 +796,6 @@ function Buffer.self_test(EOL)
   b:_validate_internal_state()
   assert(nil == b:read_line())
   b:_validate_internal_state()
-  -- assert("ccc" == b:read_line("$", true))
 
   b:reset()
   b:_validate_internal_state()
@@ -810,6 +822,15 @@ function Buffer.self_test(EOL)
   assert(nil == b:read_line())
   b:append("\0")
   assert("aaa" == b:read_line())
+
+  b:reset()
+  b:append('aaa\r\r')
+  assert(nil == b:read_line('\r+\n', true))
+  b:append('\r')
+  assert(nil == b:read_line('\r+\n', true))
+  b:append('\nbbb\r\n')
+  assert('aaa' == b:read_line('\r+\n', true))
+  assert('bbb' == b:read_line('\r+\n', true))
 end
 
 end
@@ -985,6 +1006,8 @@ local function self_test()
   slit_first_self_test()
   class_self_test()
 end
+
+self_test()
 
 return {
   Buffer      = Buffer;
