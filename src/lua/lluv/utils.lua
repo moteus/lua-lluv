@@ -464,7 +464,7 @@ end
 function Buffer:__init(eol, eol_is_rex)
   self._lst       = List.new()
   self._size      = 0
-  self:set_eol(eol or '\n')
+  self:set_eol(eol or '\n', eol_is_rex)
   return self
 end
 
@@ -831,6 +831,12 @@ function Buffer.self_test(EOL)
   b:append('\nbbb\r\n')
   assert('aaa' == b:read_line('\r+\n', true))
   assert('bbb' == b:read_line('\r+\n', true))
+
+  b:reset()
+
+  b = Buffer.new('\r*\n', true)
+  b:append('aaa\r\r\n')
+  assert('aaa' == b:read_line())
 end
 
 end
@@ -1006,8 +1012,6 @@ local function self_test()
   slit_first_self_test()
   class_self_test()
 end
-
-self_test()
 
 return {
   Buffer      = Buffer;
