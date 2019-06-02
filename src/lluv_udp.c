@@ -633,7 +633,7 @@ static const lluv_uv_const_t lluv_udp_constants[] = {
   { UV_UDP_IPV6ONLY,   "UDP_IPV6ONLY"   },
   { UV_UDP_PARTIAL,    "UDP_PARTIAL"    },
   { UV_UDP_REUSEADDR,  "UDP_REUSEADDR"  },
-  { UV_LEAVE_GROUP ,   "LEAVE_GROUP "   },
+  { UV_LEAVE_GROUP ,   "LEAVE_GROUP"    },
   { UV_JOIN_GROUP,     "JOIN_GROUP"     },
 
   { 0, NULL }
