@@ -297,6 +297,38 @@ LLUV_IMPL_SAFE(lluv_os_uname){
 
 #endif
 
+#if LLUV_UV_VER_GE(1,23,0)
+
+LLUV_IMPL_SAFE(lluv_os_getpriority){
+  uv_pid_t pid = lutil_checkint64(L, 1);
+  int priority;
+
+  int err = uv_os_getpriority(pid, &priority);
+
+  if (err < 0) {
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushinteger(L, priority);
+  return 1;
+}
+
+LLUV_IMPL_SAFE(lluv_os_setpriority){
+  uv_pid_t pid = lutil_checkint64(L, 1);
+  int priority = luaL_checkinteger(L, 2);
+
+  int err = uv_os_getpriority(pid, &priority);
+
+  if (err < 0) {
+    return lluv_fail(L, safe_flag, LLUV_ERR_UV, err, NULL);
+  }
+
+  lua_pushinteger(L, priority);
+  return 1;
+}
+
+#endif
+
 #if LLUV_UV_VER_GE(1,6,0)
 
 LLUV_IMPL_SAFE(lluv_os_homedir){
@@ -558,7 +590,16 @@ LLUV_IMPL_SAFE(lluv_get_constrained_memory){
 #endif
 
 static const lluv_uv_const_t lluv_misc_constants[] = {
-  { 0, NULL }
+#if LLUV_UV_VER_GE(1,23,0)
+    { UV_PRIORITY_LOW,          "PRIORITY_LOW"          },
+    { UV_PRIORITY_BELOW_NORMAL, "PRIORITY_BELOW_NORMAL" },
+    { UV_PRIORITY_NORMAL,       "PRIORITY_NORMAL"       },
+    { UV_PRIORITY_ABOVE_NORMAL, "PRIORITY_ABOVE_NORMAL" },
+    { UV_PRIORITY_HIGH,         "PRIORITY_HIGH"         },
+    { UV_PRIORITY_HIGHEST,      "PRIORITY_HIGHEST"      },
+#endif
+
+    { 0, NULL }
 };
 
 enum {
@@ -582,6 +623,10 @@ enum {
   #endif
   #if LLUV_UV_VER_GE(1,18,0)
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_18_0_1,
+  #endif
+  #if LLUV_UV_VER_GE(1,23,0)
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_23_0_1,
+  LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_23_0_2,
   #endif
   #if LLUV_UV_VER_GE(1,25,0)
   LLUV_MISC_FUNCTIONS_COUNT_DUMMY_1_25_0_1,
@@ -631,6 +676,10 @@ enum {
 #define LLUV_MISC_FUNCTIONS_1_18_0(F)                  \
   { "os_getpid",           lluv_os_getpid_##F       }, \
 
+#define LLUV_MISC_FUNCTIONS_1_23_0(F)                  \
+  { "os_getpriority",      lluv_os_getpriority_##F  }, \
+  { "os_setpriority",      lluv_os_setpriority_##F  }, \
+
 #define LLUV_MISC_FUNCTIONS_1_25_0(F)                  \
   { "os_uname",            lluv_os_uname_##F        }, \
 
@@ -657,6 +706,9 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #endif
 #if LLUV_UV_VER_GE(1,18,0)
     LLUV_MISC_FUNCTIONS_1_18_0(unsafe)
+#endif
+#if LLUV_UV_VER_GE(1,23,0)
+    LLUV_MISC_FUNCTIONS_1_23_0(unsafe)
 #endif
 #if LLUV_UV_VER_GE(1,25,0)
     LLUV_MISC_FUNCTIONS_1_25_0(unsafe)
@@ -685,6 +737,9 @@ static const struct luaL_Reg lluv_misc_functions[][LLUV_MISC_FUNCTIONS_COUNT] = 
 #endif
 #if LLUV_UV_VER_GE(1,18,0)
     LLUV_MISC_FUNCTIONS_1_18_0(safe)
+#endif
+#if LLUV_UV_VER_GE(1,23,0)
+    LLUV_MISC_FUNCTIONS_1_23_0(safe)
 #endif
 #if LLUV_UV_VER_GE(1,25,0)
     LLUV_MISC_FUNCTIONS_1_25_0(safe)
