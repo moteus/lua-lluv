@@ -4,7 +4,7 @@ source .travis/platform.sh
 
 cd $TRAVIS_BUILD_DIR
 
-git clone https://github.com/libuv/libuv.git -b v1.x
+git clone https://github.com/libuv/libuv.git -b v1.34.2
 
 cd libuv
 
